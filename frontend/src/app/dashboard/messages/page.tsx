@@ -33,7 +33,7 @@ import socketService from '@/services/socketService';
 import AudioCallInterface from '@/components/AudioCallInterface';
 import CallHistory from '@/components/CallHistory';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com');
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jailfriend-1.onrender.com');
 
 interface Message {
   _id: string;
@@ -145,7 +145,7 @@ export default function MessagesPage() {
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   const messages = selectedConversation ? (allMessages[selectedConversation._id] || []) : [];
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com';
 
   const getCurrentUserId = () => {
     const token = localStorage.getItem('token');

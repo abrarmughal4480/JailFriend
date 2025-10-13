@@ -5,7 +5,7 @@ import ReelsCreationModal from '@/components/ReelsCreationModal';
 import { getReels, Reel, ReelsResponse } from '@/utils/reelsApi';
 import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com';
 
 // Helper function to construct proper video URLs
 const getVideoUrl = (url: string): string => {

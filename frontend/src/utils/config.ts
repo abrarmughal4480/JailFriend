@@ -1,7 +1,7 @@
 // Centralized configuration for the application
 export const config = {
   // API Configuration
-  API_URL: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com'),
+  API_URL: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jailfriend-1.onrender.com'),
   
   // Frontend URL
   FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://jaifriend.hgdjlive.com'),
