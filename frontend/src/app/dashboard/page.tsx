@@ -16,7 +16,7 @@ import LocationDetector from '@/components/LocationDetector';
 import LocationDisplay from '@/components/LocationDisplay';
 
 import { isAuthenticated, clearAuth, getCurrentUserId } from '@/utils/auth';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import {
   searchGifsApi,
   getTrendingGifsApi,

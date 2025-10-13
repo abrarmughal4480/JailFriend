@@ -33,7 +33,7 @@ import socketService from '@/services/socketService';
 import AudioCallInterface from '@/components/AudioCallInterface';
 import CallHistory from '@/components/CallHistory';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jailfriend-1.onrender.com');
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface Message {
   _id: string;
@@ -145,7 +145,7 @@ export default function MessagesPage() {
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   const messages = selectedConversation ? (allMessages[selectedConversation._id] || []) : [];
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const getCurrentUserId = () => {
     const token = localStorage.getItem('token');
@@ -924,32 +924,77 @@ export default function MessagesPage() {
     };
 
     // WebRTC signaling handlers
-    const handleWebRTCOffer = (event: CustomEvent) => {
+    const handleWebRTCOffer = async (event: CustomEvent) => {
       const { callId, offer, senderId } = event.detail;
+      console.log('📞 WebRTC Offer received:', { callId, offer, senderId, currentCallId: currentCall?._id });
+      
       if (currentCall && currentCall._id === callId && peerConnection) {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-        peerConnection.createAnswer().then(answer => {
-          peerConnection.setLocalDescription(answer);
+        try {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+          console.log('✅ Remote description set for offer');
+          
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          console.log('✅ Answer created and local description set');
+          
           socketService.getSocket()?.emit('webrtc_answer', {
             callId,
             answer,
             callerId: senderId
           });
+          console.log('📤 Answer sent via socket');
+        } catch (error) {
+          console.error('❌ Error handling WebRTC offer:', error);
+        }
+      } else {
+        console.warn('⚠️ WebRTC offer ignored - no matching call or peer connection:', {
+          hasCurrentCall: !!currentCall,
+          currentCallId: currentCall?._id,
+          offerCallId: callId,
+          hasPeerConnection: !!peerConnection
         });
       }
     };
 
-    const handleWebRTCAnswer = (event: CustomEvent) => {
+    const handleWebRTCAnswer = async (event: CustomEvent) => {
       const { callId, answer } = event.detail;
+      console.log('📞 WebRTC Answer received:', { callId, answer, currentCallId: currentCall?._id });
+      
       if (currentCall && currentCall._id === callId && peerConnection) {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        try {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          console.log('✅ Remote description set for answer');
+        } catch (error) {
+          console.error('❌ Error handling WebRTC answer:', error);
+        }
+      } else {
+        console.warn('⚠️ WebRTC answer ignored - no matching call or peer connection:', {
+          hasCurrentCall: !!currentCall,
+          currentCallId: currentCall?._id,
+          answerCallId: callId,
+          hasPeerConnection: !!peerConnection
+        });
       }
     };
 
-    const handleWebRTCIceCandidate = (event: CustomEvent) => {
+    const handleWebRTCIceCandidate = async (event: CustomEvent) => {
       const { callId, candidate } = event.detail;
+      console.log('📞 WebRTC ICE Candidate received:', { callId, candidate, currentCallId: currentCall?._id });
+      
       if (currentCall && currentCall._id === callId && peerConnection) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        try {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+          console.log('✅ ICE candidate added');
+        } catch (error) {
+          console.error('❌ Error adding ICE candidate:', error);
+        }
+      } else {
+        console.warn('⚠️ ICE candidate ignored - no matching call or peer connection:', {
+          hasCurrentCall: !!currentCall,
+          currentCallId: currentCall?._id,
+          candidateCallId: callId,
+          hasPeerConnection: !!peerConnection
+        });
       }
     };
 
@@ -966,9 +1011,9 @@ export default function MessagesPage() {
     window.addEventListener('socket_call_rejected', handleCallRejected as EventListener);
     window.addEventListener('socket_call_ended', handleCallEnded as EventListener);
     window.addEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
-    window.addEventListener('socket_webrtc_offer', handleWebRTCOffer as EventListener);
-    window.addEventListener('socket_webrtc_answer', handleWebRTCAnswer as EventListener);
-    window.addEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidate as EventListener);
+    window.addEventListener('socket_webrtc_offer', handleWebRTCOffer as unknown as EventListener);
+    window.addEventListener('socket_webrtc_answer', handleWebRTCAnswer as unknown as EventListener);
+    window.addEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidate as unknown as EventListener);
 
     return () => {
       window.removeEventListener('socket_new_message', handleNewMessage as EventListener);
@@ -984,9 +1029,9 @@ export default function MessagesPage() {
       window.removeEventListener('socket_call_rejected', handleCallRejected as EventListener);
       window.removeEventListener('socket_call_ended', handleCallEnded as EventListener);
       window.removeEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
-      window.removeEventListener('socket_webrtc_offer', handleWebRTCOffer as EventListener);
-      window.removeEventListener('socket_webrtc_answer', handleWebRTCAnswer as EventListener);
-      window.removeEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidate as EventListener);
+      window.removeEventListener('socket_webrtc_offer', handleWebRTCOffer as unknown as EventListener);
+      window.removeEventListener('socket_webrtc_answer', handleWebRTCAnswer as unknown as EventListener);
+      window.removeEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidate as unknown as EventListener);
       
       const setOfflineStatus = async () => {
         try {
@@ -1348,9 +1393,10 @@ export default function MessagesPage() {
   };
 
   const toggleSpeaker = () => {
-    setIsSpeakerOn(!isSpeakerOn);
+    const newSpeakerState = !isSpeakerOn;
+    setIsSpeakerOn(newSpeakerState);
     if (remoteAudioRef.current) {
-      remoteAudioRef.current.muted = isSpeakerOn;
+      remoteAudioRef.current.muted = !newSpeakerState; // Fix inverted logic
     }
   };
 
@@ -1377,6 +1423,8 @@ export default function MessagesPage() {
       
       if (localAudioRef.current) {
         localAudioRef.current.srcObject = stream;
+        localAudioRef.current.muted = true; // Mute local audio to prevent echo
+        console.log('✅ Local audio stream set (muted to prevent echo)');
       }
 
       // Create peer connection
@@ -1394,10 +1442,15 @@ export default function MessagesPage() {
 
       // Handle remote stream
       pc.ontrack = (event) => {
+        console.log('📞 Remote track received:', event);
         const remoteStream = event.streams[0];
         setRemoteStream(remoteStream);
         if (remoteAudioRef.current) {
           remoteAudioRef.current.srcObject = remoteStream;
+          remoteAudioRef.current.play().catch(error => {
+            console.error('❌ Error playing remote audio:', error);
+          });
+          console.log('✅ Remote audio stream set and playing');
         }
       };
 
@@ -1422,12 +1475,35 @@ export default function MessagesPage() {
             ? activeCall.receiverId._id 
             : activeCall.callerId._id;
           
+          console.log('📤 Sending ICE candidate:', {
+            callId: activeCall._id,
+            candidate: event.candidate,
+            receiverId: otherUserId
+          });
+          
           socketService.getSocket()?.emit('webrtc_ice_candidate', {
             callId: activeCall._id,
             candidate: event.candidate,
             receiverId: otherUserId
           });
+        } else if (!event.candidate) {
+          console.log('✅ ICE gathering complete');
         }
+      };
+
+      // Handle connection state changes
+      pc.onconnectionstatechange = () => {
+        console.log('📞 Connection state changed:', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          console.log('✅ WebRTC connection established successfully!');
+        } else if (pc.connectionState === 'failed') {
+          console.error('❌ WebRTC connection failed');
+        }
+      };
+
+      // Handle ICE connection state changes
+      pc.oniceconnectionstatechange = () => {
+        console.log('📞 ICE connection state:', pc.iceConnectionState);
       };
 
       setPeerConnection(pc);
@@ -2290,8 +2366,19 @@ export default function MessagesPage() {
       />
 
       {/* Hidden audio elements for WebRTC */}
-      <audio ref={localAudioRef} autoPlay muted />
-      <audio ref={remoteAudioRef} autoPlay />
+      <audio 
+        ref={localAudioRef} 
+        autoPlay 
+        muted 
+        playsInline
+        style={{ display: 'none' }}
+      />
+      <audio 
+        ref={remoteAudioRef} 
+        autoPlay 
+        playsInline
+        style={{ display: 'none' }}
+      />
     </div>
   );
 }       

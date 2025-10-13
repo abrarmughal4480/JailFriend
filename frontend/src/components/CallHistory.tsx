@@ -41,7 +41,7 @@ export default function CallHistory({ userId, isVisible, onClose }: CallHistoryP
   const [hasMore, setHasMore] = useState(true);
   const [cleaningUp, setCleaningUp] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const fetchCallHistory = async (pageNum: number = 1, append: boolean = false) => {
     const token = getToken();

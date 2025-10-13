@@ -39,7 +39,7 @@ const FollowersSidebar: React.FC<FollowersSidebarProps> = ({ isAdminPage = false
         if (token) {
           console.log('🔍 Fetching following users...');
           // Get current user's following list
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com'}/api/users/following/me`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/following/me`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -161,7 +161,7 @@ const FollowersSidebar: React.FC<FollowersSidebarProps> = ({ isAdminPage = false
       const token = localStorage.getItem('token');
       if (token) {
         console.log('🔄 Refreshing following users...');
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com'}/api/users/following/me`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/following/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -220,7 +220,7 @@ const FollowersSidebar: React.FC<FollowersSidebarProps> = ({ isAdminPage = false
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com'}/api/users/search?q=${encodeURIComponent(query)}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/search?q=${encodeURIComponent(query)}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -314,7 +314,7 @@ const FollowersSidebar: React.FC<FollowersSidebarProps> = ({ isAdminPage = false
               >
                 <div className="w-12 h-12 bg-white rounded-full shadow-lg overflow-hidden relative border-2 border-blue-200 hover:border-blue-400 hover:scale-105 transition-all duration-200">
                   <img
-                    src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com'}/${user.avatar}`) : '/default-avatar.svg'}
+                    src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL}/${user.avatar}`) : '/default-avatar.svg'}
                     alt={user.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -408,7 +408,7 @@ const FollowersSidebar: React.FC<FollowersSidebarProps> = ({ isAdminPage = false
                       className="rounded"
                     />
                     <img
-                      src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL || 'https://jailfriend-1.onrender.com'}/${user.avatar}`) : '/default-avatar.svg'}
+                      src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL}/${user.avatar}`) : '/default-avatar.svg'}
                       alt={user.name}
                       className="w-6 h-6 rounded-full object-cover"
                       onError={(e) => {

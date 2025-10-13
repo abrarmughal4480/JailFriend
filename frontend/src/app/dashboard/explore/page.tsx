@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, Users, FileText, Group, Gamepad2, Plus, Filter, X, Loader2 } from 'lucide-react';
 import Popup, { PopupState } from '../../../components/Popup';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jailfriend-1.onrender.com');
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import { getToken } from '../../../utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { 

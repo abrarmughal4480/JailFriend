@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '@/utils/auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jailfriend-1.onrender.com');
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 class SocketService {
   private socket: Socket | null = null;
