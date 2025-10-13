@@ -129,19 +129,14 @@ const SocialExplorePage = () => {
         return;
       }
 
-('🔍 Fetching users with token:', token.substring(0, 20) + '...');
-('🔍 Search query:', searchQuery || 'No search query');
 
       let usersData;
       if (searchQuery && searchQuery.trim()) {
-('🔍 Searching users with query:', searchQuery);
         usersData = await searchUsersApi(token, searchQuery);
       } else {
-('🔍 Getting suggested users');
         usersData = await getSuggestedUsersApi(token);
       }
       
-('🔍 Raw users data from backend:', usersData);
       
       // Handle different response formats
       let usersArray = [];
@@ -152,7 +147,6 @@ const SocialExplorePage = () => {
       } else if (usersData && usersData.data) {
         usersArray = usersData.data;
       } else {
-('⚠️ Unexpected users data format:', usersData);
         usersArray = [];
       }
       
@@ -169,15 +163,12 @@ const SocialExplorePage = () => {
         location: user.location || user.address || ''
       }));
       
-('✅ Mapped users data:', mappedUsers);
       setUsers(mappedUsers);
       
       if (mappedUsers.length === 0) {
-('ℹ️ No users found');
         showPopup('info', 'No Users Found', 'No users match your search criteria. Try adjusting your search or check back later.');
       }
     } catch (error: any) {
-('❌ Error fetching users:', error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to fetch users';
       showPopup('error', 'Error', errorMessage);
       setUsers([]);
@@ -193,7 +184,6 @@ const SocialExplorePage = () => {
       const token = getToken();
       const pagesData = await getPagesApi(token || undefined);
       
-('🔍 Raw pages data from backend:', pagesData);
       
       // Map backend data to frontend interface
       const mappedPages = (pagesData || []).map((page: any) => ({
@@ -212,10 +202,8 @@ const SocialExplorePage = () => {
         createdAt: page.createdAt || new Date().toISOString()
       }));
       
-('✅ Mapped pages data:', mappedPages);
       setPages(mappedPages);
     } catch (error: any) {
-('❌ Error fetching pages:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch pages';
       showPopup('error', 'Error', errorMessage);
       setPages([]); // Set empty array instead of sample data
@@ -231,7 +219,6 @@ const SocialExplorePage = () => {
       const token = getToken();
       const groupsData = await getPublicGroupsApi(token || undefined);
       
-('🔍 Raw groups data from backend:', groupsData);
       
       // Map backend data to frontend interface
       const mappedGroups = (groupsData || []).map((group: any) => ({
@@ -251,10 +238,8 @@ const SocialExplorePage = () => {
         createdAt: group.createdAt || new Date().toISOString()
       }));
       
-('✅ Mapped groups data:', mappedGroups);
       setGroups(mappedGroups);
     } catch (error: any) {
-('❌ Error fetching groups:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch groups';
       showPopup('error', 'Error', errorMessage);
       setGroups([]); // Set empty array instead of sample data
@@ -283,10 +268,8 @@ const SocialExplorePage = () => {
         return;
       }
 
-('🔗 Frontend: Following user:', userId);
       
       const response = await followUserApi(token, userId);
-('🔗 Backend response:', response);
       
       // Update local state based on backend response
       setUsers(prev => prev.map(user => 
@@ -307,7 +290,6 @@ const SocialExplorePage = () => {
       const action = response.isFollowing ? 'followed' : 'unfollowed';
       showPopup('success', 'Success!', `User ${action} successfully`);
             } catch (error: any) {
-('❌ Error following user:', error);
           const errorMessage = error.response?.data?.error || error.message || 'Failed to follow user';
           showPopup('error', 'Error', errorMessage);
         }
@@ -343,7 +325,6 @@ const SocialExplorePage = () => {
           setGroups(mappedGroups);
         }
       } catch (error) {
-('Error searching groups:', error);
         showPopup('error', 'Error', 'Failed to search groups');
       }
     }
@@ -375,7 +356,6 @@ const SocialExplorePage = () => {
 
       showPopup('success', 'Success!', 'Page liked successfully');
     } catch (error) {
-('Error liking page:', error);
       showPopup('error', 'Error', 'Failed to like page');
     }
   };
@@ -399,7 +379,6 @@ const SocialExplorePage = () => {
 
       showPopup('success', 'Success!', 'Group joined successfully');
     } catch (error) {
-('Error joining group:', error);
       showPopup('error', 'Error', 'Failed to join group');
     }
   };
