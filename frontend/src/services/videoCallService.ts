@@ -48,10 +48,11 @@ class VideoCallService {
         const checkSocket = () => {
             const socket = socketService.getSocket();
             if (socket && socket.connected) {
-                console.log('Video call service connected to existing socket');
-                console.log('Socket ID:', socket.id);
+                console.log('🎯 Video call service connected to existing socket');
+                console.log('🎯 Socket ID:', socket.id);
                 
                 // Join video call service
+                console.log('🎯 Joining video call service room for user:', this.userId);
                 socket.emit('join-video-call-service', {
                     userId: this.userId,
                     userName: this.userName
@@ -59,7 +60,9 @@ class VideoCallService {
 
                 // Set up event listeners
                 socket.on('incoming-video-call', (data) => {
-                    console.log('📹 Incoming video call:', data);
+                    console.log('📹 Incoming video call received:', data);
+                    console.log('📹 Current user ID:', this.userId);
+                    console.log('📹 Receiver ID from call:', data.receiverId);
                     this.currentCallerId = data.callerId;
                     this.onIncomingCall(data);
                 });

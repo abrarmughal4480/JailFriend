@@ -37,6 +37,7 @@ interface WebRTCHookReturn {
     handleDisconnect: (shouldRedirect?: boolean) => void;
     startPeerConnection: () => Promise<void>;
     isConnected: boolean;
+    connectionState: 'connecting' | 'connected' | 'failed';
     handleVideoPlay: () => void;
     showVideoPlayError: boolean;
 }
@@ -83,6 +84,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     const socketConnection = useRef<Socket | null>(null);
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const [isConnected, setIsConnected] = useState<boolean>(false);
+    const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'failed'>('connecting');
     const localStreamRef = useRef<MediaStream | null>(null);
     const [showVideoPlayError, setShowVideoPlayError] = useState<boolean>(false);
     const router = useRouter();
@@ -105,7 +107,8 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 isAdmin, 
                 offerType: offer.type,
                 roomId: roomId,
-                socketId: socketConnection.current?.id
+                socketId: socketConnection.current?.id,
+                offerSdpPreview: offer.sdp?.substring(0, 50) + '...'
             });
             handleOffer(offer);
         });
@@ -128,6 +131,73 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 socketId: socketConnection.current?.id
             });
             handleIceCandidate(candidate);
+        });
+
+        // Handle connection ready events for better synchronization
+        socketConnection.current.on('video-call-invitation-sent', (data: any) => {
+            console.log('📹 Video call invitation sent confirmation:', data);
+            // This helps the caller know the invitation was delivered
+        });
+
+        socketConnection.current.on('user-joined-video-service', (data: any) => {
+            console.log('📹 User joined video service:', data);
+            // This helps coordinate when both users are ready
+        });
+
+        socketConnection.current.on('video-call-accepted', (data: any) => {
+            console.log('📹 Video call accepted notification received:', data);
+            // This helps the caller know the call was accepted
+        });
+
+        socketConnection.current.on('start-video-connection', (data: any) => {
+            console.log('📹 Start video connection signal received:', data);
+            // This triggers the receiver to start their connection immediately
+            if (!isAdmin && isInitialized.current) {
+                console.log('🎯 Receiver starting connection due to acceptance signal');
+                setTimeout(() => {
+                    startPeerConnection();
+                }, 500); // Small delay to ensure everything is ready
+            }
+        });
+
+        // Add offer retry mechanism
+        socketConnection.current.on('offer-retry', (data: any) => {
+            console.log('📹 Offer retry signal received:', data);
+            if (isAdmin && isInitialized.current) {
+                console.log('🎯 Admin retrying offer due to retry signal');
+                setTimeout(() => {
+                    // Retry sending the offer
+                    if (peerConnectionRef.current && peerConnectionRef.current.localDescription) {
+                        const offer = peerConnectionRef.current.localDescription;
+                        console.log('🔍 DEBUG: Retrying offer to room:', {
+                            roomId: roomId,
+                            offerType: offer.type,
+                            socketId: socketConnection.current?.id
+                        });
+                        socketConnection.current?.emit('offer', offer, roomId);
+                    }
+                }, 1000);
+            }
+        });
+
+        // Handle retry offer after accept
+        socketConnection.current.on('retry-offer-after-accept', (data: any) => {
+            console.log('📹 Retry offer after accept signal received:', data);
+            if (isAdmin && isInitialized.current) {
+                console.log('🎯 Admin retrying offer after receiver accepted');
+                setTimeout(() => {
+                    // Retry sending the offer
+                    if (peerConnectionRef.current && peerConnectionRef.current.localDescription) {
+                        const offer = peerConnectionRef.current.localDescription;
+                        console.log('🔍 DEBUG: Retrying offer after accept to room:', {
+                            roomId: roomId,
+                            offerType: offer.type,
+                            socketId: socketConnection.current?.id
+                        });
+                        socketConnection.current?.emit('offer', offer, roomId);
+                    }
+                }, 2000); // Wait 2 seconds for receiver to be ready
+            }
         });
         
         socketConnection.current.on('user-disconnected', () => {
@@ -175,10 +245,12 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         }
 
         // Start peer connection for both admin and user
+        // Add different delays for admin vs user to prevent race conditions
+        const startDelay = isAdmin ? 2000 : 3000; // Admin starts first, user waits longer
         setTimeout(() => {
             console.log(`${isAdmin ? 'Admin' : 'User'} starting peer connection...`);
             startPeerConnection();
-        }, 1000);
+        }, startDelay);
     };
 
     useEffect(() => {
@@ -189,41 +261,48 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         console.log('🎯 WebRTC hook initializing...', { 
             isAdmin, 
             roomId, 
-            userType: isAdmin ? 'ADMIN' : 'USER'
+            userType: isAdmin ? 'ADMIN' : 'USER',
+            urlParams: typeof window !== 'undefined' ? window.location.search : 'N/A'
         });
-        isInitialized.current = true;
         
-        // Use the global socket service
-        const socket = socketService.getSocket();
-        if (socket && socket.connected) {
-            console.log('Using global socket for WebRTC:', socket.id);
-            socketConnection.current = socket;
-            setupSocketConnection();
-        } else {
-            console.log('Global socket not ready, waiting...');
-            // Ensure socket is connected
-            if (!socketService.getConnected()) {
-                console.log('Socket not connected, connecting...');
-                socketService.connect();
-            }
-            // Wait for socket to be ready with a timeout
-            let attempts = 0;
-            const maxAttempts = 10; // 10 seconds max wait
-            const checkSocket = () => {
-                attempts++;
-                const currentSocket = socketService.getSocket();
-                if (currentSocket && currentSocket.connected) {
-                    console.log('Global socket ready, setting up WebRTC');
-                    socketConnection.current = currentSocket;
-            setupSocketConnection();
-                } else if (attempts < maxAttempts) {
-                    setTimeout(checkSocket, 1000);
-        } else {
-                    console.error('Failed to connect to socket after maximum attempts');
+        // Add a small delay to prevent race conditions between caller and receiver
+        const initDelay = isAdmin ? 0 : 1000; // Receiver waits 1 second to let caller initialize first
+        
+        setTimeout(() => {
+            isInitialized.current = true;
+            
+            // Use the global socket service
+            const socket = socketService.getSocket();
+            if (socket && socket.connected) {
+                console.log('Using global socket for WebRTC:', socket.id);
+                socketConnection.current = socket;
+                setupSocketConnection();
+            } else {
+                console.log('Global socket not ready, waiting...');
+                // Ensure socket is connected
+                if (!socketService.getConnected()) {
+                    console.log('Socket not connected, connecting...');
+                    socketService.connect();
                 }
-            };
-            checkSocket();
-        }
+                // Wait for socket to be ready with a timeout
+                let attempts = 0;
+                const maxAttempts = 10; // 10 seconds max wait
+                const checkSocket = () => {
+                    attempts++;
+                    const currentSocket = socketService.getSocket();
+                    if (currentSocket && currentSocket.connected) {
+                        console.log('Global socket ready, setting up WebRTC');
+                        socketConnection.current = currentSocket;
+                        setupSocketConnection();
+                    } else if (attempts < maxAttempts) {
+                        setTimeout(checkSocket, 1000);
+                    } else {
+                        console.error('Failed to connect to socket after maximum attempts');
+                    }
+                };
+                checkSocket();
+            }
+        }, initDelay);
 
         return () => {
             if (localStream) {
@@ -578,6 +657,27 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         answerProcessed.current = false;
         
         const peerConnection = new RTCPeerConnection(peerConfig);
+        
+        // Reset answer processing flag when connection state changes
+        peerConnection.onconnectionstatechange = () => {
+            const state = peerConnection.connectionState;
+            console.log('🔍 Peer connection state changed:', state);
+            
+            if (state === 'connected') {
+                setIsConnected(true);
+                setConnectionState('connected');
+                console.log('✅ WebRTC connection established successfully');
+            } else if (state === 'failed' || state === 'disconnected') {
+                setIsConnected(false);
+                setConnectionState('failed');
+                console.log('❌ WebRTC connection failed or disconnected');
+                // Reset answer processing flag on failure
+                answerProcessed.current = false;
+            } else if (state === 'connecting') {
+                setConnectionState('connecting');
+                console.log('🔄 WebRTC connection in progress...');
+            }
+        };
 
         peerConnection.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
             if (event.candidate) {
@@ -598,6 +698,24 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 peerConnection.addTrack(track, localStreamRef.current!);
             });
         }
+
+        peerConnection.onconnectionstatechange = () => {
+            const state = peerConnection.connectionState;
+            console.log('🔍 Peer connection state changed:', state);
+            
+            if (state === 'connected') {
+                setIsConnected(true);
+                setConnectionState('connected');
+                console.log('✅ WebRTC connection established successfully');
+            } else if (state === 'failed' || state === 'disconnected') {
+                setIsConnected(false);
+                setConnectionState('failed');
+                console.log('❌ WebRTC connection failed or disconnected');
+            } else if (state === 'connecting') {
+                setConnectionState('connecting');
+                console.log('🔄 WebRTC connection in progress...');
+            }
+        };
 
         peerConnection.ontrack = (event: RTCTrackEvent) => {
             console.log('ontrack event received:', { isAdmin, streams: event.streams.length });
@@ -687,13 +805,26 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             console.log('🔍 DEBUG: Sending offer to room:', {
                 roomId: roomId,
                 offerType: offer.type,
-                socketId: socketConnection.current?.id
+                socketId: socketConnection.current?.id,
+                offerSdpPreview: offer.sdp?.substring(0, 50) + '...'
             });
             socketConnection.current?.emit('offer', offer, roomId);
+            console.log('🔍 DEBUG: Offer sent successfully');
                 console.log('Admin peer connection started successfully');
             } else {
                 // User waits for offer from admin
                 console.log('User waiting for offer from admin...');
+                
+                // Request offer retry after a delay if no offer received
+                setTimeout(() => {
+                    if (!peerConnectionRef.current?.remoteDescription) {
+                        console.log('🎯 No offer received, requesting retry...');
+                        socketConnection.current?.emit('request-offer-retry', {
+                            roomId: roomId,
+                            userId: 'user'
+                        });
+                    }
+                }, 5000); // Wait 5 seconds before requesting retry
             }
         } catch (error) {
             console.error('Error starting peer connection:', error);
@@ -727,7 +858,8 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             const currentState = peerConnectionRef.current.signalingState;
             console.log('🔍 DEBUG: Current signaling state:', currentState);
             
-            if (currentState === 'stable' || currentState === 'have-local-offer') {
+            if (currentState === 'stable') {
+                // Initial state - we can handle the offer
                 console.log('Setting remote description');
                 await peerConnectionRef.current.setRemoteDescription(offer);
                 
@@ -743,8 +875,18 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                     socketId: socketConnection.current?.id
                 });
                 socketConnection.current?.emit('answer', answer, roomId);
+            } else if (currentState === 'have-local-offer') {
+                console.log('Cannot handle offer - already have local offer');
+                return;
+            } else if (currentState === 'have-remote-offer') {
+                console.log('Cannot handle offer - already have remote offer');
+                return;
+            } else if (currentState === 'closed') {
+                console.log('Cannot handle offer - peer connection is closed');
+                return;
             } else {
                 console.warn('Cannot handle offer in current state:', currentState);
+                return;
             }
         } catch (error) {
             console.error('Error handling offer:', error);
@@ -759,7 +901,8 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 roomId: roomId,
                 peerConnectionState: peerConnectionRef.current?.connectionState,
                 signalingState: peerConnectionRef.current?.signalingState,
-                answerProcessed: answerProcessed.current
+                answerProcessed: answerProcessed.current,
+                answerSdpPreview: answer.sdp?.substring(0, 50) + '...'
             });
             
             // Prevent duplicate answer processing
@@ -779,10 +922,18 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                     answerProcessed.current = true;
                     console.log('Answer processed successfully');
                 } else if (currentState === 'stable') {
-                    console.log('Answer already processed - connection is stable');
+                    console.log('Answer already processed - connection is stable, skipping duplicate');
                     answerProcessed.current = true;
+                    return; // Exit early to prevent any further processing
+                } else if (currentState === 'have-remote-offer') {
+                    console.log('Cannot handle answer - we are in have-remote-offer state (should be handling offer, not answer)');
+                    return;
+                } else if (currentState === 'closed') {
+                    console.log('Cannot handle answer - peer connection is closed');
+                    return;
                 } else {
                     console.warn('Cannot handle answer in current state:', currentState);
+                    return;
                 }
             } else {
                 console.error('No peer connection available for answer');
@@ -895,6 +1046,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         handleDisconnect,
         startPeerConnection,
         isConnected,
+        connectionState,
         handleVideoPlay,
         showVideoPlayError
     }

@@ -53,27 +53,27 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
       if (!socket || !socket.connected) {
         // Try to connect socket if not connected
         if (!socketService.getConnected()) {
-          console.log('Socket not connected, attempting to connect...');
+          console.log('🎯 Socket not connected, attempting to connect...');
           socketService.connect();
         }
         
         retryCount++;
         if (retryCount < maxRetries) {
-          console.log(`Socket not ready for video call service, retry ${retryCount}/${maxRetries}...`);
+          console.log(`🎯 Socket not ready for video call service, retry ${retryCount}/${maxRetries}...`);
           setTimeout(initializeWithSocketCheck, 2000);
         } else {
-          console.error('Failed to initialize video call service after maximum retries');
+          console.error('🎯 Failed to initialize video call service after maximum retries');
         }
         return;
       }
 
-      console.log('Initializing global video call service for user:', userId);
-      console.log('User data:', user);
-      console.log('Socket ready:', socket.id);
+      console.log('🎯 Initializing global video call service for user:', userId);
+      console.log('🎯 User data:', user);
+      console.log('🎯 Socket ready:', socket.id);
       
       // Get user name from stored user data or fallback to username/email
       const userName = user?.name || (user as any)?.username || user?.email || 'User';
-      console.log('Using userName for video call service:', userName);
+      console.log('🎯 Using userName for video call service:', userName);
       
       const service = new VideoCallService({
         userId,

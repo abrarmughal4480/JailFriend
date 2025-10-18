@@ -322,6 +322,13 @@ class SocketService {
         const roomName = `video_user_${userId}`;
         socket.join(roomName);
         console.log(`📹 User joined video call room: ${roomName}`);
+        
+        // Notify all users in the room that a user has joined
+        socket.to(roomName).emit('user-joined-video-service', {
+          userId,
+          userName,
+          socketId: socket.id
+        });
       });
 
       socket.on('initiate-video-call', (data) => {
@@ -340,10 +347,34 @@ class SocketService {
         const room = this.io.sockets.adapter.rooms.get(receiverRoom);
         console.log(`🔍 DEBUG: Receiver room ${receiverRoom} exists:`, room ? Array.from(room) : 'Room not found');
         
+        // If receiver room doesn't exist, try to find the receiver's socket and join them to the room
+        if (!room) {
+          console.log(`🔍 DEBUG: Receiver room not found, attempting to find receiver socket...`);
+          // Find all connected sockets and check if any belong to the receiver
+          const allSockets = Array.from(this.io.sockets.sockets.values());
+          const receiverSocket = allSockets.find(s => s.userId === receiverId);
+          
+          if (receiverSocket) {
+            console.log(`🔍 DEBUG: Found receiver socket, joining to video call room:`, receiverSocket.id);
+            receiverSocket.join(receiverRoom);
+            console.log(`🔍 DEBUG: Receiver joined video call room: ${receiverRoom}`);
+          } else {
+            console.log(`🔍 DEBUG: Receiver socket not found for user: ${receiverId}`);
+          }
+        }
+        
         // Send video call invitation to receiver
         socket.to(receiverRoom).emit('incoming-video-call', {
           callerId,
           callerName,
+          receiverId,
+          receiverName,
+          callId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Also notify the caller that the invitation was sent
+        socket.emit('video-call-invitation-sent', {
           receiverId,
           receiverName,
           callId,
@@ -364,6 +395,25 @@ class SocketService {
           receiverName,
           timestamp: new Date().toISOString()
         });
+        
+        // Also notify the receiver to start their connection
+        socket.to(`video_user_${receiverId}`).emit('start-video-connection', {
+          callId,
+          callerId,
+          receiverId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Also notify the caller to retry sending the offer
+        socket.to(`video_user_${callerId}`).emit('retry-offer-after-accept', {
+          callId,
+          receiverId,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log(`📡 Video call acceptance notification sent to caller ${callerId}`);
+        console.log(`📡 Start connection signal sent to receiver ${receiverId}`);
+        console.log(`📡 Retry offer signal sent to caller ${callerId}`);
       });
 
       socket.on('decline-video-call', (data) => {
@@ -455,6 +505,26 @@ class SocketService {
         // Forward ICE candidate to other participants in the room
         socket.to(roomId).emit('ice-candidate', candidate);
         console.log(`🔍 DEBUG: ice-candidate forwarded to room ${roomId}`);
+      });
+
+      // Handle offer retry requests
+      socket.on('request-offer-retry', (data) => {
+        const { roomId, userId } = data;
+        console.log(`🔍 DEBUG: request-offer-retry event received`, {
+          userId: socket.userId,
+          userName: socket.user.name,
+          roomId: roomId,
+          requestingUserId: userId,
+          socketId: socket.id
+        });
+        
+        // Forward retry request to other participants in the room
+        socket.to(roomId).emit('offer-retry', {
+          roomId: roomId,
+          requestedBy: socket.userId,
+          timestamp: new Date().toISOString()
+        });
+        console.log(`🔍 DEBUG: Offer retry request forwarded to room ${roomId}`);
       });
 
       socket.on('user-disconnected', (roomId) => {

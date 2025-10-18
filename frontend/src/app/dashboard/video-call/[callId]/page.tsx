@@ -33,6 +33,7 @@ const VideoCallPage: React.FC<VideoCallPageProps> = () => {
         localStream,
         remoteStream,
         isConnected,
+        connectionState,
         handleDisconnect,
         startPeerConnection,
         handleVideoPlay,
@@ -183,10 +184,15 @@ const VideoCallPage: React.FC<VideoCallPageProps> = () => {
                 {/* Call Status */}
                 <div className="text-center mt-6">
                     <div className="text-gray-400 text-sm">
-                        {isConnected ? (
+                        {connectionState === 'connected' ? (
                             <div className="flex items-center justify-center space-x-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                                 <span>Call Active</span>
+                            </div>
+                        ) : connectionState === 'failed' ? (
+                            <div className="flex items-center justify-center space-x-2">
+                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                <span>Connection Failed</span>
                             </div>
                         ) : (
                             <div className="flex items-center justify-center space-x-2">
