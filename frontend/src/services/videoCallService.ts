@@ -42,12 +42,14 @@ class VideoCallService {
 
     connect() {
         console.log('Video call service connecting...');
+        console.log('Video call service user info:', { userId: this.userId, userName: this.userName });
         
         // Wait for socket to be ready
         const checkSocket = () => {
             const socket = socketService.getSocket();
             if (socket && socket.connected) {
                 console.log('Video call service connected to existing socket');
+                console.log('Socket ID:', socket.id);
                 
                 // Join video call service
                 socket.emit('join-video-call-service', {
@@ -98,8 +100,17 @@ class VideoCallService {
     initiateCall(receiverId: string, receiverName: string) {
         const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
         
+        console.log('🎯 VideoCallService.initiateCall called:', {
+            callerId: this.userId,
+            callerName: this.userName,
+            receiverId,
+            receiverName,
+            callId
+        });
+        
         const socket = socketService.getSocket();
         if (socket) {
+            console.log('📡 Emitting initiate-video-call event to socket:', socket.id);
             socket.emit('initiate-video-call', {
                 callerId: this.userId,
                 callerName: this.userName,
@@ -107,6 +118,8 @@ class VideoCallService {
                 receiverName,
                 callId
             });
+        } else {
+            console.error('❌ No socket available for video call initiation');
         }
 
         return callId;

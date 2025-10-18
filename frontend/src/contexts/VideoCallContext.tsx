@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import VideoCallService from '@/services/videoCallService';
-import { getToken, getCurrentUserId } from '@/utils/auth';
+import { getToken, getCurrentUserId, getCurrentUser } from '@/utils/auth';
+import socketService from '@/services/socketService';
 
 interface VideoCallContextType {
   videoCallService: VideoCallService | null;
@@ -33,20 +34,50 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
   const [showVideoCallNotification, setShowVideoCallNotification] = useState(false);
 
   useEffect(() => {
-    const initializeVideoCallService = () => {
+    let retryCount = 0;
+    const maxRetries = 10; // Maximum 20 seconds of retries
+    
+    // Initialize after ensuring socket is ready
+    const initializeWithSocketCheck = () => {
       const token = getToken();
       const userId = getCurrentUserId();
+      const user = getCurrentUser();
       
       if (!token || !userId) {
         console.log('No token or userId found for video call service');
         return;
       }
 
+      // Check if socket is ready
+      const socket = socketService.getSocket();
+      if (!socket || !socket.connected) {
+        // Try to connect socket if not connected
+        if (!socketService.getConnected()) {
+          console.log('Socket not connected, attempting to connect...');
+          socketService.connect();
+        }
+        
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.log(`Socket not ready for video call service, retry ${retryCount}/${maxRetries}...`);
+          setTimeout(initializeWithSocketCheck, 2000);
+        } else {
+          console.error('Failed to initialize video call service after maximum retries');
+        }
+        return;
+      }
+
       console.log('Initializing global video call service for user:', userId);
+      console.log('User data:', user);
+      console.log('Socket ready:', socket.id);
+      
+      // Get user name from stored user data or fallback to username/email
+      const userName = user?.name || (user as any)?.username || user?.email || 'User';
+      console.log('Using userName for video call service:', userName);
       
       const service = new VideoCallService({
         userId,
-        userName: 'User', // You can get this from user context or API
+        userName: userName,
         onIncomingCall: (callData) => {
           console.log('📹 Global incoming video call:', callData);
           setIncomingVideoCall(callData);
@@ -73,11 +104,10 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
       setVideoCallService(service);
     };
 
-    // Initialize after a short delay to ensure socket is ready
-    const timer = setTimeout(initializeVideoCallService, 1000);
+    // Start initialization immediately, but with socket checking
+    initializeWithSocketCheck();
     
     return () => {
-      clearTimeout(timer);
       if (videoCallService) {
         videoCallService.disconnect();
       }

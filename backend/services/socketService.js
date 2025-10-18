@@ -313,17 +313,35 @@ class SocketService {
       // Handle video call events
       socket.on('join-video-call-service', (data) => {
         const { userId, userName } = data;
-        console.log(`📹 User ${userName} (${userId}) joined video call service`);
+        console.log(`📹 User ${userName} (${userId}) joined video call service`, {
+          socketId: socket.id,
+          userId,
+          userName
+        });
         // Join user to their personal video call room
-        socket.join(`video_user_${userId}`);
+        const roomName = `video_user_${userId}`;
+        socket.join(roomName);
+        console.log(`📹 User joined video call room: ${roomName}`);
       });
 
       socket.on('initiate-video-call', (data) => {
         const { callerId, callerName, receiverId, receiverName, callId } = data;
-        console.log(`📹 Video call initiated from ${callerName} to ${receiverName}`);
+        console.log(`📹 Video call initiated from ${callerName} to ${receiverName}`, {
+          callerId,
+          callerName,
+          receiverId,
+          receiverName,
+          callId,
+          socketId: socket.id
+        });
+        
+        // Check if receiver room exists
+        const receiverRoom = `video_user_${receiverId}`;
+        const room = this.io.sockets.adapter.rooms.get(receiverRoom);
+        console.log(`🔍 DEBUG: Receiver room ${receiverRoom} exists:`, room ? Array.from(room) : 'Room not found');
         
         // Send video call invitation to receiver
-        socket.to(`video_user_${receiverId}`).emit('incoming-video-call', {
+        socket.to(receiverRoom).emit('incoming-video-call', {
           callerId,
           callerName,
           receiverId,
@@ -331,6 +349,8 @@ class SocketService {
           callId,
           timestamp: new Date().toISOString()
         });
+        
+        console.log(`📡 Video call invitation sent to room ${receiverRoom}`);
       });
 
       socket.on('accept-video-call', (data) => {
