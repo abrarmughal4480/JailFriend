@@ -5,7 +5,6 @@ import {
   Search, 
   MoreVertical, 
   Phone, 
-  Video, 
   Info, 
   Send, 
   Paperclip, 
@@ -25,13 +24,16 @@ import {
   StarOff,
   X,
   MessageCircle,
-  History
+  History,
+  Video
 } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { getToken, getCurrentUserId } from '@/utils/auth';
 import socketService from '@/services/socketService';
 import AudioCallInterface from '@/components/AudioCallInterface';
 import CallHistory from '@/components/CallHistory';
+import VideoCallNotification from '@/components/VideoCallNotification';
+import { useVideoCall } from '@/contexts/VideoCallContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -130,19 +132,16 @@ export default function MessagesPage() {
   const [callType, setCallType] = useState<'incoming' | 'outgoing' | 'active'>('incoming');
   const [currentCall, setCurrentCall] = useState<any>(null);
   const [caller, setCaller] = useState<any>(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+  
+  // Video call states - using global context
+  const { videoCallService, incomingVideoCall, showVideoCallNotification, setShowVideoCallNotification, acceptVideoCall, declineVideoCall } = useVideoCall();
   const [showCallHistory, setShowCallHistory] = useState(false);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [peerConnection, setPeerConnection] = useState<RTCPeerConnection | null>(null);
+  
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const processedNotifications = useRef<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const localAudioRef = useRef<HTMLAudioElement>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
   const messages = selectedConversation ? (allMessages[selectedConversation._id] || []) : [];
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -609,8 +608,22 @@ export default function MessagesPage() {
     fetchConversations();
     
     if (!socketService.getConnected()) {
+      console.log('🔌 Socket not connected, connecting...');
       socketService.connect();
+    } else {
+      console.log('✅ Socket already connected');
     }
+
+    // Video call service is now handled globally via VideoCallProvider
+
+    // Add a small delay to ensure socket is ready
+    setTimeout(() => {
+      console.log('🔍 Socket status check:', {
+        connected: socketService.getConnected(),
+        socket: socketService.getSocket(),
+        socketConnected: socketService.getSocket()?.connected
+      });
+    }, 1000);
 
     const updateMyOnlineStatus = async () => {
       try {
@@ -860,22 +873,11 @@ export default function MessagesPage() {
     const handleCallAccepted = (event: CustomEvent) => {
       const callData = event.detail;
       console.log('📞 Call accepted event received:', callData);
-      console.log('📞 Current call state:', {
-        currentCall: currentCall,
-        currentCallId: currentCall?._id,
-        eventCallId: callData.callId,
-        callType: callType
-      });
       
-      // Check if we have a current call and the IDs match
       if (currentCall && currentCall._id === callData.callId) {
         console.log('✅ Call accepted - switching to active mode');
         setCallType('active');
-        // Start WebRTC connection for the caller
-        startWebRTCConnection();
       } else if (!currentCall && (callType === 'outgoing' || callType === 'active' || callType === 'incoming')) {
-        // Fallback: if we don't have currentCall but are in any call mode, 
-        // create a call object from event data and ensure we're in active mode
         console.log('📞 Fallback: Creating call object from event data');
         const callObject = {
           _id: callData.callId,
@@ -884,14 +886,6 @@ export default function MessagesPage() {
         };
         setCurrentCall(callObject);
         setCallType('active');
-        startWebRTCConnection(callObject);
-      } else {
-        console.log('❌ Call ID mismatch or no current call:', {
-          currentCallId: currentCall?._id,
-          eventCallId: callData.callId,
-          hasCurrentCall: !!currentCall,
-          callType: callType
-        });
       }
     };
 
@@ -907,7 +901,7 @@ export default function MessagesPage() {
     const handleCallEnded = (event: CustomEvent) => {
       const callData = event.detail;
       if (currentCall && currentCall._id === callData.callId) {
-        cleanupWebRTCConnection();
+        // endWebRTCCall();
         setShowCallInterface(false);
         setCurrentCall(null);
         setCaller(null);
@@ -923,80 +917,6 @@ export default function MessagesPage() {
       }
     };
 
-    // WebRTC signaling handlers
-    const handleWebRTCOffer = async (event: CustomEvent) => {
-      const { callId, offer, senderId } = event.detail;
-      console.log('📞 WebRTC Offer received:', { callId, offer, senderId, currentCallId: currentCall?._id });
-      
-      if (currentCall && currentCall._id === callId && peerConnection) {
-        try {
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-          console.log('✅ Remote description set for offer');
-          
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          console.log('✅ Answer created and local description set');
-          
-          socketService.getSocket()?.emit('webrtc_answer', {
-            callId,
-            answer,
-            callerId: senderId
-          });
-          console.log('📤 Answer sent via socket');
-        } catch (error) {
-          console.error('❌ Error handling WebRTC offer:', error);
-        }
-      } else {
-        console.warn('⚠️ WebRTC offer ignored - no matching call or peer connection:', {
-          hasCurrentCall: !!currentCall,
-          currentCallId: currentCall?._id,
-          offerCallId: callId,
-          hasPeerConnection: !!peerConnection
-        });
-      }
-    };
-
-    const handleWebRTCAnswer = async (event: CustomEvent) => {
-      const { callId, answer } = event.detail;
-      console.log('📞 WebRTC Answer received:', { callId, answer, currentCallId: currentCall?._id });
-      
-      if (currentCall && currentCall._id === callId && peerConnection) {
-        try {
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-          console.log('✅ Remote description set for answer');
-        } catch (error) {
-          console.error('❌ Error handling WebRTC answer:', error);
-        }
-      } else {
-        console.warn('⚠️ WebRTC answer ignored - no matching call or peer connection:', {
-          hasCurrentCall: !!currentCall,
-          currentCallId: currentCall?._id,
-          answerCallId: callId,
-          hasPeerConnection: !!peerConnection
-        });
-      }
-    };
-
-    const handleWebRTCIceCandidate = async (event: CustomEvent) => {
-      const { callId, candidate } = event.detail;
-      console.log('📞 WebRTC ICE Candidate received:', { callId, candidate, currentCallId: currentCall?._id });
-      
-      if (currentCall && currentCall._id === callId && peerConnection) {
-        try {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-          console.log('✅ ICE candidate added');
-        } catch (error) {
-          console.error('❌ Error adding ICE candidate:', error);
-        }
-      } else {
-        console.warn('⚠️ ICE candidate ignored - no matching call or peer connection:', {
-          hasCurrentCall: !!currentCall,
-          currentCallId: currentCall?._id,
-          candidateCallId: callId,
-          hasPeerConnection: !!peerConnection
-        });
-      }
-    };
 
     window.addEventListener('socket_new_message', handleNewMessage as EventListener);
     window.addEventListener('socket_user_typing', handleUserTyping as EventListener);
@@ -1011,9 +931,6 @@ export default function MessagesPage() {
     window.addEventListener('socket_call_rejected', handleCallRejected as EventListener);
     window.addEventListener('socket_call_ended', handleCallEnded as EventListener);
     window.addEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
-    window.addEventListener('socket_webrtc_offer', handleWebRTCOffer as unknown as EventListener);
-    window.addEventListener('socket_webrtc_answer', handleWebRTCAnswer as unknown as EventListener);
-    window.addEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidate as unknown as EventListener);
 
     return () => {
       window.removeEventListener('socket_new_message', handleNewMessage as EventListener);
@@ -1023,15 +940,14 @@ export default function MessagesPage() {
       window.removeEventListener('socket_user_status_change', handleUserStatusChange as EventListener);
       window.removeEventListener('socket_message_notification', handleMessageNotification as EventListener);
       
+      // Video call service cleanup is handled globally via VideoCallProvider
+      
       // Audio call socket events cleanup
       window.removeEventListener('socket_incoming_call', handleIncomingCall as EventListener);
       window.removeEventListener('socket_call_accepted', handleCallAccepted as EventListener);
       window.removeEventListener('socket_call_rejected', handleCallRejected as EventListener);
       window.removeEventListener('socket_call_ended', handleCallEnded as EventListener);
       window.removeEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
-      window.removeEventListener('socket_webrtc_offer', handleWebRTCOffer as unknown as EventListener);
-      window.removeEventListener('socket_webrtc_answer', handleWebRTCAnswer as unknown as EventListener);
-      window.removeEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidate as unknown as EventListener);
       
       const setOfflineStatus = async () => {
         try {
@@ -1051,7 +967,7 @@ export default function MessagesPage() {
       };
 
       setOfflineStatus();
-      socketService.disconnect();
+      // Don't disconnect socket - keep it connected for video calls
     };
   }, [selectedConversation, typingUsers]);
 
@@ -1138,25 +1054,6 @@ export default function MessagesPage() {
       return;
     }
 
-    // Check microphone permission first
-    try {
-      console.log('🎤 Checking microphone permission...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop the test stream immediately
-      stream.getTracks().forEach(track => track.stop());
-      console.log('✅ Microphone permission granted');
-    } catch (error: any) {
-      console.error('❌ Microphone permission denied:', error);
-      if (error.name === 'NotAllowedError') {
-        alert('Microphone access is required for audio calls. Please allow microphone access and try again.');
-      } else if (error.name === 'NotFoundError') {
-        alert('No microphone found. Please connect a microphone and try again.');
-      } else {
-        alert('Unable to access microphone. Please check your microphone settings and try again.');
-      }
-      return;
-    }
-
     console.log('📞 Initiating call with:', {
       receiverId,
       token: token.substring(0, 20) + '...',
@@ -1184,11 +1081,15 @@ export default function MessagesPage() {
         setCallType('outgoing');
         setShowCallInterface(true);
         
+        // Start WebRTC call
+        const callId = data.call._id;
+        // await startWebRTCCall(callId, receiverId, true);
+        
         // Emit socket event for call initiation with actual call ID
         socketService.getSocket()?.emit('initiate_call', {
           receiverId,
           callType: 'audio',
-          callId: data.call._id
+          callId: callId
         });
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -1213,25 +1114,6 @@ export default function MessagesPage() {
   const acceptCall = async () => {
     if (!currentCall) return;
 
-    // Check microphone permission first
-    try {
-      console.log('🎤 Checking microphone permission for call...');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Stop the test stream immediately
-      stream.getTracks().forEach(track => track.stop());
-      console.log('✅ Microphone permission granted');
-    } catch (error: any) {
-      console.error('❌ Microphone permission denied:', error);
-      if (error.name === 'NotAllowedError') {
-        alert('Microphone access is required for audio calls. Please allow microphone access and try again.');
-      } else if (error.name === 'NotFoundError') {
-        alert('No microphone found. Please connect a microphone and try again.');
-      } else {
-        alert('Unable to access microphone. Please check your microphone settings and try again.');
-      }
-      return;
-    }
-
     const token = getToken();
     if (!token) return;
 
@@ -1244,14 +1126,16 @@ export default function MessagesPage() {
       if (response.ok) {
         setCallType('active');
         
+        // Start WebRTC call
+        const callId = currentCall._id;
+        const callerId = currentCall.callerId._id;
+        // await acceptWebRTCCall(callId, callerId);
+        
         // Emit socket event for call acceptance
         socketService.getSocket()?.emit('accept_call', {
           callId: currentCall._id,
           callerId: currentCall.callerId._id
         });
-
-        // Start WebRTC connection
-        await startWebRTCConnection();
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Call acceptance failed:', errorData);
@@ -1336,7 +1220,7 @@ export default function MessagesPage() {
         });
 
         // Clean up WebRTC connection
-        await cleanupWebRTCConnection();
+        // await endWebRTCCall();
         
         // Close call interface
         setShowCallInterface(false);
@@ -1382,188 +1266,23 @@ export default function MessagesPage() {
     }
   };
 
-  const toggleMute = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-      }
-    }
-  };
+  // Video Call Functions
+  // Video call handlers are now handled globally via VideoCallProvider
 
-  const toggleSpeaker = () => {
-    const newSpeakerState = !isSpeakerOn;
-    setIsSpeakerOn(newSpeakerState);
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.muted = !newSpeakerState; // Fix inverted logic
-    }
-  };
-
-  const startWebRTCConnection = async (callData?: any) => {
-    try {
-      console.log('🎤 Requesting microphone access...');
+  const initiateVideoCall = (userId: string, userName: string) => {
+    if (videoCallService) {
+      const callId = videoCallService.initiateCall(userId, userName);
+      const url = `/dashboard/video-call/${callId}?type=admin&caller=${encodeURIComponent(userName)}`;
       
-      // Check if getUserMedia is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('getUserMedia is not supported in this browser');
-      }
-
-      // Get user media with better error handling
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
+      console.log('🎯 Initiating video call:', {
+        userId,
+        userName,
+        callId,
+        userType: 'ADMIN',
+        url
       });
       
-      console.log('✅ Microphone access granted');
-      setLocalStream(stream);
-      
-      if (localAudioRef.current) {
-        localAudioRef.current.srcObject = stream;
-        localAudioRef.current.muted = true; // Mute local audio to prevent echo
-        console.log('✅ Local audio stream set (muted to prevent echo)');
-      }
-
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      });
-
-      // Add local stream to peer connection
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream);
-      });
-
-      // Handle remote stream
-      pc.ontrack = (event) => {
-        console.log('📞 Remote track received:', event);
-        const remoteStream = event.streams[0];
-        setRemoteStream(remoteStream);
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = remoteStream;
-          remoteAudioRef.current.play().catch(error => {
-            console.error('❌ Error playing remote audio:', error);
-          });
-          console.log('✅ Remote audio stream set and playing');
-        }
-      };
-
-      // Use passed call data or current call
-      const activeCall = callData || currentCall;
-      console.log('📞 WebRTC - Call data:', {
-        callData: callData,
-        currentCall: currentCall,
-        activeCall: activeCall
-      });
-      
-      // Check if we have a valid call
-      if (!activeCall) {
-        console.error('❌ No active call data available for WebRTC');
-        return;
-      }
-      
-      // Handle ICE candidates
-      pc.onicecandidate = (event) => {
-        if (event.candidate && activeCall) {
-          const otherUserId = activeCall.callerId._id === getCurrentUserId() 
-            ? activeCall.receiverId._id 
-            : activeCall.callerId._id;
-          
-          console.log('📤 Sending ICE candidate:', {
-            callId: activeCall._id,
-            candidate: event.candidate,
-            receiverId: otherUserId
-          });
-          
-          socketService.getSocket()?.emit('webrtc_ice_candidate', {
-            callId: activeCall._id,
-            candidate: event.candidate,
-            receiverId: otherUserId
-          });
-        } else if (!event.candidate) {
-          console.log('✅ ICE gathering complete');
-        }
-      };
-
-      // Handle connection state changes
-      pc.onconnectionstatechange = () => {
-        console.log('📞 Connection state changed:', pc.connectionState);
-        if (pc.connectionState === 'connected') {
-          console.log('✅ WebRTC connection established successfully!');
-        } else if (pc.connectionState === 'failed') {
-          console.error('❌ WebRTC connection failed');
-        }
-      };
-
-      // Handle ICE connection state changes
-      pc.oniceconnectionstatechange = () => {
-        console.log('📞 ICE connection state:', pc.iceConnectionState);
-      };
-
-      setPeerConnection(pc);
-
-      // Create and send offer if caller
-      if (activeCall && activeCall.callerId._id === getCurrentUserId()) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        
-        const otherUserId = activeCall.receiverId._id;
-        socketService.getSocket()?.emit('webrtc_offer', {
-          callId: activeCall._id,
-          offer: offer,
-          receiverId: otherUserId
-        });
-      }
-
-    } catch (error: any) {
-      console.error('❌ Error starting WebRTC connection:', error);
-      
-      // Handle specific error types
-      if (error.name === 'NotFoundError') {
-        alert('No microphone found. Please connect a microphone and try again.');
-      } else if (error.name === 'NotAllowedError') {
-        alert('Microphone access denied. Please allow microphone access and try again.');
-      } else if (error.name === 'NotReadableError') {
-        alert('Microphone is being used by another application. Please close other applications and try again.');
-      } else {
-        alert(`Audio call error: ${error.message}`);
-      }
-      
-      // Close the call interface on error
-      setShowCallInterface(false);
-      setCurrentCall(null);
-      setCaller(null);
-    }
-  };
-
-  const cleanupWebRTCConnection = async () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
-    
-    if (remoteStream) {
-      remoteStream.getTracks().forEach(track => track.stop());
-      setRemoteStream(null);
-    }
-    
-    if (peerConnection) {
-      peerConnection.close();
-      setPeerConnection(null);
-    }
-    
-    if (localAudioRef.current) {
-      localAudioRef.current.srcObject = null;
-    }
-    
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = null;
+      router.push(url);
     }
   };
 
@@ -1600,7 +1319,7 @@ export default function MessagesPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push('/dashboard')}
-                className={`p-2 rounded-lg transition-colors duration-200 hover:scale-105 active:scale-95 ${
+                className={`p-2 rounded-lg transition-colors duration-200 active:scale-95 ${
                   isDarkMode 
                     ? 'hover:bg-gray-700 text-gray-300' 
                     : 'hover:bg-gray-100 text-gray-600'
@@ -2057,11 +1776,23 @@ export default function MessagesPage() {
                 >
                   <Phone className="w-5 h-5" />
                 </button>
-                <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`} title="Start Video Call">
+                <button 
+                  onClick={() => {
+                    const otherParticipant = getOtherParticipant(selectedConversation);
+                    console.log('📹 Video call button clicked:', {
+                      selectedConversation,
+                      otherParticipant,
+                      receiverId: otherParticipant._id
+                    });
+                    initiateVideoCall(otherParticipant._id, otherParticipant.name);
+                  }}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'hover:bg-gray-700 text-gray-300' 
+                      : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                  title="Start Video Call"
+                >
                   <Video className="w-5 h-5" />
                 </button>
                 <button 
@@ -2350,13 +2081,27 @@ export default function MessagesPage() {
         onReject={rejectCall}
         onEnd={endCall}
         onCancel={cancelCall}
-        onMuteToggle={toggleMute}
-        onSpeakerToggle={toggleSpeaker}
-        isMuted={isMuted}
-        isSpeakerOn={isSpeakerOn}
+        onMuteToggle={() => {}}
+        onSpeakerToggle={() => {}}
+        isMuted={false}
+        isSpeakerOn={false}
         callDuration={currentCall?.duration || 0}
         connectionQuality="good"
       />
+
+      {/* Video Call Notification */}
+      {incomingVideoCall && (
+        <VideoCallNotification
+          isVisible={showVideoCallNotification}
+          callerName={incomingVideoCall.callerName}
+          callerId={incomingVideoCall.callerId}
+          callId={incomingVideoCall.callId}
+          onAccept={() => acceptVideoCall(incomingVideoCall.callId)}
+          onDecline={() => declineVideoCall(incomingVideoCall.callId)}
+          onClose={() => setShowVideoCallNotification(false)}
+        />
+      )}
+
 
       {/* Call History */}
       <CallHistory
@@ -2364,21 +2109,6 @@ export default function MessagesPage() {
         isVisible={showCallHistory}
         onClose={() => setShowCallHistory(false)}
       />
-
-      {/* Hidden audio elements for WebRTC */}
-      <audio 
-        ref={localAudioRef} 
-        autoPlay 
-        muted 
-        playsInline
-        style={{ display: 'none' }}
-      />
-      <audio 
-        ref={remoteAudioRef} 
-        autoPlay 
-        playsInline
-        style={{ display: 'none' }}
-      />
     </div>
   );
-}       
+}

@@ -50,6 +50,89 @@ exports.createGroup = async (req, res) => {
   }
 };
 
+// Create chat group (simplified for chat functionality)
+exports.createChatGroup = async (req, res) => {
+  try {
+    const { name, participants } = req.body;
+    const userId = req.userId;
+
+    console.log('💬 Creating chat group:', { name, participants, userId });
+
+    // Validate input
+    if (!name || !participants || !Array.isArray(participants) || participants.length === 0) {
+      return res.status(400).json({ error: 'Group name and participants are required' });
+    }
+
+    // Check if all participants exist
+    const participantUsers = await User.find({ _id: { $in: participants } });
+    if (participantUsers.length !== participants.length) {
+      return res.status(400).json({ error: 'Some participants not found' });
+    }
+
+    // Create group data
+    const groupData = {
+      name: name.trim(),
+      description: `Chat group created by ${req.user.name || req.user.username}`,
+      creator: userId,
+      avatar: '/group.png', // Default group avatar
+      category: 'general',
+      privacy: 'private', // Chat groups are private by default
+      members: []
+    };
+
+    // Add creator as admin
+    groupData.members.push({
+      user: userId,
+      role: 'admin',
+      joinedAt: new Date(),
+      isActive: true
+    });
+
+    // Add participants as members
+    participants.forEach(participantId => {
+      if (participantId.toString() !== userId.toString()) {
+        groupData.members.push({
+          user: participantId,
+          role: 'member',
+          joinedAt: new Date(),
+          isActive: true
+        });
+      }
+    });
+
+    const group = new Group(groupData);
+    await group.save();
+
+    // Populate the group with user details
+    await group.populate('creator', 'name username avatar');
+    await group.populate('members.user', 'name username avatar');
+
+    console.log('✅ Chat group created successfully:', group._id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Chat group created successfully',
+      group: {
+        _id: group._id,
+        name: group.name,
+        avatar: group.avatar,
+        participants: group.members.map(member => ({
+          _id: member.user._id,
+          name: member.user.name,
+          username: member.user.username,
+          avatar: member.user.avatar,
+          role: member.role
+        })),
+        isGroup: true,
+        createdAt: group.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating chat group:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Get groups
 exports.getGroups = async (req, res) => {
   try {
@@ -70,6 +153,47 @@ exports.getGroups = async (req, res) => {
 
     res.json(groups);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Get user's chat groups (simplified for sidebar)
+exports.getChatGroups = async (req, res) => {
+  try {
+    const userId = req.userId;
+    console.log('💬 Getting chat groups for user:', userId);
+
+    const groups = await Group.find({
+      'members.user': userId,
+      isActive: true,
+      privacy: 'private' // Only private groups for chat
+    })
+    .populate('members.user', 'name username avatar isOnline')
+    .sort({ createdAt: -1 })
+    .limit(20); // Limit to recent groups
+
+    // Transform groups to match frontend format
+    const chatGroups = groups.map(group => ({
+      _id: group._id,
+      name: group.name,
+      avatar: group.avatar || '/group.png',
+      participants: group.members.map(member => ({
+        _id: member.user._id,
+        name: member.user.name,
+        username: member.user.username,
+        avatar: member.user.avatar,
+        isOnline: member.user.isOnline || false,
+        role: member.role
+      })),
+      isGroup: true,
+      createdAt: group.createdAt,
+      memberCount: group.members.length
+    }));
+
+    console.log('✅ Found chat groups:', chatGroups.length);
+    res.json(chatGroups);
+  } catch (error) {
+    console.error('❌ Error getting chat groups:', error);
     res.status(500).json({ error: error.message });
   }
 };

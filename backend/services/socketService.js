@@ -310,18 +310,137 @@ class SocketService {
         });
       });
 
-      // Call quality updates
-      socket.on('call_quality_update', (data) => {
-        const { callId, audioLevel, connectionQuality, otherUserId } = data;
+      // Handle video call events
+      socket.on('join-video-call-service', (data) => {
+        const { userId, userName } = data;
+        console.log(`📹 User ${userName} (${userId}) joined video call service`);
+        // Join user to their personal video call room
+        socket.join(`video_user_${userId}`);
+      });
+
+      socket.on('initiate-video-call', (data) => {
+        const { callerId, callerName, receiverId, receiverName, callId } = data;
+        console.log(`📹 Video call initiated from ${callerName} to ${receiverName}`);
         
-        // Forward quality update to other participant
-        socket.to(`user_${otherUserId}`).emit('call_quality_update', {
+        // Send video call invitation to receiver
+        socket.to(`video_user_${receiverId}`).emit('incoming-video-call', {
+          callerId,
+          callerName,
+          receiverId,
+          receiverName,
           callId,
-          audioLevel,
-          connectionQuality,
-          senderId: socket.userId,
           timestamp: new Date().toISOString()
         });
+      });
+
+      socket.on('accept-video-call', (data) => {
+        const { callId, receiverId, receiverName, callerId } = data;
+        console.log(`📹 Video call accepted by ${receiverName} for call ${callId}`);
+        
+        // Notify caller that video call was accepted
+        socket.to(`video_user_${callerId}`).emit('video-call-accepted', {
+          callId,
+          receiverId,
+          receiverName,
+          timestamp: new Date().toISOString()
+        });
+      });
+
+      socket.on('decline-video-call', (data) => {
+        const { callId, receiverId, callerId } = data;
+        console.log(`📹 Video call declined by user ${receiverId} for call ${callId}`);
+        
+        // Notify caller that video call was declined
+        socket.to(`video_user_${callerId}`).emit('video-call-declined', {
+          callId,
+          receiverId,
+          timestamp: new Date().toISOString()
+        });
+      });
+
+      socket.on('end-video-call', (data) => {
+        const { callId, userId } = data;
+        console.log(`📹 Video call ended by user ${userId} for call ${callId}`);
+        
+        // Notify all participants that video call ended
+        socket.broadcast.emit('video-call-ended', {
+          callId,
+          userId,
+          timestamp: new Date().toISOString()
+        });
+      });
+
+      // Handle user authentication for WebRTC
+      socket.on('user-authenticated', (authData) => {
+        console.log(`📹 User authenticated for WebRTC:`, authData.email);
+        // User is already authenticated via socket middleware
+      });
+
+      // Handle joining video call rooms
+      socket.on('join-room', (roomId, data) => {
+        console.log(`🔍 DEBUG: join-room event received`, {
+          userId: socket.userId,
+          userName: socket.user.name,
+          roomId: roomId,
+          data: data,
+          socketId: socket.id
+        });
+        socket.join(roomId);
+        console.log(`📹 User ${socket.user.name} joined video call room ${roomId}`, data || '');
+      });
+
+      // Handle WebRTC signaling for video calls
+      socket.on('offer', (offer, roomId) => {
+        console.log(`🔍 DEBUG: offer event received`, {
+          userId: socket.userId,
+          userName: socket.user.name,
+          roomId: roomId,
+          offerType: offer.type,
+          socketId: socket.id
+        });
+        console.log(`📹 WebRTC offer received from ${socket.user.name} for room ${roomId}`);
+        
+        // Check room members before forwarding
+        const room = this.io.sockets.adapter.rooms.get(roomId);
+        console.log(`🔍 DEBUG: Room ${roomId} members:`, room ? Array.from(room) : 'Room not found');
+        
+        // Forward offer to other participants in the room
+        socket.to(roomId).emit('offer', offer);
+        console.log(`🔍 DEBUG: offer forwarded to room ${roomId}`);
+      });
+
+      socket.on('answer', (answer, roomId) => {
+        console.log(`🔍 DEBUG: answer event received`, {
+          userId: socket.userId,
+          userName: socket.user.name,
+          roomId: roomId,
+          answerType: answer.type,
+          socketId: socket.id
+        });
+        console.log(`📹 WebRTC answer received from ${socket.user.name} for room ${roomId}`);
+        // Forward answer to other participants in the room
+        socket.to(roomId).emit('answer', answer);
+        console.log(`🔍 DEBUG: answer forwarded to room ${roomId}`);
+      });
+
+      socket.on('ice-candidate', (candidate, roomId) => {
+        console.log(`🔍 DEBUG: ice-candidate event received`, {
+          userId: socket.userId,
+          userName: socket.user.name,
+          roomId: roomId,
+          candidateType: candidate.candidate,
+          socketId: socket.id
+        });
+        console.log(`📹 ICE candidate received from ${socket.user.name} for room ${roomId}`);
+        // Forward ICE candidate to other participants in the room
+        socket.to(roomId).emit('ice-candidate', candidate);
+        console.log(`🔍 DEBUG: ice-candidate forwarded to room ${roomId}`);
+      });
+
+      socket.on('user-disconnected', (roomId) => {
+        console.log(`📹 User ${socket.user.name} disconnected from room ${roomId}`);
+        // Notify other participants that user disconnected
+        socket.to(roomId).emit('user-disconnected');
       });
 
       // Handle user disconnect
@@ -379,6 +498,16 @@ class SocketService {
     const socketId = this.connectedUsers.get(userId);
     if (socketId) {
       this.io.to(socketId).emit('direct_message', message);
+      return true;
+    }
+    return false;
+  }
+
+  // Method to emit event to specific user
+  emitToUser(userId, event, data) {
+    const socketId = this.connectedUsers.get(userId);
+    if (socketId) {
+      this.io.to(socketId).emit(event, data);
       return true;
     }
     return false;

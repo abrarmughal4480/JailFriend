@@ -52,10 +52,6 @@ const websiteSettingsSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
-    videoCall: {
-      type: Boolean,
-      default: true
-    },
     audioCall: {
       type: Boolean,
       default: true
@@ -231,7 +227,7 @@ const websiteSettingsSchema = new mongoose.Schema({
     },
     reservedUsernames: {
       type: String,
-      default: 'maintenance,get_news_feed,video-call,video-call-api,home,welcome,register,confirm-sms,confirm-sms-password,forgot-password,reset-password,start-up,activate,search,timeline,pages,suggested-pages,liked-pages,joined_groups,go-pro,page,poke,most_liked,groups,suggested-groups,liked-groups,joined_groups,group,game,games,most_liked_games,liked-games,played-games,game,post,posts,most_liked_posts,liked-posts,my_posts,my-posts,create-post,create_post,edit-post,edit_post,delete-post,delete_post,share-post,share_post,comment,comments,like,likes,dislike,dislikes,share,shares,report,reports,block,blocks,unblock,unblocks,delete,deletes,edit,edits,create,creates,update,updates,remove,removes,add,adds,get,gets,set,sets,put,puts,post,posts,delete,deletes,edit,edits,create,creates,update,updates,remove,removes,add,adds,get,gets,set,sets,put,puts'
+      default: 'maintenance,get_news_feed,home,welcome,register,confirm-sms,confirm-sms-password,forgot-password,reset-password,start-up,activate,search,timeline,pages,suggested-pages,liked-pages,joined_groups,go-pro,page,poke,most_liked,groups,suggested-groups,liked-groups,joined_groups,group,game,games,most_liked_games,liked-games,played-games,game,post,posts,most_liked_posts,liked-posts,my_posts,my-posts,create-post,create_post,edit-post,edit_post,delete-post,delete_post,share-post,share_post,comment,comments,like,likes,dislike,dislikes,share,shares,report,reports,block,blocks,unblock,unblocks,delete,deletes,edit,edits,create,creates,update,updates,remove,removes,add,adds,get,gets,set,sets,put,puts,post,posts,delete,deletes,edit,edits,create,creates,update,updates,remove,removes,add,adds,get,gets,set,sets,put,puts'
     },
     
     // System Settings

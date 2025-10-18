@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Edit, Trash2, MoreVertical, Search, Filter, Camera, Video, Music, FileText, Plus, Heart, MessageCircle, Share2, Bookmark, Settings, Camera as CameraIcon, MapPin, Globe, Calendar, Users, Eye, ThumbsUp, X, ShoppingBag, UserPlus, UserCheck, Phone, BarChart3, Clock, Link as LinkIcon, Gift, Activity } from 'lucide-react';
@@ -308,7 +308,7 @@ const UserProfile: React.FC = () => {
       let targetUserId = actualUserId;
       if (actualUserId === 'me') {
         try {
-          const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+          const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -333,7 +333,7 @@ const UserProfile: React.FC = () => {
         }
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${targetUserId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -346,7 +346,7 @@ const UserProfile: React.FC = () => {
           setIsBlocked(userData.isBlocked);
         
         // Check if this is the current user's profile
-        const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+        const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -375,7 +375,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/userimages/${actualUserId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/${actualUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -399,7 +399,7 @@ const UserProfile: React.FC = () => {
       if (actualUserId === 'me') return;
       
       // Fetch posts
-      const postsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${actualUserId}/posts`, {
+      const postsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${actualUserId}/posts`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -419,7 +419,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${actualUserId}/albums`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${actualUserId}/albums`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -439,7 +439,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/groups/user/${actualUserId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/groups/user/${actualUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -459,7 +459,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${actualUserId}/products`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${actualUserId}/products`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -479,7 +479,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${actualUserId}/activities`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${actualUserId}/activities`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -508,7 +508,7 @@ const UserProfile: React.FC = () => {
       if (!token) return;
 
       // Try to fetch from analytics endpoint first
-      const analyticsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${actualUserId}/analytics`, {
+      const analyticsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${actualUserId}/analytics`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -731,7 +731,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token || !user) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${user._id}/follow`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user._id}/follow`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -754,7 +754,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token || !user) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${user._id}/block`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user._id}/block`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -789,7 +789,7 @@ const UserProfile: React.FC = () => {
 
       console.log('🔗 Frontend: Following user by ID:', followById);
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${followById.trim()}/follow`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${followById.trim()}/follow`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -862,7 +862,7 @@ const UserProfile: React.FC = () => {
       const formData = new FormData();
       formData.append('avatar', newAvatar);
 
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/userimages/avatar`, {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/avatar`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -907,7 +907,7 @@ const UserProfile: React.FC = () => {
       const formData = new FormData();
       formData.append('cover', newCoverPhoto);
 
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/userimages/cover`, {
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/cover`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -942,7 +942,7 @@ const UserProfile: React.FC = () => {
     
     try {
       const token = localStorage.getItem('token');
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}`, { 
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}`, { 
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1014,7 +1014,7 @@ const UserProfile: React.FC = () => {
   const handleLike = async (postId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/like`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/like`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1043,7 +1043,7 @@ const UserProfile: React.FC = () => {
   const handleReaction = async (postId: string, reactionType: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/react`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/react`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1069,7 +1069,7 @@ const UserProfile: React.FC = () => {
   const handleComment = async (postId: string, comment: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/comment`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comment`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1092,7 +1092,7 @@ const UserProfile: React.FC = () => {
   const handleShare = async (postId: string, shareOptions: any) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/share`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/share`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1113,7 +1113,7 @@ const UserProfile: React.FC = () => {
   const handleSave = async (postId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/save`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/save`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1155,7 +1155,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${editingPost._id}`, { 
+              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${editingPost._id}`, { 
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1215,7 +1215,7 @@ const UserProfile: React.FC = () => {
     
     // Handle localhost URLs that might be stored incorrectly
     if (url.includes('localhost:3000')) {
-              const correctedUrl = url.replace('http://localhost:3000', 'https://jaifriend-backend.hgdjlive.com');
+              const correctedUrl = url.replace('http://localhost:3000', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
       console.log('🔗 getMediaUrl - Fixed localhost URL:', { original: url, corrected: correctedUrl });
       return correctedUrl;
     }
@@ -1226,7 +1226,7 @@ const UserProfile: React.FC = () => {
       return '/default-avatar.svg';
     }
     
-          return `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend-production.up.railway.app'}/${url}`;
+          return `${API_URL}/${url}`;
   };
 
   if (loading) {
@@ -1615,7 +1615,7 @@ const UserProfile: React.FC = () => {
                           ? isDarkMode
                             ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg transform hover:scale-105'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg'
                       }`}
                     >
                       {isFollowingById ? (
@@ -1901,7 +1901,7 @@ const UserProfile: React.FC = () => {
                         <div className="p-4">
                           <div className="flex items-center gap-3 mb-3">
                             <img
-                              src={user?.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.comp'}/${user.avatar}`) : '/default-avatar.svg'}
+                              src={user?.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${API_URL}/${user.avatar}`) : '/default-avatar.svg'}
                               alt={user?.name || 'User'}
                               className="w-10 h-10 rounded-full border-2 border-blue-400"
                               onError={(e) => {
@@ -2358,7 +2358,7 @@ const UserProfile: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowAnalyticsModal(false)}
-                  className={`p-3 rounded-full transition-all duration-200 hover:scale-110 ${
+                  className={`p-3 rounded-full transition-all duration-200 ${
                     isDarkMode 
                       ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
                       : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
@@ -2431,7 +2431,7 @@ const UserProfile: React.FC = () => {
                           Export your profile data
                         </p>
                       </div>
-                      <button className={`px-2 py-1 rounded-lg font-medium transition-all duration-200 hover:scale-105 shadow-lg ${
+                      <button className={`px-2 py-1 rounded-lg font-medium transition-all duration-200 shadow-lg ${
                         isDarkMode 
                           ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white' 
                           : 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
@@ -2471,7 +2471,7 @@ const UserProfile: React.FC = () => {
                 {/* Right Side - Enhanced Analytics */}
                 <div className="space-y-2">
                   {/* Enhanced Post Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
                     isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-red-50 to-pink-50 border border-red-200'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -2516,7 +2516,7 @@ const UserProfile: React.FC = () => {
                   </div>
 
                   {/* Enhanced Reaction Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
                     isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -2561,7 +2561,7 @@ const UserProfile: React.FC = () => {
                   </div>
 
                   {/* Enhanced Comment Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
                     isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -2606,7 +2606,7 @@ const UserProfile: React.FC = () => {
                   </div>
 
                   {/* Enhanced Share Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
                     isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200'
                   }`}>
                     <div className="flex items-center gap-2 mb-2">

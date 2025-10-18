@@ -130,20 +130,49 @@ exports.login = async (req, res) => {
 };
 
 exports.setupProfile = async (req, res) => {
-  const { avatar, fullName, bio, location } = req.body;
+  const { avatar, fullName, bio, location, stepCompleted, skipped } = req.body;
   try {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.avatar = avatar;
-    user.fullName = fullName;
-    user.bio = bio;
-    user.location = location;
-    user.isSetupDone = true;
+    // Update fields progressively based on step completed
+    if (stepCompleted >= 1 && avatar) {
+      user.avatar = avatar;
+    }
+    if (stepCompleted >= 2) {
+      if (fullName) user.fullName = fullName;
+      if (bio !== undefined) user.bio = bio;
+      if (location) user.location = location;
+    }
+    
+    // Mark setup as done only when step 3 is completed (whether skipped or not)
+    if (stepCompleted >= 3) {
+      user.isSetupDone = true;
+    }
+    
     await user.save();
 
-    res.json({ message: 'Profile setup completed' });
+    // Also update UserImage model to keep it synchronized
+    const UserImage = require('../models/userImage');
+    let userImage = await UserImage.findOne({ userId: req.userId });
+    
+    if (!userImage) {
+      userImage = new UserImage({ userId: req.userId });
+    }
+    
+    if (avatar) {
+      userImage.avatar = avatar;
+    }
+    await userImage.save();
+
+    console.log(`✅ Step ${stepCompleted} completed for user ${req.userId}`);
+    res.json({ 
+      message: `Step ${stepCompleted} completed successfully`,
+      stepCompleted,
+      skipped: skipped || false
+    });
   } catch (err) {
+    console.error('❌ Setup profile error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

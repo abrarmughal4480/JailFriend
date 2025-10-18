@@ -70,7 +70,7 @@ function getUserAvatar() {
       // Handle avatar URLs properly
       if (user.avatar.includes('/avatars/') || user.avatar.includes('/covers/')) {
         // For avatar paths, construct the full URL
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
         if (user.avatar.startsWith('http')) {
           return user.avatar;
         }
@@ -218,7 +218,7 @@ export default function Dashboard() {
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
   const [selectedUserStories, setSelectedUserStories] = useState<any[]>([]);
   const [stories, setStories] = useState<any[]>([]);
-  const [loadingStories, setLoadingStories] = useState(true);
+  const [loadingStories, setLoadingStories] = useState(false);
 
   const [popup, setPopup] = useState<PopupState>({
     isOpen: false,
@@ -1176,12 +1176,31 @@ export default function Dashboard() {
     if (!url) {
       return '/default-avatar.svg';
     }
+    
+    // Handle localhost URLs that might be stored incorrectly
+    if (url.includes('localhost:3000') || url.includes('localhost:3001')) {
+      if (!process.env.NEXT_PUBLIC_API_URL) {
+        console.error('❌ NEXT_PUBLIC_API_URL is not set!');
+        return url;
+      }
+      const correctedUrl = url.replace(/localhost:\d+/, process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, '')).replace('http://', 'http://');
+      // console.log('🔗 Dashboard - Fixed localhost URL:', { original: url, corrected: correctedUrl });
+      return correctedUrl;
+    }
+    
     if (url.startsWith('http')) {
       return url;
     }
+    
     // Remove leading slash to avoid double slashes
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    return `${API_URL}/${cleanUrl}`;
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+      console.error('❌ NEXT_PUBLIC_API_URL is not set!');
+      return url;
+    }
+    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
+    // console.log('📸 Dashboard - Original:', url, 'Full:', fullUrl);
+    return fullUrl;
   };
 
   const [userEmail, setUserEmail] = useState("");
@@ -1236,7 +1255,7 @@ export default function Dashboard() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/me`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -1247,7 +1266,7 @@ export default function Dashboard() {
           localStorage.setItem('user', JSON.stringify(userData));
 
           // Also fetch user images
-          const imagesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/userimages`, {
+          const imagesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
@@ -1311,10 +1330,11 @@ export default function Dashboard() {
 
   const fetchStories = async () => {
     try {
+      setLoadingStories(true);
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/feed`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/feed`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1332,7 +1352,7 @@ export default function Dashboard() {
                 // Check if story has user ID (could be in user field as string or userId field)
                 const userId = story.user || story.userId;
                 if (userId && typeof userId === 'string') {
-                  const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${userId}`, {
+                  const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
                   if (userResponse.ok) {
@@ -1377,7 +1397,7 @@ export default function Dashboard() {
       if (!token) return;
 
       setLoadingPages(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/latest`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages/latest`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1402,7 +1422,7 @@ export default function Dashboard() {
       if (!token) return;
 
       setLoadingSuggestedPages(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1431,7 +1451,7 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/${storyId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/${storyId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1455,7 +1475,7 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/${storyId}/react`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/${storyId}/react`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1486,7 +1506,7 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/${storyId}/reply`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/${storyId}/reply`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1766,7 +1786,7 @@ export default function Dashboard() {
         formData.append('media', file);
       });
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1788,7 +1808,7 @@ export default function Dashboard() {
             try {
               const token = localStorage.getItem('token');
               if (token && newPostData.userId) {
-                const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${newPostData.userId}`, {
+                const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${newPostData.userId}`, {
                   headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (userResponse.ok) {
@@ -2158,7 +2178,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="bg-[#f4f7fb] dark:bg-gray-900 min-h-screen w-full transition-colors duration-200 touch-manipulation md:mr-20">
+    <div className="min-h-screen w-full transition-colors duration-200 touch-manipulation">
       <Popup popup={popup} onClose={closePopup} />
 
       <SharePopup
@@ -2177,10 +2197,10 @@ export default function Dashboard() {
         isAlbum={selectedPostForShare?.type === 'album'}
       />
 
-      <div className="px-1 xs:px-2 sm:px-4 lg:px-6 w-full">
+      <div className="px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 w-full">
 
 
-        <div className="w-full pt-3 xs:pt-2 mb-2 xs:mb-3 sm:mb-4">
+        <div className="w-full pt-2 xs:pt-3 sm:pt-4 mb-3 xs:mb-4 sm:mb-6">
           <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-2 scrollbar-hide touch-pan-x">
             {/* Your Story */}
             <div
@@ -2198,18 +2218,18 @@ export default function Dashboard() {
                 userStory.startsWith('data:video') ? (
                   <video
                     src={userStory}
-                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform group-hover:scale-105"
+                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform"
                     controls
                   />
                 ) : (
                   <img
                     src={userStory}
-                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform group-hover:scale-105"
+                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform"
                     alt="Your Story"
                   />
                 )
               ) : (
-                <div className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-gray-300 mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gray-100 dark:bg-gray-200 relative overflow-hidden transition-transform group-hover:scale-105">
+                <div className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-gray-300 mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gray-100 dark:bg-gray-200 relative overflow-hidden transition-transform">
                   {/* User Profile Picture */}
                   {(() => {
                     const avatarUrl = getUserAvatar();
@@ -2265,20 +2285,22 @@ export default function Dashboard() {
                   style={{ touchAction: 'manipulation' }}
                 >
                   {/* Story Container with Professional Styling */}
-                  <div className="relative w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg sm:shadow-xl border-2 border-white dark:border-gray-700 group-hover:shadow-2xl transition-all duration-300">
-                    {/* Media Content */}
+                  <div className="relative w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg sm:shadow-xl border-2 border-white dark:border-gray-700 transition-all duration-300">
+                    {/* Media Content - Lazy Loading */}
                     {groupedStory.latestStory.mediaType === 'video' ? (
-                      <video
-                        src={groupedStory.latestStory.media}
-                        poster={groupedStory.latestStory.thumbnail}
-                        className="w-full h-full object-cover"
-                      />
+                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <div className="text-2xl mb-1">🎥</div>
+                          <div className="text-xs font-medium">Video Story</div>
+                        </div>
+                      </div>
                     ) : (
-                      <img
-                        src={groupedStory.latestStory.media}
-                        className="w-full h-full object-cover"
-                        alt={`${groupedStory.user.username}'s Story`}
-                      />
+                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-orange-500 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <div className="text-2xl mb-1">📸</div>
+                          <div className="text-xs font-medium">Photo Story</div>
+                        </div>
+                      </div>
                     )}
 
                     {/* Gradient Overlay for Better Text Visibility */}
@@ -2318,7 +2340,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Username Below (for better visibility) */}
-                  <span className="text-xs xs:text-sm text-[#34495e] dark:text-gray-300 group-hover:text-[#022e8a] dark:group-hover:text-blue-400 font-medium transition-colors duration-200 truncate max-w-[60px] xs:max-w-[80px] text-center mt-2">
+                  <span className="text-xs xs:text-sm text-[#34495e] dark:text-gray-300 group-hover:text-[#022e8a] dark:group-hover:text-blue-400 font-medium transition-colors duration-200 text-center mt-2">
                     {groupedStory.user.fullName || groupedStory.user.username}
                   </span>
                 </div>
@@ -2329,31 +2351,13 @@ export default function Dashboard() {
         </div>
 
         {/* Content Filter Bar */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow p-3 sm:p-4 mb-3 sm:mb-4 transition-colors duration-200">
-          {/* Filter Count Display */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Showing {getFilteredPosts().length} {activeFilter === 'all' ? 'posts' : activeFilter} posts
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">
-              Total: {posts.length} posts
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 xs:gap-2 sm:gap-3 overflow-x-auto scrollbar-hide touch-pan-x pb-2">
-            {/* Filter Button */}
-            <button className="flex-shrink-0 w-8 h-8 xs:w-10 xs:h-10 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-              <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-            </button>
-
-            {/* Content Category Buttons */}
+        <div className="mb-3 sm:mb-4 transition-colors duration-200">
+          <div className="flex items-center justify-center gap-1 xs:gap-2 sm:gap-3 overflow-x-auto scrollbar-hide touch-pan-x pb-2">
             <button
               onClick={() => setActiveFilter('all')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'all'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2366,7 +2370,7 @@ export default function Dashboard() {
               onClick={() => setActiveFilter('text')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'text'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2379,7 +2383,7 @@ export default function Dashboard() {
               onClick={() => setActiveFilter('photos')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'photos'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2393,7 +2397,7 @@ export default function Dashboard() {
               onClick={() => setActiveFilter('videos')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'videos'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2406,7 +2410,7 @@ export default function Dashboard() {
               onClick={() => setActiveFilter('sounds')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'sounds'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2419,7 +2423,7 @@ export default function Dashboard() {
               onClick={() => setActiveFilter('files')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'files'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2432,7 +2436,7 @@ export default function Dashboard() {
               onClick={() => setActiveFilter('maps')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'maps'
                   ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2464,7 +2468,7 @@ export default function Dashboard() {
                 height: 'auto'
               }}
             >
-              <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6">
+              <div className="bg-custom-secondary rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6">
                 {/* Top Section: Content Type Selection */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1 xs:gap-2 sm:gap-3">
@@ -2510,7 +2514,7 @@ export default function Dashboard() {
                       {/* Content Textarea */}
                       <textarea
                         placeholder="Click to create a new post..."
-                        className={`w-full border border-gray-300 dark:border-gray-600 rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'
+                        className={`w-full border border-custom-primary rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm bg-custom-tertiary text-custom-primary placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'
                           }`}
                         value=""
                         readOnly
@@ -2527,7 +2531,7 @@ export default function Dashboard() {
                     {/* Camera Icon - Positioned to the right of textarea */}
                     <div className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0">
                       <button
-                        className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                        className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 text-custom-secondary hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-custom-hover"
                         onClick={() => fileInputRef.current && fileInputRef.current.click()}
                         disabled={posting}
                         title="Add photos or videos"
@@ -2587,7 +2591,7 @@ export default function Dashboard() {
                     <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 transition-colors duration-200">Selected files ({mediaFiles.length}):</div>
                     <div className="space-y-3">
                       {mediaFiles.map((file, index) => (
-                        <div key={index} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                        <div key={index} className="bg-custom-tertiary rounded-lg p-3 border border-custom-primary">
                           <div className="flex items-start gap-3">
                             {/* Image/Video Thumbnail Preview */}
                             {file.type.startsWith('image/') ? (
@@ -2630,10 +2634,10 @@ export default function Dashboard() {
                             )}
 
                             {/* File Info */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1">
                               <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-gray-900 dark:text-white text-sm truncate mb-1">
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
                                     {file.name}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -2855,11 +2859,11 @@ export default function Dashboard() {
                           </div>
 
                           {/* Page Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 dark:text-white text-sm truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                <div className="flex-1">
+                            <div className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {page.name}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               {page.category}
                             </div>
                           </div>
@@ -2939,11 +2943,11 @@ export default function Dashboard() {
                           </div>
 
                           {/* Page Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900 dark:text-white text-sm truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                <div className="flex-1">
+                            <div className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                               {page.name}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               @{page.url}
                             </div>
                             <div className="text-xs text-gray-400 dark:text-gray-500">
@@ -3060,7 +3064,7 @@ export default function Dashboard() {
               {/* Modal Content - Fixed Layout */}
               <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                 {/* Left Side - Content */}
-                <div className="flex-1 overflow-y-auto lg:max-w-[60%]">
+                <div className="flex-1 overflow-y-auto">
                   <div className="p-4 pb-8">
                     {/* Post Content */}
                     {selectedPostForWatch.content && (
@@ -3094,6 +3098,21 @@ export default function Dashboard() {
                                 controls
                                 className="w-full max-h-[40vh] object-contain"
                                 poster={media.thumbnail ? getMediaUrl(media.thumbnail) : ''}
+                                onError={(e) => {
+                                  console.error('Album video loading error:', e.currentTarget.src);
+                                  e.currentTarget.style.display = 'none';
+                                  // Show fallback content
+                                  const fallback = document.createElement('div');
+                                  fallback.className = 'w-full h-64 sm:h-96 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg flex items-center justify-center';
+                                  fallback.innerHTML = `
+                                    <div class="text-center text-gray-600 dark:text-gray-300">
+                                      <div class="text-4xl mb-2">🎥</div>
+                                      <div class="text-sm">Video could not be loaded</div>
+                                      <div class="text-xs mt-1 opacity-75">Check your connection</div>
+                                    </div>
+                                  `;
+                                  e.currentTarget.parentNode?.appendChild(fallback);
+                                }}
                               />
                             ) : (
                               <div className="p-4 text-center">
@@ -3142,7 +3161,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Side - Enhanced Actions & Comments */}
-                <div className="w-full lg:w-80 border-l border-gray-200 dark:border-gray-700 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 flex flex-col min-h-0 flex-shrink-0">
+                <div className="w-full border-l border-gray-200 dark:border-gray-700 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 flex flex-col min-h-0 flex-shrink-0">
                   {/* Action Buttons - Enhanced */}
                   <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
                     {/* Like Button - Enhanced */}
@@ -3257,9 +3276,9 @@ export default function Dashboard() {
                                 e.currentTarget.src = '/default-avatar.svg';
                               }}
                             />
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
+                                <span className="font-medium text-sm text-gray-900 dark:text-white">
                                   {comment.user?.name || comment.user?.username || 'User'}
                                 </span>
                                 <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
@@ -3376,10 +3395,10 @@ export default function Dashboard() {
                           )}
 
                           {/* File Info */}
-                          <div className="flex-1 min-w-0">
+                                <div className="flex-1">
                             <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-gray-900 dark:text-white text-sm truncate mb-1">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
                                   {file.name}
                                 </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -4150,7 +4169,7 @@ export default function Dashboard() {
                           <div className="font-medium text-gray-900 dark:text-white text-sm">
                             {result.display_name.split(',')[0]}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {result.display_name}
                           </div>
                         </button>

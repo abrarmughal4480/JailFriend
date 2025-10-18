@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Camera, Edit, Search, Video, Image, Plus, Heart, MessageCircle, Share2, Users, FileText, X, ChevronDown, UserPlus, Globe2, Users2, Car, File, Smile, Hash, AtSign, Link, Upload, MapPin, Calendar, ThumbsUp, MoreHorizontal, Bookmark, Flag, Bell, BellOff } from 'lucide-react';
@@ -1038,7 +1038,7 @@ const GroupPage: React.FC = () => {
         onClick={() => setShowPostModal(true)}
         className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 flex items-center justify-center group"
       >
-        <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        <Plus className="w-6 h-6 transition-transform" />
       </button>
 
       {/* Post Creation Modal */}

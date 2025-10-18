@@ -35,16 +35,36 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
       return '/default-avatar.svg';
     }
     
-  return `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/${avatarUrl}`;
+  return `${process.env.NEXT_PUBLIC_API_URL}/${avatarUrl}`;
   };
 
   useEffect(() => {
-    if (isOpen && textareaRef.current) {
-      textareaRef.current.focus();
+    if (isOpen) {
+      // Disable scrolling
+      document.body.style.overflow = 'hidden';
+      // Prevent scroll on mobile
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+      // Get current user info when modal opens
+      const user = getCurrentUser();
+      setCurrentUser(user);
+    } else {
+      // Re-enable scrolling
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
     }
-    // Get current user info when modal opens
-    const user = getCurrentUser();
-    setCurrentUser(user);
+
+    // Cleanup function to restore scrolling when component unmounts
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.body.style.position = 'unset';
+      document.body.style.width = 'unset';
+    };
   }, [isOpen]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,7 +130,7 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
       formData.append('content', content.trim());
       formData.append('privacy', privacy);
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -165,24 +185,25 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
-      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 bg-black/20 backdrop-blur-md">
+      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[80vh] overflow-y-auto scrollbar-hide">
+        <div className="p-4 sm:p-6 relative">
+          {/* Close Button */}
           <button
             onClick={handleClose}
             disabled={isUploading}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors disabled:opacity-50"
+            className="absolute top-4 right-4 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
           >
-            <X className="w-5 h-5" />
+            ×
           </button>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Create New Story
-          </h2>
-          <div className="w-10" /> {/* Spacer for centering */}
-        </div>
+          
+          
+          <div className="text-center">
+            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-900 dark:text-white break-words">
+              Create New Story
+            </h3>
 
-        <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           {/* Content Input */}
           <div>
                           <textarea
@@ -351,25 +372,28 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
             </div>
           )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={isUploading || !selectedFile}
-            className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-medium py-2 sm:py-3 px-4 sm:px-6 rounded-xl transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            {isUploading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <FileText className="w-5 h-5" />
-                Create
-              </>
-            )}
-          </button>
-        </form>
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isUploading || !selectedFile}
+                className="w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 text-sm sm:text-base touch-manipulation bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {isUploading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-5 h-5" />
+                    Create Story
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
       
       <style jsx>{`
@@ -378,6 +402,14 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
           scrollbar-width: none;
         }
         .scrollbar-hide::-webkit-scrollbar { 
+          display: none;
+          width: 0;
+          height: 0;
+        }
+        .scrollbar-hide::-webkit-scrollbar-track {
+          display: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar-thumb {
           display: none;
         }
       `}</style>

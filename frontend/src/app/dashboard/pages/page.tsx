@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, FileText, ArrowLeft, ArrowRight, ThumbsUp, Camera, Users, Menu, X, Search, Heart, MessageCircle, Share2, Globe, Calendar, Users2, Star, Edit } from 'lucide-react';
@@ -167,7 +167,7 @@ const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCr
           >
             <div className="p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-all duration-200 ${
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                   isDarkMode ? 'bg-gradient-to-br from-blue-900 to-indigo-900' : 'bg-gradient-to-br from-blue-50 to-indigo-100'
                 }`}>
                   <FileText className={`w-7 h-7 transition-colors duration-200 ${
@@ -1282,7 +1282,7 @@ const PagesInterface: React.FC = () => {
       console.log('Fetching pages...');
       
       const [allPagesResponse, userPagesResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`),
         fetch(`${API_URL}/api/pages/user`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1451,7 +1451,7 @@ const PagesInterface: React.FC = () => {
       setCreating(true);
       console.log('Creating page with data:', formData);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`, { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1586,7 +1586,7 @@ const PagesInterface: React.FC = () => {
       setUpdating(true);
       console.log('Updating page with data:', formData);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/${editingPage._id}`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages/${editingPage._id}`, { 
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1778,7 +1778,7 @@ const PagesInterface: React.FC = () => {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200">
                     <FileText className="w-7 h-7 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -2277,7 +2277,7 @@ const PagesInterface: React.FC = () => {
       {!showCreateForm && !showEditForm && (
         <button 
           onClick={() => setShowCreateForm(true)}
-          className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center z-20 group hover:scale-110"
+          className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center z-20 group"
         >
           <Plus className="w-7 h-7 group-hover:rotate-90 transition-transform duration-300" />
         </button>

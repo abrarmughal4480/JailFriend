@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com');
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import React, { useState, useRef, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import { getCurrentUserId } from '@/utils/auth';
@@ -86,7 +86,9 @@ export default function AlbumDisplay({
         return '/default-avatar.svg';
       }
       
-      const constructedUrl = `${API_URL}/${url}`;
+      // Remove leading slash to avoid double slashes
+      const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+      const constructedUrl = `${API_URL}/${cleanUrl}`;
       
       return constructedUrl;
     } catch (error) {
@@ -127,28 +129,28 @@ export default function AlbumDisplay({
       'video/avi': video.canPlayType('video/x-msvideo')
     };
     
-    console.log('Browser video format support:', formats);
+    // console.log('Browser video format support:', formats);
     return formats;
   };
 
   // Diagnose album creation issues
   const diagnoseAlbumIssue = (album: any) => {
-    console.log('🔍 Album Diagnosis:', {
-      albumId: album._id,
-      albumName: album.name,
-      mediaCount: album.media?.length || 0,
-      mediaDetails: album.media?.map((item: any, index: number) => ({
-        index,
-        url: item.url,
-        type: item.type,
-        mimetype: item.mimetype,
-        hasUrl: !!item.url,
-        urlStartsWithSlash: item.url?.startsWith('/'),
-        urlStartsWithHttp: item.url?.startsWith('http')
-      })) || [],
-      createdAt: album.createdAt,
-      updatedAt: album.updatedAt
-    });
+    // console.log('🔍 Album Diagnosis:', {
+    //   albumId: album._id,
+    //   albumName: album.name,
+    //   mediaCount: album.media?.length || 0,
+    //   mediaDetails: album.media?.map((item: any, index: number) => ({
+    //     index,
+    //     url: item.url,
+    //     type: item.type,
+    //     mimetype: item.mimetype,
+    //     hasUrl: !!item.url,
+    //     urlStartsWithSlash: item.url?.startsWith('/'),
+    //     urlStartsWithHttp: item.url?.startsWith('http')
+    //   })) || [],
+    //   createdAt: album.createdAt,
+    //   updatedAt: album.updatedAt
+    // });
     
     // Check for common issues
     const issues = [];
@@ -169,9 +171,9 @@ export default function AlbumDisplay({
     });
     
     if (issues.length > 0) {
-      console.log('🚨 Album Issues Found:', issues);
+      // console.log('🚨 Album Issues Found:', issues);
     } else {
-      console.log('✅ Album appears to be properly formatted');
+      // console.log('✅ Album appears to be properly formatted');
     }
     
     return issues;
@@ -546,28 +548,29 @@ export default function AlbumDisplay({
                           try {
                             // Create a safe error details object with only serializable properties
                             const errorDetails = {
-                              albumId: album._id,
+                              albumId: album?._id || 'unknown',
+                              albumName: album?.name || 'unknown',
                               mediaIndex: index,
-                              mediaUrl: mediaItem.url,
-                              fullUrl: getMediaUrl(mediaItem.url),
+                              mediaUrl: mediaItem?.url || 'unknown',
+                              fullUrl: mediaItem?.url ? getMediaUrl(mediaItem.url) : 'unknown',
                               timestamp: new Date().toISOString(),
                               mediaItem: {
-                                url: mediaItem.url,
-                                type: mediaItem.type,
-                                thumbnail: mediaItem.thumbnail
+                                url: mediaItem?.url || 'unknown',
+                                type: mediaItem?.type || 'unknown',
+                                thumbnail: mediaItem?.thumbnail || 'unknown'
                               },
-                              errorType: e.type,
+                              errorType: e?.type || 'unknown',
                               errorMessage: 'Image failed to load'
                             };
-                            console.error('Image loading error for album media:', errorDetails);
+                            // console.error('Image loading error for album media:', errorDetails);
                           } catch (logError) {
                             console.error('Error logging image error:', logError);
-                            console.error('Image loading error for album media (fallback):', {
-                              albumId: album._id,
-                              mediaIndex: index,
-                              mediaUrl: mediaItem?.url || 'undefined',
-                              timestamp: new Date().toISOString()
-                            });
+                            // console.error('Image loading error for album media (fallback):', {
+                            //   albumId: album?._id || 'unknown',
+                            //   mediaIndex: index,
+                            //   mediaUrl: mediaItem?.url || 'unknown',
+                            //   timestamp: new Date().toISOString()
+                            // });
                           }
                           const img = e.currentTarget;
                           if (img) {

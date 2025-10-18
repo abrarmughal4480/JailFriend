@@ -20,16 +20,43 @@ const LatestProducts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Function to get proper media URL
+  const getMediaUrl = (url: string) => {
+    if (!url) return '/default-avatar.svg';
+    if (url.startsWith('http')) return url;
+    
+    // Handle localhost URLs that might be stored incorrectly
+    if (url.includes('localhost:3000') || url.includes('localhost:3001')) {
+      if (!process.env.NEXT_PUBLIC_API_URL) {
+        console.error('❌ NEXT_PUBLIC_API_URL is not set!');
+        return url;
+      }
+      const correctedUrl = url.replace(/localhost:\d+/, process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, '')).replace('http://', 'http://');
+      console.log('🔗 LatestProducts - Fixed localhost URL:', { original: url, corrected: correctedUrl });
+      return correctedUrl;
+    }
+    
+    // Remove leading slash to avoid double slashes
+    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+      console.error('❌ NEXT_PUBLIC_API_URL is not set!');
+      return url;
+    }
+    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
+    // console.log('📸 LatestProducts - Original:', url, 'Full:', fullUrl);
+    return fullUrl;
+  };
+
   useEffect(() => {
   const fetchLatestProducts = async () => {
     try {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const response = await fetch(`${API_URL}/api/products/latest`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        console.log('Latest products fetched:', data.length);
+        // console.log('Latest products fetched:', data.length);
         setProducts(data);
         setLoading(false);
     } catch (error) {
@@ -100,7 +127,7 @@ const LatestProducts: React.FC = () => {
                 <div className="text-center">
                   {product.image ? (
                     <img 
-                      src={product.image} 
+                      src={getMediaUrl(product.image)} 
                       alt={product.name}
                       className="w-full h-20 object-cover rounded-lg mb-2"
                     />
@@ -127,7 +154,7 @@ const LatestProducts: React.FC = () => {
             <div className="flex items-start gap-3">
                 {product.image ? (
                 <img 
-                  src={product.image} 
+                  src={getMediaUrl(product.image)} 
               alt={product.name}
                     className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                 />

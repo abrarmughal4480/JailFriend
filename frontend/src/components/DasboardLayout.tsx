@@ -126,15 +126,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         return;
       }
 
-      console.log('Fetching notifications with token:', token.substring(0, 20) + '...');
+      // console.log('Fetching notifications with token:', token.substring(0, 20) + '...');
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/notifications/stats`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      console.log('Notification response status:', response.status);
+      // console.log('Notification response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
@@ -171,7 +171,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/search/quick?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/search/quick?q=${encodeURIComponent(query)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -401,7 +401,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-              fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/profile/me`, {
+              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())
@@ -421,7 +421,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.log('Images updated event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -439,7 +439,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.log('Privacy settings updated event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -452,7 +452,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.log('Password changed event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -478,7 +478,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.log('Profile updated event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -649,7 +649,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       const token = localStorage.getItem('token');
       if (token) {
         // Get current user's profile to get their ID
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com')}/api/profile/me`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -717,7 +717,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               }`}
               title={item.name}
             >
-              <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-sm group-hover:scale-110 transition-transform leading-none relative`}>
+              <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-sm transition-transform leading-none relative`}>
                 {item.icon}
                 {/* Notification badge for notifications item in collapsed view */}
                 {item.name === "Notifications" && notificationCount > 0 && (
@@ -730,7 +730,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </span>
                 )}
               </div>
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none transform -translate-x-full">
+              <div className="absolute left-full ml-2 px-1 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none transform -translate-x-full">
                 {item.name}
               </div>
             </Link>
@@ -740,7 +740,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 p-4">
         {items.map((item) => (
           <Link
             key={item.name}
@@ -763,21 +763,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             onMouseEnter={(e) => {
               if (pathname !== item.href) {
                 e.currentTarget.style.background = 'linear-gradient(45deg, #022e8a, #5d97fe)';
-                e.currentTarget.style.transform = 'translateX(8px)';
                 e.currentTarget.style.boxShadow = '0 4px 15px rgba(93, 151, 254, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
               if (pathname !== item.href) {
                 e.currentTarget.style.background = isDarkMode ? '#374151' : '#ffffff';
-                e.currentTarget.style.transform = 'translateX(0)';
                 e.currentTarget.style.boxShadow = isDarkMode 
                   ? '4px 4px 8px rgba(0, 0, 0, 0.3), -4px -4px 8px rgba(0, 0, 0, 0.1)' 
                   : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)';
               }
             }}
           >
-            <div className={`w-8 h-8 rounded-md flex items-center justify-center text-base group-hover:scale-110 transition-transform leading-none relative ${
+            <div className={`w-8 h-8 rounded-md flex items-center justify-center text-base transition-transform leading-none relative ${
               pathname === item.href ? 'bg-white/20' : isDarkMode ? 'bg-gray-600' : 'bg-gray-100'
             }`}>
               {item.icon}
@@ -944,7 +942,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Main component return
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden" style={{ padding: '0' }}>
       {/* Popup Modals */}
       {popup.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black bg-opacity-50">
@@ -979,7 +977,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 {(popup.title !== 'Logging Out...' && popup.title !== 'Redirecting...') && (
                   <button
                     onClick={closePopup}
-                    className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                    className={`w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 ${
                       popup.type === 'success'
                         ? 'bg-green-500 hover:bg-green-600 text-white'
                         : popup.type === 'error'
@@ -1021,14 +1019,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <div className="space-y-3">
                   <button
                     onClick={handleAddAccount}
-                    className="w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white"
+                    className="w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white"
                   >
                     Add Account
                   </button>
                   
                   <button
                     onClick={() => setSwitchAccountModal({ isOpen: false })}
-                    className="w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                    className="w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
                   >
                     Cancel
                   </button>
@@ -1041,7 +1039,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Navbar */}
       {!isMessagesPage && (
-        <nav className={`w-full flex justify-center items-center px-4 py-3 z-[70] fixed top-0 left-0 shadow-md border-b transition-colors duration-200 ${
+        <nav className={`w-full flex justify-center items-center px-1 py-3 z-[50] fixed top-0 left-0 shadow-md border-b transition-colors duration-200 ${
           isAdminPage 
             ? 'bg-gray-800 border-gray-700' 
             : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
@@ -1079,7 +1077,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
           {/* Center - Search Bar (Hidden on mobile and tablet) */}
           <div className="hidden lg:flex flex-1 justify-center max-w-lg mx-4 search-container relative">
-            <div className={`rounded-full px-4 py-2 w-full flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all ${
+            <div className={`rounded-full px-1 py-2 w-full flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all ${
               isAdminPage 
                 ? 'bg-gray-700 focus-within:bg-gray-600' 
                 : 'bg-gray-100 dark:bg-gray-700 focus-within:bg-white dark:focus-within:bg-gray-600'
@@ -1200,7 +1198,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* Mobile Search Modal */}
             {isMobile && showSearchResults && (
-              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-4">
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-1">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden">
                   <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="relative">
@@ -1456,7 +1454,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       )}
 
       {/* Layout Container */}
-      <div className="flex">
+      <div className="flex" style={{ padding: '0', margin: '0' }}>
         {/* Followers Sidebar */}
         <FollowersSidebar isAdminPage={isAdminPage} />
         
@@ -1556,12 +1554,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
                     e.currentTarget.style.boxShadow = '3px 3px 6px rgba(0, 0, 0, 0.15), -3px -3px 6px rgba(255, 255, 255, 1)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = '#ffffff';
-                    e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.1), -2px -2px 4px rgba(255, 255, 255, 0.9)';
                   }}
                 >
@@ -1729,8 +1725,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 
                 <div className="border-t border-gray-200 dark:border-gray-600 my-2"></div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 py-3 px-4">
+                <div className="space-y-2 p-4">
+                  <div className="flex items-center gap-3 py-3 px-1">
                     <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🌙</span>
                     <span className="font-medium flex-1 text-gray-900 dark:text-white">
                       {isSystemMode ? 'Follow System' : 'Night mode'}
@@ -1748,7 +1744,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </div>
                   {!isSystemMode && (
                     <button 
-                      className="flex items-center gap-2 py-2 px-4 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors w-full"
+                      className="flex items-center gap-2 py-2 px-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors w-full"
                       onClick={resetToSystem}
                     >
                       <span className="text-sm">🔄</span>
@@ -1758,7 +1754,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 </div>
                 
                 <button 
-                  className="flex items-center gap-3 py-3 px-4 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-left w-full transition-colors"
+                  className="flex items-center gap-3 py-3 px-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-left w-full transition-colors"
                   onClick={handleLogout}
                 >
                   <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🚪</span>
@@ -1830,7 +1826,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         )}
 
         {/* Sidebar */}
-        {isMobile ? (
+        {!isMessagesPage && (isMobile ? (
           <>
             {/* Main Sidebar */}
             <aside className={`fixed left-0 top-0 ${isAdminPage ? 'w-48' : 'w-64'} h-screen flex flex-col z-[60] transform transition-transform duration-300 ${
@@ -1840,7 +1836,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             } ${isAdminPage ? 'bg-gray-900' : 'bg-white dark:bg-gray-800'}`} style={{
               height: 'calc(100vh - 64px)',
               top: '64px',
-              padding: isAdminPage ? '12px' : '16px',
+              padding: '0',
               scrollbarWidth: 'thin',
               scrollbarColor: isAdminPage ? '#4A4A4A #2C2C2C' : isDarkMode ? '#4A4A4A #374151' : '#022e8a #f4f4f9',
               display: 'flex',
@@ -1848,26 +1844,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               overflow: 'hidden',
               boxShadow: isAdminPage ? 'none' : isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'
             }}>
-                          <div className="flex items-center justify-between mb-4">
-              <h2 className={`font-bold text-lg ${isAdminPage ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
-                {isSettingsPage ? 'Settings' : isAdminPage ? 'Admin' : 'Menu'}
-              </h2>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center hover:transition-colors ${
-                    isAdminPage 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
-                  }`}
-                  style={!isAdminPage ? {
-                    boxShadow: isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'
-                  } : {}}
-              >
-                ✕
-              </button>
-            </div>
+              <div className="px-1 py-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className={`font-bold text-lg ${isAdminPage ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                    {isSettingsPage ? 'Settings' : isAdminPage ? 'Admin' : 'Menu'}
+                  </h2>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center hover:transition-colors ${
+                        isAdminPage 
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                          : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                      }`}
+                      style={!isAdminPage ? {
+                        boxShadow: isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'
+                      } : {}}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
 
-              <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="flex-1 overflow-y-auto scrollbar-hide px-1" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {isSettingsPage ? (
                 <>
                   {/* Back to Dashboard */}
@@ -1970,13 +1968,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span>© 2025 Jaifriend</span>
                         <button className="px-3 py-1 rounded-md text-white text-sm transition-all duration-300" style={{
                           background: '#022e8a'
-                        }} onMouseEnter={(e) => {
+                        }}                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#5d97fe';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
                           e.currentTarget.style.boxShadow = '0 4px 8px rgba(93, 151, 254, 0.3)';
                         }} onMouseLeave={(e) => {
                           e.currentTarget.style.background = '#022e8a';
-                          e.currentTarget.style.transform = 'translateY(0)';
                           e.currentTarget.style.boxShadow = 'none';
                         }}>
                           Language
@@ -2004,7 +2000,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             }`} style={{
               height: 'calc(100vh - 64px)',
               top: '64px',
-              padding: '16px',
+              padding: '0',
               scrollbarWidth: 'thin',
               scrollbarColor: isAdminPage ? '#4A4A4A #2C2C2C' : isDarkMode ? '#4A4A4A #374151' : '#022e8a #f4f4f9',
               display: 'flex',
@@ -2013,7 +2009,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             }}>
               
               
-              <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="flex-1 overflow-y-auto scrollbar-hide px-1" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {isSettingsPage ? (
                   <>
                     {!sidebarCollapsed && (
@@ -2052,15 +2048,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group relative ${
                                     pathname === item.href 
                                       ? isDarkMode 
-                                        ? 'bg-blue-600 text-white shadow-lg scale-105' 
-                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md scale-105' 
+                                        ? 'bg-blue-600 text-white shadow-lg ' 
+                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md ' 
                                       : isDarkMode 
                                         ? 'hover:bg-gray-700 text-gray-300' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                   }`}
                                   title={item.name}
                                 >
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow group-hover:scale-110 transition-all duration-200 ${
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow  transition-all duration-200 ${
                                     pathname === item.href
                                       ? isDarkMode 
                                         ? 'bg-white/20 text-white' 
@@ -2110,15 +2106,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group relative ${
                                     pathname === item.href 
                                       ? isDarkMode 
-                                        ? 'bg-blue-600 text-white shadow-lg scale-105' 
-                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md scale-105' 
+                                        ? 'bg-blue-600 text-white shadow-lg ' 
+                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md ' 
                                       : isDarkMode 
                                         ? 'hover:bg-gray-700 text-gray-300' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                   }`}
                                   title={item.name}
                                 >
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow group-hover:scale-110 transition-all duration-200 ${
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow  transition-all duration-200 ${
                                     pathname === item.href
                                       ? isDarkMode 
                                         ? 'bg-white/20 text-white' 
@@ -2168,15 +2164,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group relative ${
                                     pathname === item.href 
                                       ? isDarkMode 
-                                        ? 'bg-red-600 text-white shadow-lg scale-105' 
-                                        : 'bg-red-100 border-2 border-red-300 shadow-md scale-105' 
+                                        ? 'bg-red-600 text-white shadow-lg ' 
+                                        : 'bg-red-100 border-2 border-red-300 shadow-md ' 
                                       : isDarkMode 
                                         ? 'hover:bg-gray-700 text-gray-300' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                   }`}
                                   title={item.name}
                                 >
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow group-hover:scale-110 transition-all duration-200 ${
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow  transition-all duration-200 ${
                                     pathname === item.href
                                       ? isDarkMode 
                                         ? 'bg-white/20 text-white' 
@@ -2230,15 +2226,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           <span>© 2025 Jaifriend</span>
                           <button className="px-3 py-1 rounded-md text-white text-sm transition-all duration-300" style={{
                             background: '#022e8a'
-                          }} onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#5d97fe';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(93, 151, 254, 0.3)';
-                          }} onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#022e8a';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}>
+                          }}                         onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#5d97fe';
+                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(93, 151, 254, 0.3)';
+                        }} onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#022e8a';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}>
                             Language
                       </button>
                       </div>
@@ -2342,12 +2336,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#f8fafc';
-                          e.currentTarget.style.transform = 'translateY(-1px)';
                           e.currentTarget.style.boxShadow = '3px 3px 6px rgba(0, 0, 0, 0.15), -3px -3px 6px rgba(255, 255, 255, 1)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = '#ffffff';
-                          e.currentTarget.style.transform = 'translateY(0)';
                           e.currentTarget.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.1), -2px -2px 4px rgba(255, 255, 255, 0.9)';
                         }}
                       >
@@ -2515,8 +2507,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       
                       <div className="border-t border-gray-200 my-2"></div>
                       
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3 py-3 px-4">
+                      <div className="space-y-2 p-4">
+                        <div className="flex items-center gap-3 py-3 px-1">
                           <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🌙</span>
                           <span className="font-medium flex-1 text-gray-900 dark:text-white">
                             {isSystemMode ? 'Follow System' : 'Night mode'}
@@ -2534,7 +2526,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         </div>
                         {!isSystemMode && (
                           <button 
-                            className="flex items-center gap-2 py-2 px-4 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors w-full"
+                            className="flex items-center gap-2 py-2 px-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors w-full"
                             onClick={resetToSystem}
                           >
                             <span className="text-sm">🔄</span>
@@ -2544,7 +2536,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       </div>
                       
                       <button 
-                        className="flex items-center gap-3 py-3 px-4 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-left w-full transition-colors"
+                        className="flex items-center gap-3 py-3 px-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-left w-full transition-colors"
                         onClick={handleLogout}
                       >
                         <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🚪</span>
@@ -2616,28 +2608,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               )}
             </aside>
           </>
-        )}
+        ))}
 
         {/* Main Content Area */}
         <main className={`
           flex-1 transition-all duration-300 min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900
-          ${isMobile 
-            ? isMessagesPage ? 'ml-0 mr-0 pb-0' : 'ml-0 mr-0 pb-20'
-            : sidebarCollapsed 
-              ? 'ml-16' 
-              : isAdminPage 
-                ? 'ml-48' 
-              : 'ml-64'
+          ${isMessagesPage 
+            ? 'ml-0 mr-0 pt-0 pb-0' 
+            : isMobile 
+              ? 'ml-0 mr-0 pb-20'
+              : sidebarCollapsed 
+                ? 'ml-16' 
+                : isAdminPage 
+                  ? 'ml-48' 
+                  : 'ml-64'
           }
-          ${!isMobile ? 'mr-16' : ''}
-          ${!isMobile && profileSidebarOpen ? 'ml-96' : ''}
-          ${isMessagesPage ? 'pt-0' : 'pt-16'}
+          ${!isMessagesPage && 'md:mr-20'}
+          ${!isMobile && !isMessagesPage && profileSidebarOpen ? 'ml-96' : ''}
+          ${!isMessagesPage && 'pt-16'}
         `} style={{ 
           paddingLeft: '0', 
           paddingRight: '0'
         }}>
-          <div className={`w-full h-full overflow-x-hidden max-w-full ${isMessagesPage ? 'pt-0' : 'pt-16'}`}>
-            <div className="w-full max-w-full overflow-x-hidden">
+          <div className="w-full h-full overflow-x-hidden max-w-full">
+            <div className={`w-full overflow-x-hidden ${isMessagesPage ? 'max-w-none pt-0 pb-0' : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'}`}>
               {children}
             </div>
           </div>

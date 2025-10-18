@@ -8,7 +8,9 @@ const groupController = require('../controllers/groupController');
 
 // Group CRUD operations
 router.post('/', auth, upload.single('avatar'), groupController.createGroup);
+router.post('/chat', auth, groupController.createChatGroup);
 router.get('/', auth, groupController.getGroups);
+router.get('/chat', auth, groupController.getChatGroups);
 router.get('/public', groupController.getPublicGroups);
 router.get('/search', auth, groupController.searchGroups);
 

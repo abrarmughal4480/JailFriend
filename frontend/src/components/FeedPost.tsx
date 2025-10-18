@@ -106,7 +106,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
     
     // Remove leading slash to avoid double slashes
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/${cleanUrl}`;
+    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
     return fullUrl;
   };
 
@@ -171,7 +171,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       setIsReacting(true);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/reaction`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/reaction`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -410,7 +410,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       if (rating && !isNaN(Number(rating)) && Number(rating) >= 1 && Number(rating) <= 5) {
         const reviewText = prompt('Write your review (optional):');
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/review`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/review`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -450,7 +450,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       // Check if user has already voted
       if (post.poll.userVote && post.poll.userVote.includes(optionIndex)) {
         // Remove vote
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/poll/vote`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/poll/vote`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -472,7 +472,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         }
       } else {
         // Add vote
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/poll/vote`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/poll/vote`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -589,7 +589,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       console.log('Editing comment:', { commentId, editCommentText, postId: post._id });
       
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/comment/${commentId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/comment/${commentId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -640,7 +640,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       console.log('Deleting comment:', { commentId, postId: post._id });
       
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/comment/${commentId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/comment/${commentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -751,7 +751,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/upload/post-media`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/post-media`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
