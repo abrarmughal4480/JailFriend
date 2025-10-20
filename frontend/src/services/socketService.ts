@@ -132,6 +132,27 @@ class SocketService {
       window.dispatchEvent(new CustomEvent('socket_call_cancelled', { detail: callData }));
     });
 
+    // Video call events
+    this.socket.on('incoming-video-call', (callData) => {
+      console.log('📹 Incoming video call:', callData);
+      window.dispatchEvent(new CustomEvent('socket_incoming_video_call', { detail: callData }));
+    });
+
+    this.socket.on('video-call-accepted', (callData) => {
+      console.log('📹 Video call accepted:', callData);
+      window.dispatchEvent(new CustomEvent('socket_video_call_accepted', { detail: callData }));
+    });
+
+    this.socket.on('video-call-declined', (callData) => {
+      console.log('📹 Video call declined:', callData);
+      window.dispatchEvent(new CustomEvent('socket_video_call_declined', { detail: callData }));
+    });
+
+    this.socket.on('video-call-ended', (callData) => {
+      console.log('📹 Video call ended:', callData);
+      window.dispatchEvent(new CustomEvent('socket_video_call_ended', { detail: callData }));
+    });
+
     // WebRTC signaling events
     this.socket.on('webrtc_offer', (data) => {
       console.log('📞 WebRTC offer received:', data);

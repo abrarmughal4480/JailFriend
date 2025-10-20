@@ -12,6 +12,12 @@ router.get('/conversation/:userId1/:userId2', authMiddleware, messageController.
 // Get user's conversations list
 router.get('/conversations', authMiddleware, messageController.getUserConversations);
 
+// Get conversations by type (regular, p2p_service, p2p_booking)
+router.get('/conversations/by-type', authMiddleware, messageController.getConversationsByType);
+
+// Create P2P conversation from P2P service contact
+router.post('/p2p-conversation', authMiddleware, messageController.createP2PConversation);
+
 // Mark messages as read
 router.put('/read/:conversationId', authMiddleware, messageController.markMessagesAsRead);
 

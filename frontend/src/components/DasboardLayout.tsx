@@ -508,6 +508,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       { name: "Explore  ", icon: "📸", color: "bg-green-100", href: "/dashboard/explore" },
       { name: "Market", icon: "🛒", color: "bg-green-100", href: "/dashboard/market" },
       { name: "My Products", icon: "📦", color: "bg-yellow-100", href: "/dashboard/products" },
+      { name: "P2P Services", icon: "🤝", color: "bg-indigo-100", href: "/dashboard/p2p" },
       { name: "My Groups", icon: "👥", color: "bg-purple-100", href: "/dashboard/groups" },
       { name: "My Pages", icon: "📄", color: "bg-gray-100", href: "/dashboard/pages" },
       { name: "Popular Posts", icon: "🔥", color: "bg-red-100", href: "/dashboard/popular" },

@@ -65,7 +65,40 @@ const messageSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  // P2P Context Fields
+  conversationContext: {
+    type: {
+      type: String,
+      enum: ['regular', 'p2p_service', 'p2p_booking', 'p2p_consultation'],
+      default: 'regular'
+    },
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+      default: null
+    },
+    p2pProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'P2PProfile',
+      default: null
+    },
+    serviceType: {
+      type: String,
+      enum: ['consultation', 'project', 'hourly', 'fixed_price'],
+      required: false
+    },
+    userRole: {
+      type: String,
+      enum: ['client', 'service_provider'],
+      required: false
+    },
+    source: {
+      type: String,
+      enum: ['p2p_browse', 'p2p_booking', 'p2p_contact', 'regular_message'],
+      default: 'regular_message'
+    }
+  }
 }, {
   timestamps: true
 });
@@ -75,6 +108,8 @@ messageSchema.index({ senderId: 1, receiverId: 1 });
 messageSchema.index({ receiverId: 1, isRead: 1 });
 messageSchema.index({ createdAt: -1 });
 messageSchema.index({ isDeleted: 1 });
+messageSchema.index({ 'conversationContext.type': 1 });
+messageSchema.index({ 'conversationContext.bookingId': 1 });
 
 // Virtual for conversation ID (for grouping messages between two users)
 messageSchema.virtual('conversationId').get(function() {

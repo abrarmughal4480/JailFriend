@@ -2,6 +2,7 @@ const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 const Message = require('../models/message');
 const User = require('../models/user');
+const Conversation = require('../models/conversation');
 
 class SocketService {
   constructor() {
@@ -117,10 +118,20 @@ class SocketService {
             content: content,
             messageType: type,
             mediaUrl: media || '',
-            replyTo: replyTo || null
+            replyTo: replyTo || null,
+            conversationContext: {
+              type: 'regular',
+              source: 'regular_message'
+            }
           });
 
           const savedMessage = await messageDoc.save();
+          
+          // Create or update conversation
+          await this.createOrUpdateConversation(socket.userId, receiverId, savedMessage._id, {
+            type: 'regular',
+            p2pContext: {}
+          });
           
           // Populate sender and receiver details
           await savedMessage.populate([
@@ -153,10 +164,10 @@ class SocketService {
             isRead: savedMessage.isRead
           };
 
-          // Broadcast message to conversation participants (including sender)
-          this.io.to(`conversation_${conversationId}`).emit('new_message', message);
+          // Broadcast message to conversation participants (excluding sender)
+          socket.to(`conversation_${conversationId}`).emit('new_message', message);
           
-          console.log(`📡 Broadcasting message to conversation_${conversationId}`);
+          console.log(`📡 Broadcasting message to conversation_${conversationId} (excluding sender: ${socket.userId})`);
 
           // Send notification to offline participants
           this.sendMessageNotification(conversationId, message, socket.userId);
@@ -566,10 +577,8 @@ class SocketService {
 
   async sendMessageNotification(conversationId, message, senderId) {
     try {
-      // Get conversation participants (you might need to implement this based on your conversation model)
-      // For now, we'll send to all users except the sender
-      
-      this.io.emit('message_notification', {
+      // Send notification only to conversation participants (excluding sender)
+      this.io.to(`conversation_${conversationId}`).emit('message_notification', {
         conversationId,
         message: {
           content: message.content,
@@ -578,6 +587,8 @@ class SocketService {
         },
         senderId
       });
+      
+      console.log(`🔔 Sending notification to conversation_${conversationId} (excluding sender: ${senderId})`);
     } catch (error) {
       console.error('Error sending message notification:', error);
     }
@@ -621,6 +632,55 @@ class SocketService {
   // Get all connected users
   getConnectedUsers() {
     return Array.from(this.connectedUsers.keys());
+  }
+
+  // Helper function to create or update conversation
+  async createOrUpdateConversation(senderId, receiverId, messageId, conversationContext = {}) {
+    try {
+      const sortedIds = [senderId, receiverId].sort();
+      const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
+      
+      // Determine conversation type and P2P context
+      const conversationType = conversationContext.type || 'regular';
+      const p2pContext = conversationContext.p2pContext || {};
+      
+      const conversation = await Conversation.findOneAndUpdate(
+        { conversationId },
+        {
+          $set: {
+            participants: sortedIds,
+            lastMessage: messageId,
+            lastMessageAt: new Date(),
+            updatedAt: new Date(),
+            conversationType,
+            p2pContext: {
+              ...p2pContext,
+              serviceProviderId: p2pContext.serviceProviderId || null,
+              clientId: p2pContext.clientId || null
+            }
+          },
+          $setOnInsert: {
+            conversationId,
+            isP2PUser: conversationType !== 'regular',
+            p2pUserId: conversationType !== 'regular' ? receiverId : null,
+            unreadCount: new Map(),
+            isPinned: false,
+            isArchived: false,
+            createdAt: new Date()
+          }
+        },
+        { 
+          upsert: true, 
+          new: true,
+          runValidators: true
+        }
+      );
+      
+      return conversation;
+    } catch (error) {
+      console.error('Error creating/updating conversation:', error);
+      throw error;
+    }
   }
 }
 
