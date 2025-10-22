@@ -404,9 +404,9 @@ export default function P2PPage() {
   const handleBookService = (profile: P2PProfile) => {
     setSelectedProfile(profile);
     
-    // Set minimum scheduled date to 30 minutes from now
-    const minDateTime = new Date(Date.now() + 30 * 60 * 1000);
-    const minDateTimeString = minDateTime.toISOString().slice(0, 16);
+    // Auto-set current date/time from browser when opening modal
+    const now = new Date();
+    const currentDateTime = now.toISOString().slice(0, 16);
     
     setBookingForm({
       serviceProviderId: profile.userId._id,
@@ -414,7 +414,7 @@ export default function P2PPage() {
       serviceType: 'consultation',
       title: '',
       description: '',
-      scheduledDate: minDateTimeString,
+      scheduledDate: currentDateTime, // Auto-populate with current browser time
       duration: 60,
       requirements: [],
       deliverables: []
@@ -428,16 +428,12 @@ export default function P2PPage() {
       return;
     }
 
-    // Check if scheduled time is at least 30 minutes from now
+    // Check if scheduled time is not in the past
     const scheduledDateTime = new Date(bookingForm.scheduledDate);
     const currentTime = new Date();
-    const timeDifference = scheduledDateTime.getTime() - currentTime.getTime();
-    const minutesDifference = timeDifference / (1000 * 60);
 
-    if (minutesDifference < 30) {
-      const currentTimeStr = currentTime.toLocaleString();
-      const requiredTimeStr = new Date(currentTime.getTime() + 30 * 60 * 1000).toLocaleString();
-      addToast('error', 'Scheduling Error', `Meeting must be scheduled at least 30 minutes from now.\n\nCurrent time: ${currentTimeStr}\nEarliest available: ${requiredTimeStr}`);
+    if (scheduledDateTime < currentTime) {
+      addToast('error', 'Scheduling Error', 'Meeting cannot be scheduled in the past. Please select a future date and time.');
       return;
     }
 
@@ -753,17 +749,18 @@ export default function P2PPage() {
     };
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
-          <div className="flex items-center space-x-3 sm:flex-col sm:items-center sm:space-x-0 sm:space-y-2">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-200">
+        {/* Mobile Layout */}
+        <div className="sm:hidden">
+          <div className="flex items-start space-x-3 mb-3">
             <img
               src={profile.userId.avatar || '/default-avatar.svg'}
               alt={profile.userId.name}
-              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0"
+              className="w-12 h-12 rounded-full object-cover flex-shrink-0"
             />
-            <div className="sm:hidden">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-1">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {profile.userId.name}
                 </h3>
                 {profile.isVerified && (
@@ -775,87 +772,160 @@ export default function P2PPage() {
                   </span>
                 )}
               </div>
-              <p className="text-gray-600 dark:text-gray-300 text-xs">
+              <p className="text-gray-600 dark:text-gray-300 text-xs truncate">
                 @{profile.userId.username}
               </p>
             </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="hidden sm:block">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {profile.userId.name}
-                </h3>
-                {profile.isVerified && (
-                  <span className="text-blue-500 text-sm">✓ Verified</span>
-                )}
-                {profile.featured && (
-                  <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
-                    Featured
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                @{profile.userId.username}
-              </p>
+          
+          <p className="text-gray-700 dark:text-gray-200 font-medium text-sm mb-2">
+            {profile.occupation}
+          </p>
+          
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-green-600 dark:text-green-400 font-bold text-sm">
+              ${profile.hourlyRate}/{profile.currency}
+            </span>
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              profile.availability === 'Available' 
+                ? 'bg-green-100 text-green-800' 
+                : profile.availability === 'Busy'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {profile.availability}
+            </span>
+          </div>
+          
+          <div className="flex flex-wrap gap-1 mb-2">
+            {profile.skills.slice(0, 2).map((skill, index) => (
+              <span
+                key={index}
+                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+              >
+                {skill}
+              </span>
+            ))}
+            {profile.skills.length > 2 && (
+              <span className="text-gray-500 text-xs">
+                +{profile.skills.length - 2} more
+              </span>
+            )}
+          </div>
+          
+          <p className="text-gray-600 dark:text-gray-300 text-xs mb-3 line-clamp-2">
+            {profile.experience}
+          </p>
+          
+          <div className="flex space-x-2">
+            <button 
+              onClick={handleContactClick}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+            >
+              Contact
+            </button>
+            {(profile.availability === 'Available' || profile.availability === 'Away') && (
+              <button 
+                onClick={handleBookServiceClick}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
+              >
+                Book
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden sm:block">
+          <div className="text-center mb-4">
+            <img
+              src={profile.userId.avatar || '/default-avatar.svg'}
+              alt={profile.userId.name}
+              className="w-16 h-16 lg:w-20 lg:h-20 rounded-full object-cover mx-auto mb-3"
+            />
+            <div className="flex items-center justify-center space-x-2 mb-1">
+              <h3 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
+                {profile.userId.name}
+              </h3>
+              {profile.isVerified && (
+                <span className="text-blue-500 text-sm">✓</span>
+              )}
             </div>
-            <p className="text-gray-700 dark:text-gray-200 font-medium text-sm sm:text-base">
+            <p className="text-gray-600 dark:text-gray-300 text-sm mb-1">
+              @{profile.userId.username}
+            </p>
+            {profile.featured && (
+              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                Featured
+              </span>
+            )}
+          </div>
+          
+          <div className="text-center mb-3">
+            <p className="text-gray-700 dark:text-gray-200 font-medium text-sm lg:text-base mb-2">
               {profile.occupation}
             </p>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-2 space-y-1 sm:space-y-0">
-              <span className="text-green-600 dark:text-green-400 font-bold text-sm sm:text-base">
-                ${profile.hourlyRate}/{profile.currency}
-              </span>
-              <span className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-                ⭐ {profile.rating.average.toFixed(1)} ({profile.rating.count} reviews)
-              </span>
-              <span className={`px-2 py-1 rounded-full text-xs w-fit ${
-                profile.availability === 'Available' 
-                  ? 'bg-green-100 text-green-800' 
-                  : profile.availability === 'Busy'
-                  ? 'bg-red-100 text-red-800'
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                {profile.availability}
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="flex flex-wrap gap-1 sm:gap-2">
-                {profile.skills.slice(0, 3).map((skill, index) => (
-                  <span
-                    key={index}
-                    className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                  >
-                    {skill}
-                  </span>
-                ))}
-                {profile.skills.length > 3 && (
-                  <span className="text-gray-500 text-xs">
-                    +{profile.skills.length - 3} more
-                  </span>
-                )}
-              </div>
-            </div>
-            <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm mt-2 line-clamp-2">
-              {profile.experience}
-            </p>
-            <div className="mt-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-              <button 
-                onClick={handleViewProfile}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+            <span className="text-green-600 dark:text-green-400 font-bold text-sm lg:text-base">
+              ${profile.hourlyRate}/{profile.currency}
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-center mb-3">
+            <span className="text-gray-500 dark:text-gray-400 text-xs lg:text-sm">
+              ⭐ {profile.rating.average.toFixed(1)} ({profile.rating.count} reviews)
+            </span>
+          </div>
+          
+          <div className="flex justify-center mb-3">
+            <span className={`px-2 py-1 rounded-full text-xs ${
+              profile.availability === 'Available' 
+                ? 'bg-green-100 text-green-800' 
+                : profile.availability === 'Busy'
+                ? 'bg-red-100 text-red-800'
+                : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {profile.availability}
+            </span>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-1 lg:gap-2 mb-3">
+            {profile.skills.slice(0, 3).map((skill, index) => (
+              <span
+                key={index}
+                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
               >
-                View Profile
-              </button>
+                {skill}
+              </span>
+            ))}
+            {profile.skills.length > 3 && (
+              <span className="text-gray-500 text-xs">
+                +{profile.skills.length - 3} more
+              </span>
+            )}
+          </div>
+          
+          <p className="text-gray-600 dark:text-gray-300 text-xs lg:text-sm text-center mb-4 line-clamp-2">
+            {profile.experience}
+          </p>
+          
+          <div className="space-y-2">
+            <button 
+              onClick={handleViewProfile}
+              className="w-full bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
+            >
+              View Profile
+            </button>
+            <div className="flex space-x-2">
               <button 
                 onClick={handleContactClick}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
               >
                 Contact
               </button>
               {(profile.availability === 'Available' || profile.availability === 'Away') && (
                 <button 
                   onClick={handleBookServiceClick}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
                 >
                   Book Service
                 </button>
@@ -1070,10 +1140,10 @@ export default function P2PPage() {
             {/* Featured Profiles */}
             {featuredProfiles.length > 0 && (
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
                   Featured Professionals
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                   {featuredProfiles.map((profile) => (
                     <ProfileCard key={profile._id} profile={profile} />
                   ))}
@@ -1153,17 +1223,17 @@ export default function P2PPage() {
 
             {/* All Profiles */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
                 All Professionals
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
                 {profiles.map((profile) => (
                   <ProfileCard key={profile._id} profile={profile} />
                 ))}
               </div>
               {profiles.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 dark:text-gray-400">
+                <div className="text-center py-8 sm:py-12">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                     No profiles found. Try adjusting your search criteria.
                   </p>
                 </div>
@@ -1826,7 +1896,7 @@ export default function P2PPage() {
         {/* Booking Modal */}
         {showBookingModal && selectedProfile && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto scrollbar-hide">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                   Book Service
@@ -1909,11 +1979,11 @@ export default function P2PPage() {
                       type="datetime-local"
                       value={bookingForm.scheduledDate}
                       onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                      min={new Date(Date.now() + 30 * 60 * 1000).toISOString().slice(0, 16)}
+                      min={new Date().toISOString().slice(0, 16)}
                       className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      ⏰ Meeting must be scheduled at least 30 minutes from now
+                      ⏰ Select any future date and time for your meeting
                     </p>
                   </div>
                   <div>
@@ -2038,6 +2108,17 @@ export default function P2PPage() {
 
       {/* Toast Container */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      {/* Custom Styles */}
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }

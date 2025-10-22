@@ -355,6 +355,13 @@ const startBooking = async (req, res) => {
     booking.callLink = `/video-call/${videoCall._id}`;
     await booking.save();
 
+    // Get user names for the video call invitation
+    const User = require('../models/user');
+    const [serviceProvider, client] = await Promise.all([
+      User.findById(booking.serviceProviderId).select('name username'),
+      User.findById(booking.clientId).select('name username')
+    ]);
+
     // Send video call invitation to client via socket
     const clientRoom = `video_user_${booking.clientId}`;
     
@@ -374,16 +381,29 @@ const startBooking = async (req, res) => {
       }
     }
     
-    socketService.io.to(clientRoom).emit('incoming-video-call', {
+    const videoCallData = {
       callerId: booking.serviceProviderId,
-      callerName: 'Service Provider',
+      callerName: serviceProvider?.name || serviceProvider?.username || 'Service Provider',
       receiverId: booking.clientId,
-      receiverName: 'Client',
+      receiverName: client?.name || client?.username || 'Client',
       callId: videoCall._id,
       roomId: roomId,
       bookingId: booking._id,
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    console.log(`📡 Sending video call invitation:`, videoCallData);
+    
+    socketService.io.to(clientRoom).emit('incoming-video-call', videoCallData);
+    
+    // Also try to find the client socket directly and send the notification
+    const allSockets = Array.from(socketService.io.sockets.sockets.values());
+    const clientSocket = allSockets.find(s => s.userId === booking.clientId);
+    
+    if (clientSocket) {
+      console.log(`📡 Also sending video call invitation directly to client socket:`, clientSocket.id);
+      clientSocket.emit('incoming-video-call', videoCallData);
+    }
     
     console.log(`📡 Video call invitation sent to room ${clientRoom}`);
 

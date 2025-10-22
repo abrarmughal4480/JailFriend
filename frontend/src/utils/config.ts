@@ -1,7 +1,7 @@
 // Centralized configuration for the application
 export const config = {
   // API Configuration
-  API_URL: process.env.NEXT_PUBLIC_API_URL,
+  API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
   
   // Frontend URL
   FRONTEND_URL: process.env.NEXT_PUBLIC_FRONTEND_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://jaifriend.hgdjlive.com'),
@@ -21,7 +21,7 @@ export const config = {
 
 // Helper function to get full API URL
 export const getApiUrl = (endpoint: string): string => {
-  const baseUrl = (config.API_URL || 'https://jailfriend-1.onrender.com').replace(/\/$/, ''); // Remove trailing slash
+  const baseUrl = config.API_URL.replace(/\/$/, ''); // Remove trailing slash
   const cleanEndpoint = endpoint.replace(/^\//, ''); // Remove leading slash
   return `${baseUrl}/${cleanEndpoint}`;
 };
@@ -31,7 +31,7 @@ export const getFileUrl = (filePath: string): string => {
   if (!filePath) return '';
   if (filePath.startsWith('http')) return filePath;
   
-  const baseUrl = (config.API_URL || 'https://jailfriend-1.onrender.com').replace(/\/$/, '');
+  const baseUrl = config.API_URL.replace(/\/$/, '');
   const cleanPath = filePath.replace(/^\//, '');
   return `${baseUrl}/${cleanPath}`;
 }; 

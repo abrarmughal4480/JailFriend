@@ -8,6 +8,9 @@ class SocketService {
   constructor() {
     this.io = null;
     this.connectedUsers = new Map(); // userId -> socketId mapping
+    this.pulseData = new Map(); // pulse monitoring data
+    this.pulseTimeoutMs = 20000; // 20 seconds timeout
+    this.pulseCheckInterval = null;
   }
 
   initialize(server) {
@@ -26,6 +29,7 @@ class SocketService {
 
     this.io.use(this.authenticateSocket.bind(this));
     this.setupEventHandlers();
+    this.startPulseMonitoring();
     
     console.log('🔌 Socket.IO service initialized');
   }
@@ -544,12 +548,45 @@ class SocketService {
         socket.to(roomId).emit('user-disconnected');
       });
 
+      // Pulse system for video call monitoring
+      socket.on('video-call-pulse', (pulseData) => {
+        console.log(`💓 Pulse received from ${socket.user.name}:`, {
+          roomId: pulseData.roomId,
+          userId: pulseData.userId,
+          isAdmin: pulseData.isAdmin,
+          connectionState: pulseData.connectionState,
+          timestamp: pulseData.timestamp
+        });
+        
+        // Forward pulse to other participants in the room
+        socket.to(pulseData.roomId).emit('video-call-pulse', {
+          ...pulseData,
+          senderId: socket.userId,
+          senderName: socket.user.name
+        });
+        
+        // Store pulse data for timeout monitoring
+        if (!this.pulseData) {
+          this.pulseData = new Map();
+        }
+        
+        const pulseKey = `${pulseData.roomId}_${pulseData.userId}`;
+        this.pulseData.set(pulseKey, {
+          ...pulseData,
+          lastReceived: Date.now(),
+          socketId: socket.id
+        });
+      });
+
       // Handle user disconnect
       socket.on('disconnect', () => {
         console.log(`🔌 User disconnected: ${socket.user.name} (${socket.userId})`);
         
         // Remove user from connected users
         this.connectedUsers.delete(socket.userId);
+        
+        // Clean up pulse data for this user
+        this.cleanupPulseData(socket.userId);
         
         // Update user offline status
         this.updateUserOnlineStatus(socket.userId, false);
@@ -680,6 +717,82 @@ class SocketService {
     } catch (error) {
       console.error('Error creating/updating conversation:', error);
       throw error;
+    }
+  }
+
+  // Pulse monitoring system
+  startPulseMonitoring() {
+    console.log('💓 Starting pulse monitoring system');
+    
+    // Check for pulse timeouts every 10 seconds
+    this.pulseCheckInterval = setInterval(() => {
+      this.checkPulseTimeouts();
+    }, 10000);
+  }
+
+  stopPulseMonitoring() {
+    console.log('💓 Stopping pulse monitoring system');
+    
+    if (this.pulseCheckInterval) {
+      clearInterval(this.pulseCheckInterval);
+      this.pulseCheckInterval = null;
+    }
+  }
+
+  checkPulseTimeouts() {
+    const now = Date.now();
+    const timeoutKeys = [];
+    
+    // Check all pulse data for timeouts
+    for (const [pulseKey, pulseInfo] of this.pulseData.entries()) {
+      const timeSinceLastPulse = now - pulseInfo.lastReceived;
+      
+      if (timeSinceLastPulse > this.pulseTimeoutMs) {
+        console.log(`💓 Pulse timeout detected for ${pulseKey}:`, {
+          timeSinceLastPulse: timeSinceLastPulse,
+          timeoutMs: this.pulseTimeoutMs,
+          roomId: pulseInfo.roomId,
+          userId: pulseInfo.userId
+        });
+        
+        // Notify other participants in the room about the timeout
+        this.io.to(pulseInfo.roomId).emit('video-call-pulse-timeout', {
+          roomId: pulseInfo.roomId,
+          userId: pulseInfo.userId,
+          timeoutDuration: timeSinceLastPulse,
+          timestamp: now
+        });
+        
+        timeoutKeys.push(pulseKey);
+      }
+    }
+    
+    // Remove timed out pulse data
+    timeoutKeys.forEach(key => {
+      this.pulseData.delete(key);
+    });
+    
+    if (timeoutKeys.length > 0) {
+      console.log(`💓 Removed ${timeoutKeys.length} timed out pulse entries`);
+    }
+  }
+
+  // Clean up pulse data when user disconnects
+  cleanupPulseData(userId) {
+    const keysToRemove = [];
+    
+    for (const [pulseKey, pulseInfo] of this.pulseData.entries()) {
+      if (pulseInfo.userId === userId) {
+        keysToRemove.push(pulseKey);
+      }
+    }
+    
+    keysToRemove.forEach(key => {
+      this.pulseData.delete(key);
+    });
+    
+    if (keysToRemove.length > 0) {
+      console.log(`💓 Cleaned up pulse data for user ${userId}: ${keysToRemove.length} entries`);
     }
   }
 }

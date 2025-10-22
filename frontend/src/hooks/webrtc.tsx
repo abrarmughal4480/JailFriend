@@ -2,6 +2,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import socketService from '@/services/socketService';
+import ConnectionMonitor from '@/utils/connectionMonitor';
 
 // TypeScript interfaces
 interface User {
@@ -40,6 +41,9 @@ interface WebRTCHookReturn {
     connectionState: 'connecting' | 'connected' | 'failed';
     handleVideoPlay: () => void;
     showVideoPlayError: boolean;
+    isReconnecting: boolean;
+    reconnectionAttempt: number;
+    maxReconnectionAttempts: number;
 }
 
 const peerConfig: RTCConfiguration = {
@@ -90,9 +94,97 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     const router = useRouter();
     const isMobile = isMobileDevice();
     const answerProcessed = useRef<boolean>(false);
+    const processedMessages = useRef<Set<string>>(new Set());
 
     const peerConnectionStarted = useRef<boolean>(false);
     const isInitialized = useRef<boolean>(false);
+    
+    // Pulse system for connection monitoring
+    const pulseInterval = useRef<NodeJS.Timeout | null>(null);
+    const pulseTimeout = useRef<NodeJS.Timeout | null>(null);
+    const lastPulseReceived = useRef<number>(Date.now());
+    const pulseIntervalMs = 5000; // Send pulse every 5 seconds
+    const pulseTimeoutMs = 15000; // Consider disconnected if no pulse for 15 seconds
+    
+    // Connection monitoring and reconnection state
+    const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
+    const [reconnectionAttempt, setReconnectionAttempt] = useState<number>(0);
+    const [maxReconnectionAttempts] = useState<number>(5);
+    const connectionMonitorRef = useRef<ConnectionMonitor | null>(null);
+
+    // Pulse system functions
+    const startPulseSystem = (): void => {
+        console.log('💓 Starting pulse system for video call monitoring');
+        
+        // Clear any existing pulse intervals
+        stopPulseSystem();
+        
+        // Send initial pulse
+        sendPulse();
+        
+        // Set up regular pulse sending
+        pulseInterval.current = setInterval(() => {
+            sendPulse();
+        }, pulseIntervalMs);
+        
+        // Set up pulse timeout monitoring
+        pulseTimeout.current = setInterval(() => {
+            checkPulseTimeout();
+        }, pulseIntervalMs);
+    };
+
+    const stopPulseSystem = (): void => {
+        console.log('💓 Stopping pulse system');
+        
+        if (pulseInterval.current) {
+            clearInterval(pulseInterval.current);
+            pulseInterval.current = null;
+        }
+        
+        if (pulseTimeout.current) {
+            clearInterval(pulseTimeout.current);
+            pulseTimeout.current = null;
+        }
+    };
+
+    const sendPulse = (): void => {
+        if (socketConnection.current && socketConnection.current.connected) {
+            const pulseData = {
+                roomId: roomId,
+                userId: currentUser?._id || 'unknown',
+                timestamp: Date.now(),
+                isAdmin: isAdmin,
+                connectionState: connectionState
+            };
+            
+            console.log('💓 Sending pulse:', pulseData);
+            socketConnection.current.emit('video-call-pulse', pulseData);
+        }
+    };
+
+    const checkPulseTimeout = (): void => {
+        const now = Date.now();
+        const timeSinceLastPulse = now - lastPulseReceived.current;
+        
+        if (timeSinceLastPulse > pulseTimeoutMs) {
+            console.log('💓 Pulse timeout detected - user may be disconnected');
+            console.log(`Time since last pulse: ${timeSinceLastPulse}ms (timeout: ${pulseTimeoutMs}ms)`);
+            
+            // Trigger reconnection
+            triggerReconnection();
+        }
+    };
+
+    const handlePulseReceived = (pulseData: any): void => {
+        console.log('💓 Pulse received from other user:', pulseData);
+        lastPulseReceived.current = Date.now();
+        
+        // Update connection state based on pulse
+        if (pulseData.connectionState === 'connected') {
+            setIsConnected(true);
+            setConnectionState('connected');
+        }
+    };
 
     const setupWebRTCEventListeners = (): void => {
         if (!socketConnection.current) {
@@ -103,23 +195,47 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         console.log('Setting up WebRTC event listeners');
         
         socketConnection.current.on('offer', (offer: RTCSessionDescriptionInit) => {
+            // Create a unique message ID based on offer content
+            const messageId = `offer-${offer.sdp?.substring(0, 50)}`;
+            
             console.log('🔍 DEBUG: Received offer:', { 
                 isAdmin, 
                 offerType: offer.type,
                 roomId: roomId,
                 socketId: socketConnection.current?.id,
-                offerSdpPreview: offer.sdp?.substring(0, 50) + '...'
+                offerSdpPreview: offer.sdp?.substring(0, 50) + '...',
+                messageId: messageId
             });
+            
+            // Check if we've already processed this offer
+            if (processedMessages.current.has(messageId)) {
+                console.log('Offer already processed, skipping duplicate');
+                return;
+            }
+            
+            processedMessages.current.add(messageId);
             handleOffer(offer);
         });
         
         socketConnection.current.on('answer', (answer: RTCSessionDescriptionInit) => {
+            // Create a unique message ID based on answer content
+            const messageId = `answer-${answer.sdp?.substring(0, 50)}`;
+            
             console.log('🔍 DEBUG: Received answer:', { 
                 isAdmin, 
                 answerType: answer.type,
                 roomId: roomId,
-                socketId: socketConnection.current?.id
+                socketId: socketConnection.current?.id,
+                messageId: messageId
             });
+            
+            // Check if we've already processed this answer
+            if (processedMessages.current.has(messageId)) {
+                console.log('Answer already processed, skipping duplicate');
+                return;
+            }
+            
+            processedMessages.current.add(messageId);
             handleAnswer(answer);
         });
         
@@ -204,6 +320,19 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             console.log('User disconnected event received');
             handleUserDisconnected();
         });
+        
+        // Pulse system event listeners
+        socketConnection.current.on('video-call-pulse', (pulseData: any) => {
+            handlePulseReceived(pulseData);
+        });
+        
+        socketConnection.current.on('video-call-pulse-timeout', (data: any) => {
+            console.log('💓 Pulse timeout notification received:', data);
+            if (data.roomId === roomId) {
+                console.log('💓 Other user timed out, triggering reconnection...');
+                triggerReconnection();
+            }
+        });
     };
 
     const setupSocketConnection = (): void => {
@@ -257,6 +386,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         // Reset initialization flag when isAdmin or roomId changes
         isInitialized.current = false;
         answerProcessed.current = false;
+        processedMessages.current.clear();
         
         console.log('🎯 WebRTC hook initializing...', { 
             isAdmin, 
@@ -304,7 +434,26 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             }
         }, initDelay);
 
+        // Listen for reconnection events
+        const handleReconnectionEvent = (event: CustomEvent) => {
+            console.log('🔄 Reconnection event received:', event.detail);
+            triggerReconnection();
+        };
+
+        window.addEventListener('connection-reconnect', handleReconnectionEvent as EventListener);
+
         return () => {
+            window.removeEventListener('connection-reconnect', handleReconnectionEvent as EventListener);
+            
+            // Stop pulse system
+            stopPulseSystem();
+            
+            // Stop connection monitoring
+            if (connectionMonitorRef.current) {
+                connectionMonitorRef.current.stopMonitoring();
+                connectionMonitorRef.current = null;
+            }
+            
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
@@ -630,12 +779,8 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             setLocalStream(stream);
             localStreamRef.current = stream;
 
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play().catch(playError => {
-                    // Video autoplay failed (this is normal)
-                });
-            }
+            // Don't set local stream to main videoRef - only remote video should show there
+            // Local video will be handled by the Picture-in-Picture component in the UI
 
             return stream;
 
@@ -653,10 +798,56 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             }
         }
         
-        // Reset answer processing flag for new connection
+        // Reset answer processing flag and processed messages for new connection
         answerProcessed.current = false;
+        processedMessages.current.clear();
         
         const peerConnection = new RTCPeerConnection(peerConfig);
+        
+        // Initialize connection monitor
+        if (!connectionMonitorRef.current) {
+            connectionMonitorRef.current = new ConnectionMonitor({
+                maxRetries: maxReconnectionAttempts,
+                baseDelay: 2000, // 2 seconds
+                maxDelay: 30000, // 30 seconds
+                onConnectionLost: () => {
+                    console.log('🔍 Connection lost detected by monitor');
+                    setIsConnected(false);
+                    setConnectionState('failed');
+                },
+                onReconnecting: (attempt) => {
+                    console.log(`🔄 Reconnection attempt ${attempt} started`);
+                    setIsReconnecting(true);
+                    setReconnectionAttempt(attempt);
+                    setConnectionState('connecting');
+                },
+                onReconnected: () => {
+                    console.log('✅ Reconnection successful');
+                    setIsReconnecting(false);
+                    setReconnectionAttempt(0);
+                    setIsConnected(true);
+                    setConnectionState('connected');
+                },
+                onReconnectionFailed: () => {
+                    console.log('❌ All reconnection attempts failed');
+                    setIsReconnecting(false);
+                    setConnectionState('failed');
+                    // Optionally redirect after all attempts failed
+                    setTimeout(() => {
+                        handleDisconnect(true);
+                    }, 5000);
+                }
+            });
+            
+            // Set up reconnection callback
+            connectionMonitorRef.current.setConnectionLostCallback(() => {
+                console.log('🔄 Connection lost, triggering reconnection...');
+                triggerReconnection();
+            });
+        }
+        
+        // Start monitoring this connection
+        connectionMonitorRef.current.startMonitoring(peerConnection);
         
         // Reset answer processing flag when connection state changes
         peerConnection.onconnectionstatechange = () => {
@@ -667,10 +858,17 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 setIsConnected(true);
                 setConnectionState('connected');
                 console.log('✅ WebRTC connection established successfully');
+                
+                // Start pulse system when connected
+                startPulseSystem();
             } else if (state === 'failed' || state === 'disconnected') {
                 setIsConnected(false);
                 setConnectionState('failed');
                 console.log('❌ WebRTC connection failed or disconnected');
+                
+                // Stop pulse system when disconnected
+                stopPulseSystem();
+                
                 // Reset answer processing flag on failure
                 answerProcessed.current = false;
             } else if (state === 'connecting') {
@@ -698,24 +896,6 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 peerConnection.addTrack(track, localStreamRef.current!);
             });
         }
-
-        peerConnection.onconnectionstatechange = () => {
-            const state = peerConnection.connectionState;
-            console.log('🔍 Peer connection state changed:', state);
-            
-            if (state === 'connected') {
-                setIsConnected(true);
-                setConnectionState('connected');
-                console.log('✅ WebRTC connection established successfully');
-            } else if (state === 'failed' || state === 'disconnected') {
-                setIsConnected(false);
-                setConnectionState('failed');
-                console.log('❌ WebRTC connection failed or disconnected');
-            } else if (state === 'connecting') {
-                setConnectionState('connecting');
-                console.log('🔄 WebRTC connection in progress...');
-            }
-        };
 
         peerConnection.ontrack = (event: RTCTrackEvent) => {
             console.log('ontrack event received:', { isAdmin, streams: event.streams.length });
@@ -859,22 +1039,44 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             console.log('🔍 DEBUG: Current signaling state:', currentState);
             
             if (currentState === 'stable') {
-                // Initial state - we can handle the offer
-                console.log('Setting remote description');
-                await peerConnectionRef.current.setRemoteDescription(offer);
-                
-                console.log('Creating answer');
-                const answer = await peerConnectionRef.current.createAnswer();
-                
-                console.log('Setting local description');
-                await peerConnectionRef.current.setLocalDescription(answer);
-                
-                console.log('🔍 DEBUG: Sending answer to room:', {
-                    roomId: roomId,
-                    answerType: answer.type,
-                    socketId: socketConnection.current?.id
-                });
-                socketConnection.current?.emit('answer', answer, roomId);
+                try {
+                    // Initial state - we can handle the offer
+                    console.log('Setting remote description');
+                    await peerConnectionRef.current.setRemoteDescription(offer);
+                    
+                    console.log('Creating answer');
+                    const answer = await peerConnectionRef.current.createAnswer();
+                    
+                    console.log('Setting local description');
+                    await peerConnectionRef.current.setLocalDescription(answer);
+                    
+                    console.log('🔍 DEBUG: Sending answer to room:', {
+                        roomId: roomId,
+                        answerType: answer.type,
+                        socketId: socketConnection.current?.id
+                    });
+                    socketConnection.current?.emit('answer', answer, roomId);
+                } catch (setDescError) {
+                    console.error('Error setting remote description for offer:', setDescError);
+                    // If setting remote description fails, we might need to recreate the connection
+                    if ((setDescError as Error).name === 'InvalidStateError') {
+                        console.log('Invalid state error - recreating peer connection');
+                        peerConnectionRef.current.close();
+                        peerConnectionRef.current = null;
+                        const newPeerConnection = createRTCPeerConnection();
+                        peerConnectionRef.current = newPeerConnection;
+                        
+                        // Retry setting the offer
+                        try {
+                            await peerConnectionRef.current.setRemoteDescription(offer);
+                            const answer = await peerConnectionRef.current.createAnswer();
+                            await peerConnectionRef.current.setLocalDescription(answer);
+                            socketConnection.current?.emit('answer', answer, roomId);
+                        } catch (retryError) {
+                            console.error('Error retrying offer handling:', retryError);
+                        }
+                    }
+                }
             } else if (currentState === 'have-local-offer') {
                 console.log('Cannot handle offer - already have local offer');
                 return;
@@ -911,35 +1113,44 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 return;
             }
             
-            if (peerConnectionRef.current) {
-                const currentState = peerConnectionRef.current.signalingState;
-                console.log('🔍 DEBUG: Current signaling state for answer:', currentState);
-                
-                // Only process answer if we're in the right state
-                if (currentState === 'have-local-offer') {
+            if (!peerConnectionRef.current) {
+                console.error('No peer connection available for answer');
+                return;
+            }
+            
+            const currentState = peerConnectionRef.current.signalingState;
+            console.log('🔍 DEBUG: Current signaling state for answer:', currentState);
+            
+            // Only process answer if we're in the right state
+            if (currentState === 'have-local-offer') {
+                try {
                     console.log('Setting remote description for answer');
                     await peerConnectionRef.current.setRemoteDescription(answer);
                     answerProcessed.current = true;
                     console.log('Answer processed successfully');
-                } else if (currentState === 'stable') {
-                    console.log('Answer already processed - connection is stable, skipping duplicate');
+                } catch (setDescError) {
+                    console.error('Error setting remote description for answer:', setDescError);
+                    // If setting remote description fails, mark as processed to prevent retries
                     answerProcessed.current = true;
-                    return; // Exit early to prevent any further processing
-                } else if (currentState === 'have-remote-offer') {
-                    console.log('Cannot handle answer - we are in have-remote-offer state (should be handling offer, not answer)');
-                    return;
-                } else if (currentState === 'closed') {
-                    console.log('Cannot handle answer - peer connection is closed');
-                    return;
-                } else {
-                    console.warn('Cannot handle answer in current state:', currentState);
-                    return;
                 }
+            } else if (currentState === 'stable') {
+                console.log('Answer received in stable state - connection may already be established, skipping');
+                answerProcessed.current = true;
+                return;
+            } else if (currentState === 'have-remote-offer') {
+                console.log('Cannot handle answer - we are in have-remote-offer state (should be handling offer, not answer)');
+                return;
+            } else if (currentState === 'closed') {
+                console.log('Cannot handle answer - peer connection is closed');
+                return;
             } else {
-                console.error('No peer connection available for answer');
+                console.warn('Cannot handle answer in current state:', currentState);
+                return;
             }
         } catch (error) {
             console.error('Error handling answer:', error);
+            // Mark as processed to prevent infinite retries
+            answerProcessed.current = true;
         }
     }
 
@@ -971,13 +1182,57 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         }
     }
 
-    const handleDisconnect = (shouldRedirect: boolean = true): void => {
+    /**
+     * Trigger reconnection by recreating the peer connection
+     */
+    const triggerReconnection = async (): Promise<void> => {
         try {
-            socketConnection.current?.emit('user-disconnected', roomId);
-            setIsConnected(false);
+            console.log('🔄 Triggering reconnection...');
+            
+            // Stop pulse system during reconnection
+            stopPulseSystem();
+            
+            // Clean up existing connection
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.close();
+                peerConnectionRef.current = null;
+            }
             
             // Reset flags
             answerProcessed.current = false;
+            processedMessages.current.clear();
+            peerConnectionStarted.current = false;
+            
+            // Wait a moment before reconnecting
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Restart peer connection
+            await startPeerConnection();
+            
+        } catch (error) {
+            console.error('Error during reconnection:', error);
+        }
+    };
+
+    const handleDisconnect = (shouldRedirect: boolean = true): void => {
+        try {
+            // Stop pulse system
+            stopPulseSystem();
+            
+            // Stop connection monitoring
+            if (connectionMonitorRef.current) {
+                connectionMonitorRef.current.stopMonitoring();
+                connectionMonitorRef.current = null;
+            }
+            
+            socketConnection.current?.emit('user-disconnected', roomId);
+            setIsConnected(false);
+            setIsReconnecting(false);
+            setReconnectionAttempt(0);
+            
+            // Reset flags
+            answerProcessed.current = false;
+            processedMessages.current.clear();
             
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.close();
@@ -1048,7 +1303,10 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         isConnected,
         connectionState,
         handleVideoPlay,
-        showVideoPlayError
+        showVideoPlayError,
+        isReconnecting,
+        reconnectionAttempt,
+        maxReconnectionAttempts
     }
 }
 

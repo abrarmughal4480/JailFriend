@@ -63,8 +63,16 @@ class VideoCallService {
                     console.log('📹 Incoming video call received:', data);
                     console.log('📹 Current user ID:', this.userId);
                     console.log('📹 Receiver ID from call:', data.receiverId);
-                    this.currentCallerId = data.callerId;
-                    this.onIncomingCall(data);
+                    console.log('📹 Caller ID from call:', data.callerId);
+                    
+                    // Check if this call is for the current user
+                    if (data.receiverId === this.userId) {
+                        console.log('📹 This call is for the current user, processing...');
+                        this.currentCallerId = data.callerId;
+                        this.onIncomingCall(data);
+                    } else {
+                        console.log('📹 This call is not for the current user, ignoring...');
+                    }
                 });
 
                 socket.on('video-call-accepted', (data) => {
