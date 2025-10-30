@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Popup, { PopupState } from '@/components/Popup';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface UserSettings {
   username: string;
@@ -21,9 +20,6 @@ interface UserSettings {
 }
 
 const GeneralSettings = () => {
-  // Ensure system dark mode has no effect - especially for mobile systems
-  useSystemThemeOverride();
-  
   const { isDarkMode } = useDarkMode();
   const router = useRouter();
   const [settings, setSettings] = useState<UserSettings>({

@@ -1,8 +1,8 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, FileText, ArrowLeft, ArrowRight, ThumbsUp, Camera, Users, Menu, X, Search, Heart, MessageCircle, Share2, Globe, Calendar, Users2, Star, Edit, Trash2, Copy, Archive, MoreHorizontal, Settings, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Plus, FileText, ArrowLeft, ArrowRight, ThumbsUp, Camera, Users, Menu, X, Search, Heart, MessageCircle, Share2, Globe, Calendar, Users2, Star, Edit } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
 // Helper function to get proper image URL
@@ -167,7 +167,7 @@ const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCr
           >
             <div className="p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-all duration-200 ${
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                   isDarkMode ? 'bg-gradient-to-br from-blue-900 to-indigo-900' : 'bg-gradient-to-br from-blue-50 to-indigo-100'
                 }`}>
                   <FileText className={`w-7 h-7 transition-colors duration-200 ${
@@ -1240,7 +1240,6 @@ const PagesInterface: React.FC = () => {
   const [showEditForm, setShowEditForm] = useState<boolean>(false);
   const [editingPage, setEditingPage] = useState<Page | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
-  const [showPageMenu, setShowPageMenu] = useState<string | null>(null);
   const [pages, setPages] = useState<Page[]>([]);
   const [userPages, setUserPages] = useState<Page[]>([]);
   const [otherPages, setOtherPages] = useState<Page[]>([]);
@@ -1282,24 +1281,14 @@ const PagesInterface: React.FC = () => {
       setLoading(true);
       console.log('Fetching pages...');
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No token found');
-        setLoading(false);
-        return;
-      }
-      
       const [allPagesResponse, userPagesResponse] = await Promise.all([
-        fetch(`${API_URL}/api/pages`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`),
         fetch(`${API_URL}/api/pages/user`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         })
       ]);
-      
-      console.log('All pages response status:', allPagesResponse.status);
-      console.log('User pages response status:', userPagesResponse.status);
       
       if (allPagesResponse.ok) {
         const allPagesData = await allPagesResponse.json();
@@ -1347,19 +1336,12 @@ const PagesInterface: React.FC = () => {
           (page.likes.includes(currentUser._id) || page.likes.includes(currentUser.id))
         );
         setLikedPages(liked);
-      } else {
-        console.error('Failed to fetch all pages:', allPagesResponse.status);
       }
       
       if (userPagesResponse.ok) {
         const userPagesData = await userPagesResponse.json();
         console.log('User pages fetched:', userPagesData.length);
-        console.log('User pages data:', userPagesData);
         setUserPages(userPagesData);
-      } else {
-        console.error('Failed to fetch user pages:', userPagesResponse.status);
-        const errorData = await userPagesResponse.json().catch(() => ({}));
-        console.error('User pages error:', errorData);
       }
     } catch (error) {
       console.error('Error fetching pages:', error);
@@ -1371,18 +1353,6 @@ const PagesInterface: React.FC = () => {
   useEffect(() => {
     fetchPages();
   }, []);
-
-  // Close dropdown menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showPageMenu) {
-        setShowPageMenu(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showPageMenu]);
 
   // Refetch pages when switching to suggested pages tab
   useEffect(() => {
@@ -1481,7 +1451,7 @@ const PagesInterface: React.FC = () => {
       setCreating(true);
       console.log('Creating page with data:', formData);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`, { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1508,7 +1478,7 @@ const PagesInterface: React.FC = () => {
       console.log('Page created successfully:', data);
       
       // Show success message
-      alert('Page created successfully!');
+      alert('Page created successfully! Redirecting to your new page...');
       
       // Reset form data
       setFormData({
@@ -1521,11 +1491,11 @@ const PagesInterface: React.FC = () => {
       // Close create form
       setShowCreateForm(false);
       
-      // Refresh pages list to show the new page
+      // Refresh pages list
       await fetchPages();
       
-      // Stay on the pages list instead of redirecting
-      // router.push(`/dashboard/pages/${data._id}`);
+      // Redirect to the newly created page
+      router.push(`/dashboard/pages/${data._id}`);
     } catch (error: unknown) {
       console.error('Network error:', error);
       if (error instanceof Error) {
@@ -1616,7 +1586,7 @@ const PagesInterface: React.FC = () => {
       setUpdating(true);
       console.log('Updating page with data:', formData);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/${editingPage._id}`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages/${editingPage._id}`, { 
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1752,220 +1722,6 @@ const PagesInterface: React.FC = () => {
     }
   };
 
-  const handleDeletePage = async (pageId: string): Promise<void> => {
-    if (!confirm('Are you sure you want to delete this page? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!token || token === 'null' || token === 'undefined') {
-        alert('Please log in to delete a page');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/${pageId}`, { 
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error details:', errorData);
-        alert('Error: ' + (errorData.error || 'Failed to delete page'));
-        return;
-      }
-
-      console.log('Page deleted successfully');
-      alert('Page deleted successfully!');
-      
-      // Refresh pages list
-      await fetchPages();
-      
-    } catch (error: unknown) {
-      console.error('Network error:', error);
-      if (error instanceof Error) {
-        alert('Error: ' + error.message);
-      } else {
-        alert('Network error occurred. Please check your connection and try again.');
-      }
-    }
-  };
-
-  const handleDuplicatePage = async (page: Page): Promise<void> => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!token || token === 'null' || token === 'undefined') {
-        alert('Please log in to duplicate a page');
-        return;
-      }
-
-      const duplicateData = {
-        name: `${page.name} (Copy)`,
-        url: `${page.url}-copy-${Date.now()}`,
-        description: page.description,
-        category: page.category,
-      };
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages`, { 
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(duplicateData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error details:', errorData);
-        alert('Error: ' + (errorData.error || 'Failed to duplicate page'));
-        return;
-      }
-
-      const data = await response.json();
-      console.log('Page duplicated successfully:', data);
-      alert('Page duplicated successfully!');
-      
-      // Refresh pages list
-      await fetchPages();
-      
-    } catch (error: unknown) {
-      console.error('Network error:', error);
-      if (error instanceof Error) {
-        alert('Error: ' + error.message);
-      } else {
-        alert('Network error occurred. Please check your connection and try again.');
-      }
-    }
-  };
-
-  const handleArchivePage = async (pageId: string): Promise<void> => {
-    if (!confirm('Are you sure you want to archive this page? It will be hidden from public view.')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!token || token === 'null' || token === 'undefined') {
-        alert('Please log in to archive a page');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/${pageId}`, { 
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          isActive: false
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error details:', errorData);
-        alert('Error: ' + (errorData.error || 'Failed to archive page'));
-        return;
-      }
-
-      console.log('Page archived successfully');
-      alert('Page archived successfully!');
-      
-      // Refresh pages list
-      await fetchPages();
-      
-    } catch (error: unknown) {
-      console.error('Network error:', error);
-      if (error instanceof Error) {
-        alert('Error: ' + error.message);
-      } else {
-        alert('Network error occurred. Please check your connection and try again.');
-      }
-    }
-  };
-
-  const handleUnarchivePage = async (pageId: string): Promise<void> => {
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!token || token === 'null' || token === 'undefined') {
-        alert('Please log in to unarchive a page');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/${pageId}`, { 
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          isActive: true
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Server error details:', errorData);
-        alert('Error: ' + (errorData.error || 'Failed to unarchive page'));
-        return;
-      }
-
-      console.log('Page unarchived successfully');
-      alert('Page unarchived successfully!');
-      
-      // Refresh pages list
-      await fetchPages();
-      
-    } catch (error: unknown) {
-      console.error('Network error:', error);
-      if (error instanceof Error) {
-        alert('Error: ' + error.message);
-      } else {
-        alert('Network error occurred. Please check your connection and try again.');
-      }
-    }
-  };
-
-  const handleSharePage = (page: Page): void => {
-    const pageUrl = `${window.location.origin}/dashboard/pages/${page._id}`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: page.name,
-        text: page.description,
-        url: pageUrl,
-      }).catch((error) => {
-        console.log('Error sharing:', error);
-        copyToClipboard(pageUrl);
-      });
-    } else {
-      copyToClipboard(pageUrl);
-    }
-  };
-
-  const copyToClipboard = (text: string): void => {
-    navigator.clipboard.writeText(text).then(() => {
-      alert('Page link copied to clipboard!');
-    }).catch(() => {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      alert('Page link copied to clipboard!');
-    });
-  };
-
   // My Pages Component
   const MyPagesComponent: React.FC = () => {
     if (loading) {
@@ -2001,34 +1757,16 @@ const PagesInterface: React.FC = () => {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className={`text-2xl font-bold transition-colors duration-200 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Your Pages</h3>
-            <p className={`mt-1 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}>{userPages.length} page{userPages.length !== 1 ? 's' : ''} • Click any page to open it</p>
+            <h3 className="text-2xl font-bold text-gray-900">Your Pages</h3>
+            <p className="text-gray-500 mt-1">{userPages.length} page{userPages.length !== 1 ? 's' : ''} • Click any page to open it</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={fetchPages}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
-                isDarkMode 
-                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title="Refresh Pages"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Create Page
-            </button>
-          </div>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            Create Page
+          </button>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -2040,26 +1778,15 @@ const PagesInterface: React.FC = () => {
             >
               <div className="p-6">
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200">
                     <FileText className="w-7 h-7 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className={`font-bold text-lg truncate transition-colors duration-200 ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      } ${!page.isActive ? 'opacity-60' : ''}`}>{page.name}</h4>
+                      <h4 className="font-bold text-gray-900 text-lg truncate">{page.name}</h4>
                       {page.isVerified && (
                         <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                           <Star className="w-3 h-3 text-white fill-current" />
-                        </div>
-                      )}
-                      {!page.isActive && (
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'bg-orange-900 text-orange-300' 
-                            : 'bg-orange-100 text-orange-700'
-                        }`}>
-                          Archived
                         </div>
                       )}
                   </div>
@@ -2111,114 +1838,29 @@ const PagesInterface: React.FC = () => {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDuplicatePage(page);
+                        // Handle message functionality
                       }}
                       className={`p-2 rounded-lg transition-all duration-200 ${
                         isDarkMode 
-                          ? 'text-gray-400 hover:text-purple-400 hover:bg-gray-700' 
-                          : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                          ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
+                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                       }`}
-                      title="Duplicate Page"
                     >
-                      <Copy className="w-4 h-4" />
+                      <MessageCircle className="w-4 h-4" />
                     </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSharePage(page);
+                        // Handle share functionality
                       }}
                       className={`p-2 rounded-lg transition-all duration-200 ${
                         isDarkMode 
                           ? 'text-gray-400 hover:text-green-400 hover:bg-gray-700' 
                           : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
                       }`}
-                      title="Share Page"
                     >
                       <Share2 className="w-4 h-4" />
                     </button>
-                    
-                    {/* More Options Dropdown */}
-                    <div className="relative">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowPageMenu(showPageMenu === page._id ? null : page._id);
-                        }}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          isDarkMode 
-                            ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
-                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                        }`}
-                        title="More Options"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      
-                      {/* Dropdown Menu */}
-                      {showPageMenu === page._id && (
-                        <div className={`absolute right-0 top-10 w-48 rounded-lg shadow-xl border z-50 transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'bg-gray-800 border-gray-700' 
-                            : 'bg-white border-gray-200'
-                        }`}>
-                          <div className="p-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                page.isActive ? handleArchivePage(page._id) : handleUnarchivePage(page._id);
-                                setShowPageMenu(null);
-                              }}
-                              className={`flex items-center gap-3 w-full px-3 py-2 text-left rounded-md transition-colors ${
-                                isDarkMode 
-                                  ? 'hover:bg-gray-700' 
-                                  : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              {page.isActive ? (
-                                <>
-                                  <Archive className={`w-4 h-4 transition-colors ${
-                                    isDarkMode ? 'text-orange-400' : 'text-orange-600'
-                                  }`} />
-                                  <span className={`text-sm transition-colors ${
-                                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                                  }`}>Archive Page</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Eye className={`w-4 h-4 transition-colors ${
-                                    isDarkMode ? 'text-green-400' : 'text-green-600'
-                                  }`} />
-                                  <span className={`text-sm transition-colors ${
-                                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                                  }`}>Unarchive Page</span>
-                                </>
-                              )}
-                            </button>
-                            
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeletePage(page._id);
-                                setShowPageMenu(null);
-                              }}
-                              className={`flex items-center gap-3 w-full px-3 py-2 text-left rounded-md transition-colors ${
-                                isDarkMode 
-                                  ? 'hover:bg-gray-700' 
-                                  : 'hover:bg-gray-50'
-                              }`}
-                            >
-                              <Trash2 className={`w-4 h-4 transition-colors ${
-                                isDarkMode ? 'text-red-400' : 'text-red-600'
-                              }`} />
-                              <span className={`text-sm transition-colors ${
-                                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                              }`}>Delete Page</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
                     <div className={`w-6 h-6 transition-colors ${
                       isDarkMode ? 'text-gray-400 group-hover:text-blue-400' : 'text-gray-400 group-hover:text-blue-500'
                     }`}>
@@ -2635,7 +2277,7 @@ const PagesInterface: React.FC = () => {
       {!showCreateForm && !showEditForm && (
         <button 
           onClick={() => setShowCreateForm(true)}
-          className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center z-20 group hover:scale-110"
+          className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-xl transition-all duration-300 flex items-center justify-center z-20 group"
         >
           <Plus className="w-7 h-7 group-hover:rotate-90 transition-transform duration-300" />
         </button>

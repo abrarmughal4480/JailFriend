@@ -1,13 +1,9 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
-import React, { useState, useEffect, useMemo } from 'react';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Camera, Edit, Search, Video, Image, Plus, Heart, MessageCircle, Share2, Users, FileText, X, ChevronDown, UserPlus, Globe2, Users2, Car, File, Smile, Hash, AtSign, Link, Upload, MapPin, Calendar, ThumbsUp, MoreHorizontal, Bookmark, Flag, Bell, BellOff, Palette } from 'lucide-react';
+import { Camera, Edit, Search, Video, Image, Plus, Heart, MessageCircle, Share2, Users, FileText, X, ChevronDown, UserPlus, Globe2, Users2, Car, File, Smile, Hash, AtSign, Link, Upload, MapPin, Calendar, ThumbsUp, MoreHorizontal, Bookmark, Flag, Bell, BellOff } from 'lucide-react';
 import { getCurrentUserId, getCurrentUser } from '@/utils/auth';
-import DashboardPostsFeed from '@/components/DashboardPostsFeed';
-import GroupThemeEditor from '@/components/GroupThemeEditor';
-import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useGroupTheme } from '@/contexts/GroupThemeContext';
 
 interface Group {
   _id: string;
@@ -77,22 +73,8 @@ interface Post {
 const GroupPage: React.FC = () => {
   const { groupId } = useParams();
   const router = useRouter();
-  const { loadGroupTheme, currentGroupTheme } = useGroupTheme();
-  const { isDarkMode } = useDarkMode();
   const [group, setGroup] = useState<Group | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  
-  // Memoize mapped posts to avoid conditional hook calls
-  const mappedPosts = useMemo(() => posts.map(post => ({
-    ...post,
-    user: {
-      _id: post.user.userId,
-      name: post.user.name,
-      username: post.user.name, // Use name as username since username is not available
-      avatar: post.user.avatar || '/default-avatar.svg'
-    }
-  })), [posts]);
-  
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Home');
   const [newPostContent, setNewPostContent] = useState('');
@@ -114,7 +96,6 @@ const GroupPage: React.FC = () => {
   const [coverPreview, setCoverPreview] = useState<string>('');
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [showThemeEditor, setShowThemeEditor] = useState(false);
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
   const [currentUser, setCurrentUser] = useState<any>(null);
   
@@ -200,9 +181,8 @@ const GroupPage: React.FC = () => {
     if (groupId) {
       fetchGroup();
       fetchGroupPosts();
-      loadGroupTheme(groupId as string);
     }
-  }, [groupId]); // Remove loadGroupTheme from dependencies to prevent infinite loop
+  }, [groupId]);
 
   // Handle post creation
   const handleCreatePost = async () => {
@@ -570,24 +550,9 @@ const GroupPage: React.FC = () => {
   }
 
   return (
-    <div 
-      className={`min-h-screen transition-colors duration-200 ${
-        isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
-      }`}
-      style={{
-        backgroundColor: currentGroupTheme?.backgroundColor || (isDarkMode ? '#111827' : '#f9fafb'),
-        color: currentGroupTheme?.textColor || (isDarkMode ? '#ffffff' : '#1f2937')
-      }}
-    >
+    <div className="min-h-screen bg-gray-50">
       {/* Cover Photo Section */}
-      <div 
-        className="relative h-64 sm:h-80"
-        style={{
-          background: currentGroupTheme 
-            ? `linear-gradient(135deg, ${currentGroupTheme.primaryColor}, ${currentGroupTheme.secondaryColor})`
-            : 'linear-gradient(135deg, #a855f7, #ec4899)'
-        }}
-      >
+      <div className="relative h-64 sm:h-80 bg-gradient-to-br from-purple-400 to-pink-400">
         {(coverPreview || group.coverPhoto) ? (
           <img
             src={coverPreview || group.coverPhoto}
@@ -631,15 +596,7 @@ const GroupPage: React.FC = () => {
       </div>
 
       {/* Group Info Section */}
-      <div 
-        className={`border-b transition-colors duration-200 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}
-        style={{
-          backgroundColor: currentGroupTheme?.backgroundColor || (isDarkMode ? '#1f2937' : '#ffffff'),
-          borderColor: currentGroupTheme?.secondaryColor || (isDarkMode ? '#374151' : '#e5e7eb')
-        }}
-      >
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 py-6">
             <div className="relative">
@@ -679,12 +636,8 @@ const GroupPage: React.FC = () => {
             </div>
 
             <div className="flex-1 min-w-0">
-              <h1 className={`text-2xl sm:text-3xl font-bold mb-1 transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{group.name}</h1>
-              <p className={`mb-2 transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{group.name}</h1>
+              <p className="text-gray-600 mb-2">
                 {group.members.length} Member{group.members.length !== 1 ? 's' : ''}
                 {group.members.length > 0 && (
                   <span className="ml-2 text-green-500 text-sm">
@@ -695,41 +648,13 @@ const GroupPage: React.FC = () => {
                   • {posts.length} Posts
                 </span>
               </p>
-              <p className={`text-sm transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>{group.description}</p>
+              <p className="text-gray-700 text-sm">{group.description}</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                isDarkMode 
-                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}>
-                <Edit className="w-4 h-4" />
-                Edit
-              </button>
-              
-              {currentUser && group && (
-                group.creator._id === currentUser._id || 
-                group.members.some(member => 
-                  member.user._id === currentUser._id && 
-                  member.role === 'admin'
-                )
-              ) && (
-                <button 
-                  onClick={() => setShowThemeEditor(true)}
-                  className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                    isDarkMode 
-                      ? 'bg-blue-900 text-blue-300 hover:bg-blue-800' 
-                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                  }`}
-                >
-                  <Palette className="w-4 h-4" />
-                  Theme
-                </button>
-              )}
-            </div>
+            <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2">
+              <Edit className="w-4 h-4" />
+              Edit
+            </button>
           </div>
 
           {/* Navigation Tabs */}
@@ -740,16 +665,9 @@ const GroupPage: React.FC = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === tab
-                    ? 'text-white'
-                    : isDarkMode 
-                      ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    ? 'bg-red-500 text-white'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
-                style={{
-                  backgroundColor: activeTab === tab 
-                    ? (currentGroupTheme?.primaryColor || '#ef4444')
-                    : 'transparent'
-                }}
               >
                 {tab}
               </button>
@@ -765,15 +683,7 @@ const GroupPage: React.FC = () => {
           {/* Left Column - Post Creation and Feed */}
           <div className="lg:col-span-2 space-y-6">
                           {/* Post Creation Section */}
-            <div 
-              className={`rounded-xl border p-4 transition-colors duration-200 ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}
-              style={{
-                backgroundColor: currentGroupTheme?.backgroundColor || (isDarkMode ? '#1f2937' : '#ffffff'),
-                borderColor: currentGroupTheme?.secondaryColor || (isDarkMode ? '#374151' : '#e5e7eb')
-              }}
-            >
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
               {/* Post Creation Input */}
               <div className="flex items-start gap-3">
                 {/* User Avatar */}
@@ -797,11 +707,7 @@ const GroupPage: React.FC = () => {
                 <div className="flex-1 relative">
                   <div
                     onClick={() => setShowPostModal(true)}
-                    className={`w-full p-4 border rounded-lg cursor-pointer transition-colors min-h-[60px] flex items-center ${
-                      isDarkMode 
-                        ? 'bg-gray-800 border-gray-600 hover:border-gray-500 text-gray-400 hover:text-gray-300'
-                        : 'bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700'
-                    }`}
+                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:border-gray-300 transition-colors text-gray-500 hover:text-gray-700 min-h-[60px] flex items-center"
                   >
                     Click to create a new post...
                   </div>
@@ -810,11 +716,7 @@ const GroupPage: React.FC = () => {
                   <div className="absolute top-3 right-3">
                 <button
                   onClick={() => setShowPostModal(true)}
-                      className={`p-2 transition-colors ${
-                        isDarkMode 
-                          ? 'text-gray-400 hover:text-gray-200' 
-                          : 'text-gray-600 hover:text-gray-800'
-                      }`}
+                      className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                       <Camera className="w-5 h-5" />
                 </button>
@@ -831,16 +733,9 @@ const GroupPage: React.FC = () => {
                   onClick={() => setPostType(type)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     postType === type
-                      ? 'text-white'
-                      : isDarkMode 
-                        ? 'text-gray-300 hover:text-white hover:bg-gray-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
-                  style={{
-                    backgroundColor: postType === type 
-                      ? (currentGroupTheme?.primaryColor || '#ef4444')
-                      : (currentGroupTheme?.backgroundColor || (isDarkMode ? '#1f2937' : '#ffffff'))
-                  }}
                 >
                   {type}
                 </button>
@@ -849,22 +744,12 @@ const GroupPage: React.FC = () => {
 
             {/* Posts Feed */}
             {posts.length === 0 ? (
-              <div className={`rounded-xl border p-8 text-center transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700' 
-                  : 'bg-white border-gray-200'
-              }`}>
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                  isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                }`}>
-                  <FileText className={`w-8 h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+              <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="w-8 h-8 text-gray-400" />
                 </div>
-                <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>No posts yet</h3>
-                <p className={`mb-4 transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>Be the first to share something in this group!</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
+                <p className="text-gray-500 mb-4">Be the first to share something in this group!</p>
                 <button
                   onClick={() => setShowPostModal(true)}
                   className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 transition-colors"
@@ -873,100 +758,149 @@ const GroupPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <DashboardPostsFeed
-                posts={mappedPosts}
-                albums={[]}
-                loadingPosts={false}
-                loadingAlbums={false}
-                activeFilter="all"
-                deletingComments={{}}
-                onLike={async (postId: string) => {}}
-                onReaction={async (postId: string, reactionType: string) => {}}
-                onComment={async (postId: string, text: string) => {}}
-                onShare={async (postId: string, shareOptions?: any) => {}}
-                onSave={async (postId: string) => {}}
-                onDelete={() => {}}
-                onEdit={() => {}}
-                onPostUpdate={() => {}}
-                onWatch={() => {}}
-                onAlbumLike={async (albumId: string) => {}}
-                onAlbumReaction={async (albumId: string, reactionType: string) => {}}
-                onAlbumComment={async (albumId: string, text: string) => {}}
-                onAlbumDelete={() => {}}
-                onAlbumSave={async (albumId: string) => {}}
-                onAlbumShare={async (albumId: string, shareOptions?: any) => {}}
-                onFollow={(userId: string) => {
-                  console.log('Follow user:', userId);
-                }}
-              />
+              <div className="space-y-4">
+                {posts.map((post) => (
+                  <div key={post._id} className="bg-white rounded-xl border border-gray-200 p-4">
+                    {/* Post Header */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
+                        {post.user?.avatar ? (
+                          <img
+                            src={post.user.avatar}
+                            alt={post.user.name || 'User avatar'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm">
+                              {post.user?.name ? post.user.name.charAt(0).toUpperCase() : 'U'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">{post.user?.name || 'Unknown User'}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(post.createdAt).toLocaleDateString()} • {new Date(post.createdAt).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Post Content */}
+                    <div className="mb-3">
+                      <div 
+                        className="text-gray-900 text-sm leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: post.content }}
+                      />
+                    </div>
+
+                    {/* Post Media */}
+                    {post.media && post.media.length > 0 && (
+                      <div className="mb-3">
+                        {post.media.map((media, index) => (
+                          <div key={index} className="mb-2">
+                            {media.type === 'image' && (
+                              <img
+                                src={media.url}
+                                alt={`Media ${index + 1}`}
+                                className="w-full max-h-96 object-cover rounded-lg"
+                              />
+                            )}
+                            {media.type === 'video' && (
+                              <video
+                                src={media.url}
+                                controls
+                                className="w-full max-h-96 rounded-lg"
+                              />
+                            )}
+                            {media.type === 'audio' && (
+                              <audio
+                                src={media.url}
+                                controls
+                                className="w-full"
+                              />
+                            )}
+                            {media.type === 'file' && (
+                              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <FileText className="w-8 h-8 text-blue-600" />
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900 text-sm">{media.originalName || 'File'}</p>
+                                  <p className="text-xs text-gray-500">{media.type}</p>
+                                </div>
+                                <a
+                                  href={media.url}
+                                  download
+                                  className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                                >
+                                  Download
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Post Actions */}
+                    <div className="flex items-center gap-4 pt-3 border-t border-gray-100">
+                      <button className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors">
+                        <Heart className="w-4 h-4" />
+                        <span className="text-sm">{post.likes?.length || 0}</span>
+                      </button>
+                      <button className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition-colors">
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="text-sm">{post.comments?.length || 0}</span>
+                      </button>
+                      <button className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition-colors">
+                        <Share2 className="w-4 h-4" />
+                        <span className="text-sm">{post.shares?.length || 0}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
           {/* Right Sidebar */}
           <div className="space-y-6">
             {/* Search */}
-            <div className={`rounded-xl border p-4 transition-colors duration-200 ${
-              isDarkMode 
-                ? 'bg-gray-800 border-gray-700' 
-                : 'bg-white border-gray-200'
-            }`}>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="relative">
-                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-400'
-                }`} />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search for posts"
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
-                  }`}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Group Information */}
-            <div className={`rounded-xl border p-4 transition-colors duration-200 ${
-              isDarkMode 
-                ? 'bg-gray-800 border-gray-700' 
-                : 'bg-white border-gray-200'
-            }`}>
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="space-y-4">
-                <button className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isDarkMode 
-                    ? 'bg-blue-900 text-blue-300 hover:bg-blue-800' 
-                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                }`}>
+                <button className="w-full flex items-center gap-3 p-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors">
                   <UserPlus className="w-5 h-5" />
                   Add your friends to this group
                 </button>
                 
-                <div className={`flex items-center gap-3 transition-colors ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                <div className="flex items-center gap-3 text-gray-600">
                   <Globe2 className="w-5 h-5" />
                   <span className="capitalize">{group.privacy}</span>
                 </div>
                 
-                <div className={`flex items-center gap-3 transition-colors ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                <div className="flex items-center gap-3 text-gray-600">
                   <Users2 className="w-5 h-5" />
                   <span>{group.members.length} Members</span>
                   <span className="text-green-500 text-sm">+1 This week</span>
                 </div>
                 
-                <div className={`flex items-center gap-3 transition-colors ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                <div className="flex items-center gap-3 text-gray-600">
                   <Car className="w-5 h-5" />
                   <span className="capitalize">{group.category}</span>
                 </div>
                 
-                <div className={`flex items-center gap-3 transition-colors ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                <div className="flex items-center gap-3 text-gray-600">
                   <File className="w-5 h-5" />
                   <span>{posts.length} posts</span>
                 </div>
@@ -983,34 +917,20 @@ const GroupPage: React.FC = () => {
               <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center">
                 <Users2 className="w-5 h-5 text-white" />
               </div>
-              <h2 className={`text-2xl font-bold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Members</h2>
-              <span className={`text-lg transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>({group.members.length})</span>
+              <h2 className="text-2xl font-bold text-gray-900">Members</h2>
+              <span className="text-gray-500 text-lg">({group.members.length})</span>
             </div>
 
             {/* Members Search */}
-            <div className={`rounded-lg border p-4 transition-colors duration-200 ${
-              isDarkMode 
-                ? 'bg-gray-800 border-gray-700' 
-                : 'bg-white border-gray-200'
-            }`}>
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="relative">
-                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-400'
-                }`} />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search members..."
                   value={memberSearchQuery}
                   onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
-                  }`}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -1038,11 +958,7 @@ const GroupPage: React.FC = () => {
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {filteredMembers.map((member, index) => (
-                    <div key={member.user._id || index} className={`rounded-lg border p-4 text-center hover:shadow-md transition-all duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' 
-                        : 'bg-white border-gray-200 hover:bg-gray-50'
-                    }`}>
+                    <div key={member.user._id || index} className="bg-white rounded-lg border border-gray-200 p-4 text-center hover:shadow-md transition-shadow">
                       <div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-pink-100 to-blue-100 rounded-full flex items-center justify-center overflow-hidden">
                         {member.user.avatar ? (
                           <img
@@ -1058,21 +974,13 @@ const GroupPage: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <h3 className={`font-medium text-sm mb-1 transition-colors duration-200 ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>{member.user.name}</h3>
+                      <h3 className="font-medium text-gray-900 text-sm mb-1">{member.user.name}</h3>
                       <div className="flex items-center justify-center gap-2">
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           member.role === 'admin' 
-                            ? isDarkMode 
-                              ? 'bg-purple-900 text-purple-300' 
-                              : 'bg-purple-100 text-purple-700'
+                            ? 'bg-purple-100 text-purple-700' 
                             : member.role === 'moderator'
-                            ? isDarkMode 
-                              ? 'bg-blue-900 text-blue-300' 
-                              : 'bg-blue-100 text-blue-700'
-                            : isDarkMode 
-                              ? 'bg-gray-700 text-gray-300' 
+                            ? 'bg-blue-100 text-blue-700'
                             : 'bg-gray-100 text-gray-600'
                         }`}>
                           {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
@@ -1081,9 +989,7 @@ const GroupPage: React.FC = () => {
                           <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                         )}
                       </div>
-                      <p className={`text-xs mt-2 transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`}>
+                      <p className="text-xs text-gray-500 mt-2">
                         Joined {new Date(member.joinedAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -1112,28 +1018,16 @@ const GroupPage: React.FC = () => {
               <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
                 <UserPlus className="w-5 h-5 text-white" />
               </div>
-              <h2 className={`text-2xl font-bold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Invite Friends</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Invite Friends</h2>
             </div>
 
             {/* Invite Content */}
-            <div className={`rounded-xl border p-8 text-center transition-colors duration-200 ${
-              isDarkMode 
-                ? 'bg-gray-800 border-gray-700' 
-                : 'bg-white border-gray-200'
-            }`}>
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                isDarkMode ? 'bg-blue-900' : 'bg-blue-100'
-              }`}>
-                <UserPlus className={`w-8 h-8 ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`} />
+            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <UserPlus className="w-8 h-8 text-blue-600" />
               </div>
-              <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Invite functionality coming soon!</h3>
-              <p className={`mb-4 transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>You'll be able to invite friends to this group soon.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Invite functionality coming soon!</h3>
+              <p className="text-gray-500 mb-4">You'll be able to invite friends to this group soon.</p>
             </div>
           </div>
         )}
@@ -1142,24 +1036,10 @@ const GroupPage: React.FC = () => {
       {/* Floating Action Button */}
       <button 
         onClick={() => setShowPostModal(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 text-white rounded-full shadow-lg transition-all duration-200 flex items-center justify-center group"
-        style={{
-          background: currentGroupTheme 
-            ? `linear-gradient(135deg, ${currentGroupTheme.primaryColor}, ${currentGroupTheme.secondaryColor})`
-            : 'linear-gradient(135deg, #3b82f6, #1e40af)'
-        }}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-full shadow-lg hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 flex items-center justify-center group"
       >
-        <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
+        <Plus className="w-6 h-6 transition-transform" />
       </button>
-
-      {/* Group Theme Editor */}
-      {showThemeEditor && (
-        <GroupThemeEditor
-          groupId={groupId as string}
-          isOpen={showThemeEditor}
-          onClose={() => setShowThemeEditor(false)}
-        />
-      )}
 
       {/* Post Creation Modal */}
       {showPostModal && (

@@ -13,7 +13,6 @@ export interface WebsiteSettings {
     socialLogin: boolean;
     fileUpload: boolean;
     chat: boolean;
-    videoCall: boolean;
     audioCall: boolean;
     groups: boolean;
     pages: boolean;

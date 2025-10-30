@@ -4,9 +4,8 @@ import { useRouter } from 'next/navigation';
 import ReelsCreationModal from '@/components/ReelsCreationModal';
 import { getReels, Reel, ReelsResponse } from '@/utils/reelsApi';
 import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, Pause, Volume2, VolumeX } from 'lucide-react';
-import { useDarkMode } from '@/contexts/DarkModeContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Helper function to construct proper video URLs
 const getVideoUrl = (url: string): string => {
@@ -18,7 +17,7 @@ const getVideoUrl = (url: string): string => {
   }
   
   // Get base URL and handle localhost vs production
-  let baseUrl = API_URL;
+  let baseUrl = API_URL || 'https://jailfriend-1.onrender.com';
   
   // For localhost development, use HTTP to avoid SSL errors
   if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
@@ -49,7 +48,6 @@ const getVideoUrl = (url: string): string => {
 
 export default function ReelsPage() {
   const router = useRouter();
-  const { isDarkMode } = useDarkMode();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('general');
   const [showTrending, setShowTrending] = useState(false);
@@ -62,45 +60,12 @@ export default function ReelsPage() {
   const [showComments, setShowComments] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [isLiking, setIsLiking] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState<string | null>(null);
-  const [savedReels, setSavedReels] = useState<Set<string>>(new Set());
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [lastTap, setLastTap] = useState<number>(0);
   const [showLikeAnimation, setShowLikeAnimation] = useState(false);
 
-  // Handle save/unsave reel
-  const handleSave = async (reelId: string) => {
-    if (isSaving === reelId) return;
-    
-    setIsSaving(reelId);
-    try {
-      const isCurrentlySaved = savedReels.has(reelId);
-      
-      if (isCurrentlySaved) {
-        // Unsave reel
-        setSavedReels(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(reelId);
-          return newSet;
-        });
-        alert('Reel removed from saved!');
-      } else {
-        // Save reel
-        setSavedReels(prev => new Set(prev).add(reelId));
-        alert('Reel saved successfully!');
-      }
-      
-      // Here you would typically make an API call to save/unsave
-      // await axios.post(`/api/reels/${reelId}/save`, { saved: !isCurrentlySaved });
-      
-    } catch (err) {
-      console.error('Error saving reel:', err);
-      alert('Failed to save reel');
-    } finally {
-      setIsSaving(null);
-    }
-  };
+  // Handle horizontal scroll with mouse wheel
   const handleWheelScroll = (e: React.WheelEvent) => {
     const container = e.currentTarget as HTMLElement;
     e.preventDefault();
@@ -465,32 +430,27 @@ export default function ReelsPage() {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-black' : 'bg-white'}`}>
+    <div className="min-h-screen bg-black">
       {/* Header with three distinct sections */}
-      <div className={`${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'} border-b sticky top-0 z-50 mr-5 ml-2`}>
-        <div className="px-6 py-5">
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-6">
+      <div className="bg-black border-b border-gray-800 sticky top-0 z-50">
+        <div className="px-4 py-4">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
             {/* Left Section - Back button and title */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
-                className={`${isDarkMode ? 'text-white hover:text-gray-300' : 'text-gray-900 hover:text-gray-600'} transition-all duration-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800`}
+                className="text-white hover:text-gray-300 transition-colors"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}>
-                  <span className="text-white text-lg">🎬</span>
-                </div>
-                <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Reels</h1>
-              </div>
+              <h1 className="text-xl font-bold text-white">Reels</h1>
             </div>
 
             {/* Center Section - Category filters with limited width and overflow scroll */}
             <div 
-              className="filter-scroll-area w-full max-w-lg overflow-x-scroll overflow-y-hidden scrollbar-hide cursor-grab select-none mx-auto" 
+              className="filter-scroll-area w-full max-w-md overflow-x-scroll overflow-y-hidden scrollbar-hide cursor-grab select-none mx-auto" 
               style={{ 
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none'
@@ -501,13 +461,13 @@ export default function ReelsPage() {
               onMouseUp={handleMouseUp}
               onMouseMove={handleMouseMove}
             >
-              <div className="flex items-center gap-3 justify-start min-w-max px-3 py-2">
+              <div className="flex items-center gap-2 justify-start min-w-max px-2 py-1">
                 <button
                   onClick={handleTrendingToggle}
-                  className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 text-sm shadow-lg ${
+                  className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${
                     showTrending
-                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-red-500/25'
-                      : `${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 shadow-gray-800/25' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-gray-200/25'}`
+                      ? 'bg-red-500 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   }`}
                 >
                   🔥 Trending
@@ -518,10 +478,10 @@ export default function ReelsPage() {
                     key={category.id}
                     onClick={() => handleCategoryChange(category.id)}
                     disabled={showTrending}
-                    className={`px-4 py-2 rounded-full font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 text-sm shadow-lg ${
+                    className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${
                       !showTrending && selectedCategory === category.id
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-blue-500/25'
-                      : `${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 shadow-gray-800/25' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 shadow-gray-200/25'} disabled:opacity-50`
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50'
                     }`}
                   >
                     {category.icon} {category.name}
@@ -534,9 +494,8 @@ export default function ReelsPage() {
             <div className="flex justify-end">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
               >
-                <span className="text-lg">+</span>
                 Create
               </button>
             </div>
@@ -546,7 +505,7 @@ export default function ReelsPage() {
 
       {/* Reels Container - Full height minus header with enhanced touch */}
       <div 
-        className={`relative h-[calc(100vh-120px)] flex items-center justify-center ${isDarkMode ? 'bg-black' : 'bg-white'} touch-pan-y`}
+        className="relative h-[calc(100vh-120px)] flex items-center justify-center bg-black touch-pan-y"
         style={{ touchAction: 'pan-y' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -658,13 +617,7 @@ export default function ReelsPage() {
                     <div className="flex items-center gap-2 text-gray-300 text-xs">
                       <span>{new Date(currentReel.createdAt).toLocaleDateString()}</span>
                       <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-                        </svg>
-                        {currentReel.views ? (currentReel.views >= 1000000 ? `${(currentReel.views / 1000000).toFixed(1)}M` : currentReel.views >= 1000 ? `${(currentReel.views / 1000).toFixed(1)}K` : currentReel.views) : Math.floor(Math.random() * 10000) + 1000} views
-                      </span>
+                      <span>{currentReel.views || 0} views</span>
                     </div>
 
                     {/* Music Info - Instagram style */}
@@ -720,17 +673,10 @@ export default function ReelsPage() {
                   </button>
 
                   {/* Save Button */}
-                  <button 
-                    onClick={() => handleSave(currentReel._id)}
-                    disabled={isSaving === currentReel._id}
-                    className="flex flex-col items-center gap-1 text-white hover:text-yellow-400 transition-colors"
-                  >
-                    <div className={`w-12 h-12 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200 ${savedReels.has(currentReel._id) ? 'bg-yellow-500 bg-opacity-50' : ''}`}>
-                      <Bookmark className={`w-7 h-7 ${savedReels.has(currentReel._id) ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                  <button className="flex flex-col items-center gap-1 text-white hover:text-yellow-400 transition-colors">
+                    <div className="w-12 h-12 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200">
+                      <Bookmark className="w-7 h-7" />
                     </div>
-                    {isSaving === currentReel._id && (
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                    )}
                   </button>
 
                   {/* More Options */}
@@ -757,38 +703,15 @@ export default function ReelsPage() {
         )}
       </div>
 
-      {/* Comments Panel - Right Side */}
+      {/* Comments Modal - Instagram style */}
       {showComments && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* Left side - Reel continues playing */}
-          <div 
-            className="flex-1 bg-black flex items-center justify-center cursor-pointer"
-            onClick={() => setShowComments(null)}
-          >
-            {/* Current reel continues playing here */}
-            <div className="relative w-full h-full flex items-center justify-center">
-              {/* Video player would continue here */}
-              <div className="text-white text-center">
-                <p className="text-lg mb-4">Reel continues playing...</p>
-                <p className="text-sm text-gray-400">Tap here to close comments</p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Right side - Comments panel */}
-          <div className={`w-96 h-full ${isDarkMode ? 'bg-gray-900' : 'bg-white'} flex flex-col shadow-2xl`}>
-            {/* Header */}
-            <div className={`flex items-center justify-between p-6 pb-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gradient-to-r from-blue-500 to-purple-500' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
-                  <MessageCircle className="w-4 h-4 text-white" />
-                </div>
-                <h3 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Comments</h3>
-                <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>({currentReel?.comments.length || 0})</span>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
+          <div className="bg-white w-full h-3/4 rounded-t-3xl p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
               <button
                 onClick={() => setShowComments(null)}
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400 hover:text-gray-200' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}
+                className="text-gray-500 hover:text-gray-700 p-2"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -796,84 +719,49 @@ export default function ReelsPage() {
               </button>
             </div>
             
-            {/* Comments List */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide p-6">
-              <div className="space-y-6">
+            <div className="flex-1 space-y-4 mb-4 overflow-y-auto scrollbar-hide">
               {currentReel?.comments.map((comment, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="relative">
+                <div key={index} className="flex items-start gap-3">
                   <img
                     src={comment.user.avatar || '/default-avatar.svg'}
                     alt={comment.user.name}
-                        className="w-12 h-12 rounded-full border-2 border-gray-200 dark:border-gray-600"
+                    className="w-10 h-10 rounded-full border-2 border-gray-200"
                   />
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white dark:border-gray-900"></div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-sm text-gray-900">{comment.user.name}</span>
+                      <span className="text-gray-500 text-xs">{new Date(comment.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <div className="flex-1">
-                      <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {comment.user.name}
-                          </h4>
-                          <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            @{comment.user.username}
-                          </span>
-                          <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            • {new Date(comment.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
-                          {comment.text}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 ml-2">
-                        <button className={`text-xs font-medium ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'} transition-colors`}>
-                          Like
-                        </button>
-                        <button className={`text-xs font-medium ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'} transition-colors`}>
-                          Reply
-                        </button>
-                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {Math.floor(Math.random() * 50) + 1} likes
-                        </span>
-                      </div>
+                    <p className="text-gray-700 text-sm leading-relaxed">{comment.text}</p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <button className="text-gray-500 hover:text-red-500 text-xs font-medium">Like</button>
+                      <button className="text-gray-500 hover:text-blue-500 text-xs font-medium">Reply</button>
                     </div>
                   </div>
-                ))}
                 </div>
+              ))}
             </div>
             
-            {/* Comment Input */}
-            <div className={`p-6 pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
               <img
                 src="/default-avatar.svg"
                 alt="Your avatar"
-                  className="w-10 h-10 rounded-full border-2 border-gray-200 dark:border-gray-600"
+                className="w-8 h-8 rounded-full"
               />
               <div className="flex-1 flex items-center gap-2">
                 <input
                   type="text"
-                    placeholder="Add a comment..."
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                    className={`flex-1 px-4 py-3 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-800 border border-gray-700 text-white placeholder-gray-400' 
-                        : 'bg-gray-100 border border-gray-300 text-gray-900 placeholder-gray-500'
-                    }`}
+                  placeholder="Add a comment..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button 
-                    className={`px-6 py-3 rounded-full font-semibold text-sm transition-all duration-200 ${
-                      commentText.trim() 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-lg hover:shadow-xl' 
-                        : `${isDarkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'} cursor-not-allowed`
-                    }`}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-full hover:bg-blue-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!commentText.trim()}
                 >
                   Post
                 </button>
-                </div>
               </div>
             </div>
           </div>

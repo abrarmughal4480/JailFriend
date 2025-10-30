@@ -153,8 +153,8 @@ const MarketplacePage: React.FC = () => {
       <Popup popup={popup} onClose={closePopup} />
       
       {/* Header */}
-      <header className={`shadow-sm border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} ml-2 mr-3`}>
-        <div className="px-1 sm:px-3 lg:px-5 py-3 sm:py-4">
+      <header className={`shadow-sm border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <h1 className={`text-lg sm:text-xl lg:text-2xl font-bold flex-shrink-0 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Market</h1>
             
@@ -194,6 +194,31 @@ const MarketplacePage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                 </div>
+              </button>
+              
+              {/* Mobile Search Button */}
+              <button className={`md:hidden w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-colors duration-200 ${
+                isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600' 
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}>
+                <Search className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+              </button>
+              
+              {/* Desktop Search and Users Buttons */}
+              <button className={`hidden md:flex w-10 h-10 rounded-lg items-center justify-center transition-colors duration-200 ${
+                isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600' 
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}>
+                <Search className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+              </button>
+              <button className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center transition-colors duration-200 ${
+                isDarkMode 
+                  ? 'bg-gray-700 hover:bg-gray-600' 
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}>
+                <Users className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
             </div>
           </div>

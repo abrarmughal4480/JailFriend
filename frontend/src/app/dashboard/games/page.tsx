@@ -1,12 +1,8 @@
 "use client";
 import React, { useState, FC } from 'react';
 import { Plus, Gamepad2, Play, Star, Download, Menu, X, Filter } from 'lucide-react';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 const GamesPage = () => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const [activeTab, setActiveTab] = useState<'Latest games' | 'My Games'>('Latest games');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);

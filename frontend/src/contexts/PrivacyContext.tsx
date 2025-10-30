@@ -35,7 +35,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        
+        // Fallback to localStorage
         const savedSettings = localStorage.getItem('privacySettings');
         if (savedSettings) {
           setPrivacySettings(JSON.parse(savedSettings));
@@ -54,7 +54,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
         setPrivacySettings(result.data);
         localStorage.setItem('privacySettings', JSON.stringify(result.data));
       } else {
-          
+        // Fallback to localStorage
         const savedSettings = localStorage.getItem('privacySettings');
         if (savedSettings) {
           setPrivacySettings(JSON.parse(savedSettings));
@@ -62,7 +62,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
       }
     } catch (error) {
       console.error('Error loading privacy settings:', error);
-
+      // Fallback to localStorage
       const savedSettings = localStorage.getItem('privacySettings');
       if (savedSettings) {
         setPrivacySettings(JSON.parse(savedSettings));
@@ -74,7 +74,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-      
+        // Fallback to localStorage
         const savedSettings = localStorage.getItem('profileSettings');
         if (savedSettings) {
           setProfileSettings(JSON.parse(savedSettings));
@@ -91,6 +91,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
       if (response.ok) {
         const userData = await response.json();
         
+        // Map user data to profile settings format
         const nameParts = (userData.name || '').split(' ');
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
@@ -101,17 +102,17 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
           aboutMe: userData.bio || '',
           location: userData.location || '',
           website: userData.website || '',
-          relationship: 'None', 
-          school: '',
-          schoolCompleted: false, 
+          relationship: 'None', // Not in user model yet
+          school: '', // Not in user model yet
+          schoolCompleted: false, // Not in user model yet
           workingAt: userData.workplace || '',
-          companyWebsite: '' 
+          companyWebsite: '' // Not in user model yet
         };
         
         setProfileSettings(mappedSettings);
         localStorage.setItem('profileSettings', JSON.stringify(mappedSettings));
       } else {
-       
+        // Fallback to localStorage
         const savedSettings = localStorage.getItem('profileSettings');
         if (savedSettings) {
           setProfileSettings(JSON.parse(savedSettings));
@@ -119,7 +120,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
       }
     } catch (error) {
       console.error('Error loading profile settings:', error);
-     
+      // Fallback to localStorage
       const savedSettings = localStorage.getItem('profileSettings');
       if (savedSettings) {
         setProfileSettings(JSON.parse(savedSettings));
@@ -153,18 +154,19 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
           setPrivacySettings(updatedSettings);
           localStorage.setItem('privacySettings', JSON.stringify(updatedSettings));
           
+          // Dispatch event to notify other components
           window.dispatchEvent(new CustomEvent('privacySettingsUpdated'));
         } else {
           throw new Error('Failed to update privacy settings');
         }
       } else {
-
+        // Fallback to localStorage
         if (privacySettings) {
           const updatedSettings = { ...privacySettings, ...newSettings };
           setPrivacySettings(updatedSettings);
           localStorage.setItem('privacySettings', JSON.stringify(updatedSettings));
         } else {
-         
+          // If no existing settings, create default settings with new values
           const defaultSettings: PrivacySettings = {
             status: 'Online',
             whoCanFollowMe: 'Everyone',
@@ -182,7 +184,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
           localStorage.setItem('privacySettings', JSON.stringify(defaultSettings));
         }
         
-       
+        // Dispatch event to notify other components
         window.dispatchEvent(new CustomEvent('privacySettingsUpdated'));
       }
     } catch (error) {
@@ -196,7 +198,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
       const token = localStorage.getItem('token');
       
       if (token) {
-        
+        // Map the settings to the correct API format
         const profileData = {
           name: `${newSettings.firstName || profileSettings?.firstName || ''} ${newSettings.lastName || profileSettings?.lastName || ''}`.trim(),
           bio: newSettings.aboutMe || profileSettings?.aboutMe || '',
@@ -221,19 +223,19 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
             localStorage.setItem('profileSettings', JSON.stringify(updatedSettings));
           }
           
-         
+          // Dispatch event to notify other components
           window.dispatchEvent(new CustomEvent('profileSettingsUpdated'));
         } else {
           throw new Error('Failed to update profile settings');
         }
       } else {
-       
+        // Fallback to localStorage
         if (profileSettings) {
           const updatedSettings = { ...profileSettings, ...newSettings };
           setProfileSettings(updatedSettings);
           localStorage.setItem('profileSettings', JSON.stringify(updatedSettings));
         } else {
-         
+          // If no existing settings, create default settings with new values
           const defaultSettings: ProfileSettings = {
             firstName: '',
             lastName: '',
@@ -251,7 +253,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
           localStorage.setItem('profileSettings', JSON.stringify(defaultSettings));
         }
         
-       
+        // Dispatch event to notify other components
         window.dispatchEvent(new CustomEvent('profileSettingsUpdated'));
       }
     } catch (error) {
@@ -264,7 +266,7 @@ export const PrivacyProvider: React.FC<PrivacyProviderProps> = ({ children }) =>
     refreshSettings();
   }, []);
 
-      
+  // Listen for settings updates from other components
   useEffect(() => {
     const handlePrivacySettingsUpdated = () => {
       loadPrivacySettings();

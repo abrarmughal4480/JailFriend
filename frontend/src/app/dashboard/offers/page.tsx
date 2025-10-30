@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import React, { useState } from 'react';
 import { Plus, Tag, Search, Users, ArrowLeft, Filter, Bell, Menu, X } from 'lucide-react';
 
@@ -182,19 +182,19 @@ const OffersPage = () => {
 
       {/* Desktop Right Sidebar Icons */}
       <div className="hidden lg:flex fixed right-4 xl:right-6 top-1/2 transform -translate-y-1/2 flex-col gap-3 z-40">
-        <button className="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:shadow-xl hover:scale-105 transition-all group">
+        <button className="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all group">
           <Search className="w-5 h-5 text-gray-600 group-hover:text-blue-500" />
         </button>
-        <button className="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:shadow-xl hover:scale-105 transition-all group">
+        <button className="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all group">
           <Users className="w-5 h-5 text-gray-600 group-hover:text-green-500" />
         </button>
-        <button className="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:shadow-xl hover:scale-105 transition-all group">
+        <button className="w-12 h-12 bg-white rounded-full shadow-lg border border-gray-200 flex items-center justify-center transition-all group">
           <Filter className="w-5 h-5 text-gray-600 group-hover:text-purple-500" />
         </button>
       </div>
 
       {/* Floating Action Button */}
-      <button className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center z-50 group">
+      <button className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all flex items-center justify-center z-50 group">
         <Plus className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform" />
       </button>
 

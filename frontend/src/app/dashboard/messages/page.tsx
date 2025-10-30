@@ -1,11 +1,11 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import '@/styles/custom-scrollbar.css';
 import { 
   Search, 
   MoreVertical, 
   Phone, 
-  Video, 
   Info, 
   Send, 
   Paperclip, 
@@ -24,13 +24,19 @@ import {
   Star,
   StarOff,
   X,
-  MessageCircle
+  MessageCircle,
+  History,
+  Video
 } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { getToken, getCurrentUserId } from '@/utils/auth';
 import socketService from '@/services/socketService';
+import AudioCallInterface from '@/components/AudioCallInterface';
+import CallHistory from '@/components/CallHistory';
+import VideoCallNotification from '@/components/VideoCallNotification';
+import { useVideoCall } from '@/contexts/VideoCallContext';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : 'https://jaifriend-backend.hgdjlive.com');
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 interface Message {
   _id: string;
@@ -75,6 +81,23 @@ interface Conversation {
   unreadCount: number;
   isPinned: boolean;
   isArchived: boolean;
+  isP2PUser?: boolean; // Flag to indicate if user came from P2P
+  conversationContext?: {
+    type: string;
+    source?: string;
+    userRole?: string;
+    serviceType?: string;
+  };
+  p2pProfile?: {
+    occupation: string;
+    hourlyRate: number;
+    currency: string;
+  };
+  booking?: {
+    title: string;
+    serviceType: string;
+    status: string;
+  };
   updatedAt: string;
 }
 
@@ -100,6 +123,7 @@ interface FollowerUser {
 
 export default function MessagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDarkMode } = useDarkMode();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -122,13 +146,24 @@ export default function MessagesPage() {
   const [followerUsersLoading, setFollowerUsersLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   
+  // Audio call states
+  const [showCallInterface, setShowCallInterface] = useState(false);
+  const [callType, setCallType] = useState<'incoming' | 'outgoing' | 'active'>('incoming');
+  const [currentCall, setCurrentCall] = useState<any>(null);
+  const [caller, setCaller] = useState<any>(null);
+  
+  // Video call states - using global context
+  const { videoCallService, incomingVideoCall, showVideoCallNotification, setShowVideoCallNotification, acceptVideoCall, declineVideoCall } = useVideoCall();
+  const [showCallHistory, setShowCallHistory] = useState(false);
+  
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const processedNotifications = useRef<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const messages = selectedConversation ? (allMessages[selectedConversation._id] || []) : [];
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const getCurrentUserId = () => {
     const token = localStorage.getItem('token');
@@ -203,6 +238,12 @@ export default function MessagesPage() {
           const sortedIds = [currentUserId, otherUserId].sort();
           const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
           
+          // Get P2P context
+          const conversationContext = conv.conversationContext || {};
+          const isP2PConversation = conversationContext.type && conversationContext.type !== 'regular';
+          const p2pProfile = conv.p2pProfile;
+          const booking = conv.booking;
+          
           return {
             _id: conversationId,
             participants: [{
@@ -232,7 +273,24 @@ export default function MessagesPage() {
             unreadCount: conv.unreadCount,
             isPinned: false,
             isArchived: false,
-            updatedAt: conv.updatedAt
+            isP2PUser: isP2PConversation,
+            conversationContext: {
+              type: conversationContext.type || 'regular',
+              source: conversationContext.source,
+              userRole: conversationContext.userRole,
+              serviceType: conversationContext.serviceType
+            },
+            p2pProfile: p2pProfile ? {
+              occupation: p2pProfile.occupation,
+              hourlyRate: p2pProfile.hourlyRate,
+              currency: p2pProfile.currency
+            } : null,
+            booking: booking ? {
+              title: booking.title,
+              serviceType: booking.serviceType,
+              status: booking.status
+            } : null,
+            updatedAt: conv.updatedAt || conv.lastMessage?.createdAt || new Date().toISOString()
           };
         });
         setConversations(mappedConversations);
@@ -424,16 +482,126 @@ export default function MessagesPage() {
       unreadCount: 0,
       isPinned: false,
       isArchived: false,
+      isP2PUser: false, // Regular conversations are not P2P users
       updatedAt: new Date().toISOString()
     };
     
-    setConversations(prev => [newConversation, ...prev]);
+    // Check if conversation already exists before adding to prevent duplicates
+    setConversations(prev => {
+      const exists = prev.some(conv => conv._id === conversationId);
+      if (!exists) {
+        return [newConversation, ...prev];
+      }
+      return prev;
+    });
+    
     setSelectedConversation(newConversation);
     setShowFollowedUsers(false);
     setShowFollowerUsers(false);
     
     // Join conversation room
     socketService.joinConversation(newConversation._id);
+  };
+
+  // Start conversation with user by ID (for P2P redirects)
+  const startConversationWithUserId = async (userId: string) => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      // Fetch user details
+      const response = await fetch(`${API_URL}/api/users/${userId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        
+        // Check if userData is valid
+        if (!userData || !userData.id) {
+          console.error('Invalid user data received:', userData);
+          return;
+        }
+        
+        const user = {
+          _id: userData.id,
+          name: userData.name,
+          username: userData.username,
+          avatar: userData.avatar,
+          isOnline: userData.isOnline || false,
+          lastSeen: userData.lastSeen || '',
+          bio: userData.bio || ''
+        };
+
+        // Check if conversation already exists
+        const currentUserId = getCurrentUserId();
+        const sortedIds = [currentUserId, userId].sort();
+        const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
+        
+        const existingConversation = conversations.find(conv => conv._id === conversationId);
+        
+        if (existingConversation) {
+          // Open existing conversation
+          setSelectedConversation(existingConversation);
+          socketService.joinConversation(existingConversation._id);
+        } else {
+          // Create new conversation
+          const newConversation: Conversation = {
+            _id: conversationId,
+            participants: [{
+              _id: user._id,
+              name: user.name,
+              username: user.username,
+              avatar: user.avatar,
+              isOnline: user.isOnline
+            }],
+            lastMessage: {
+              _id: 'temp',
+              content: 'Conversation started',
+              sender: {
+                _id: currentUserId || 'temp',
+                name: 'System',
+                username: 'system'
+              },
+              receiver: {
+                _id: user._id,
+                name: user.name,
+                username: user.username
+              },
+              timestamp: new Date().toISOString(),
+              isRead: true,
+              type: 'text'
+            },
+            unreadCount: 0,
+            isPinned: false,
+            isArchived: false,
+            isP2PUser: true, // Mark as P2P user
+            updatedAt: new Date().toISOString()
+          };
+          
+          // Check if conversation already exists before adding to prevent duplicates
+          setConversations(prev => {
+            const exists = prev.some(conv => conv._id === conversationId);
+            if (!exists) {
+              return [newConversation, ...prev];
+            }
+            return prev;
+          });
+          
+          setSelectedConversation(newConversation);
+          socketService.joinConversation(newConversation._id);
+        }
+
+        // Clear URL parameter
+        const url = new URL(window.location.href);
+        url.searchParams.delete('userId');
+        window.history.replaceState({}, '', url.toString());
+      } else {
+        console.error('Failed to fetch user data:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Error starting conversation with user:', error);
+    }
   };
 
   const loadMessages = async (conversationId: string) => {
@@ -558,7 +726,8 @@ export default function MessagesPage() {
                   ...conv,
                   lastMessage: message,
                   unreadCount: 0,
-                  updatedAt: message.timestamp
+                  updatedAt: message.timestamp,
+                  isP2PUser: conv.isP2PUser // Preserve P2P flag
                 }
               : conv
           );
@@ -570,6 +739,7 @@ export default function MessagesPage() {
             unreadCount: 0,
             isPinned: false,
             isArchived: false,
+            isP2PUser: selectedConversation.isP2PUser, // Preserve P2P flag
             updatedAt: message.timestamp
           };
           return [newConversation, ...prev];
@@ -591,9 +761,32 @@ export default function MessagesPage() {
     fetchFollowerUsers();
     fetchConversations();
     
-    if (!socketService.getConnected()) {
-      socketService.connect();
+    // Handle URL parameter for opening specific conversation
+    const userId = searchParams.get('userId');
+    if (userId) {
+      // Wait for conversations to load before trying to open specific conversation
+      setTimeout(() => {
+        startConversationWithUserId(userId);
+      }, 1000);
     }
+    
+    if (!socketService.getConnected()) {
+      console.log('🔌 Socket not connected, connecting...');
+      socketService.connect();
+    } else {
+      console.log('✅ Socket already connected');
+    }
+
+    // Video call service is now handled globally via VideoCallProvider
+
+    // Add a small delay to ensure socket is ready
+    setTimeout(() => {
+      console.log('🔍 Socket status check:', {
+        connected: socketService.getConnected(),
+        socket: socketService.getSocket(),
+        socketConnected: socketService.getSocket()?.connected
+      });
+    }, 1000);
 
     const updateMyOnlineStatus = async () => {
       try {
@@ -616,6 +809,12 @@ export default function MessagesPage() {
     const handleNewMessage = (event: CustomEvent) => {
       const message = event.detail;
       const currentUserId = getCurrentUserId();
+      
+      // Don't process messages sent by current user - they're already added locally
+      if (message.sender._id === currentUserId) {
+        console.log('🚫 Ignoring own message in socket handler:', message._id);
+        return;
+      }
       
       updateOnlineStatusFromSocket(message.sender._id, true);
       
@@ -646,7 +845,8 @@ export default function MessagesPage() {
                 ...conv,
                 lastMessage: message,
                 unreadCount: conv.unreadCount + (message.sender._id !== currentUserId ? 1 : 0),
-                updatedAt: message.timestamp
+                updatedAt: message.timestamp,
+                isP2PUser: conv.isP2PUser // Preserve P2P flag
               };
             }
             return conv;
@@ -667,7 +867,12 @@ export default function MessagesPage() {
             isArchived: false,
             updatedAt: message.timestamp
           };
-          return [newConversation, ...prev];
+          // Check if conversation already exists before adding to prevent duplicates
+          const exists = prev.some(conv => conv._id === message.conversationId);
+          if (!exists) {
+            return [newConversation, ...prev];
+          }
+          return prev;
         }
       });
     };
@@ -688,8 +893,11 @@ export default function MessagesPage() {
     const handleUserStoppedTyping = (event: CustomEvent) => {
       const data = event.detail;
       if (selectedConversation && data.conversationId === selectedConversation._id) {
-        setTypingUsers(prev => prev.filter(id => id !== data.userId));
-        setIsTyping(typingUsers.length > 1);
+        setTypingUsers(prev => {
+          const newTypingUsers = prev.filter(id => id !== data.userId);
+          setIsTyping(newTypingUsers.length > 0);
+          return newTypingUsers;
+        });
       }
     };
 
@@ -799,7 +1007,8 @@ export default function MessagesPage() {
                 ...conv,
                 lastMessage: message,
                 unreadCount: conv.unreadCount + (notification.senderId !== currentUserId ? 1 : 0),
-                updatedAt: message.timestamp
+                updatedAt: message.timestamp,
+                isP2PUser: conv.isP2PUser // Preserve P2P flag
               };
             }
             return conv;
@@ -820,10 +1029,78 @@ export default function MessagesPage() {
             isArchived: false,
             updatedAt: message.timestamp
           };
-          return [newConversation, ...prev];
+          // Check if conversation already exists before adding to prevent duplicates
+          const exists = prev.some(conv => conv._id === notification.conversationId);
+          if (!exists) {
+            return [newConversation, ...prev];
+          }
+          return prev;
         }
       });
     };
+
+    // Audio call socket event handlers
+    const handleIncomingCall = (event: CustomEvent) => {
+      const callData = event.detail;
+      setCaller(callData.caller);
+      setCallType('incoming');
+      setShowCallInterface(true);
+      
+      // Use the actual call ID from the database
+      setCurrentCall({
+        _id: callData.callId,
+        callerId: callData.caller,
+        receiverId: { _id: getCurrentUserId() }
+      });
+    };
+
+    const handleCallAccepted = (event: CustomEvent) => {
+      const callData = event.detail;
+      console.log('📞 Call accepted event received:', callData);
+      
+      if (currentCall && currentCall._id === callData.callId) {
+        console.log('✅ Call accepted - switching to active mode');
+        setCallType('active');
+      } else if (!currentCall && (callType === 'outgoing' || callType === 'active' || callType === 'incoming')) {
+        console.log('📞 Fallback: Creating call object from event data');
+        const callObject = {
+          _id: callData.callId,
+          callerId: { _id: getCurrentUserId() },
+          receiverId: { _id: callData.receiverId }
+        };
+        setCurrentCall(callObject);
+        setCallType('active');
+      }
+    };
+
+    const handleCallRejected = (event: CustomEvent) => {
+      const callData = event.detail;
+      if (currentCall && currentCall._id === callData.callId) {
+        setShowCallInterface(false);
+        setCurrentCall(null);
+        setCaller(null);
+      }
+    };
+
+    const handleCallEnded = (event: CustomEvent) => {
+      const callData = event.detail;
+      if (currentCall && currentCall._id === callData.callId) {
+        // endWebRTCCall();
+        setShowCallInterface(false);
+        setCurrentCall(null);
+        setCaller(null);
+      }
+    };
+
+    const handleCallCancelled = (event: CustomEvent) => {
+      const callData = event.detail;
+      if (currentCall && currentCall._id === callData.callId) {
+        setShowCallInterface(false);
+        setCurrentCall(null);
+        setCaller(null);
+      }
+    };
+
 
     window.addEventListener('socket_new_message', handleNewMessage as EventListener);
     window.addEventListener('socket_user_typing', handleUserTyping as EventListener);
@@ -831,6 +1108,13 @@ export default function MessagesPage() {
     window.addEventListener('socket_message_read', handleMessageRead as EventListener);
     window.addEventListener('socket_user_status_change', handleUserStatusChange as EventListener);
     window.addEventListener('socket_message_notification', handleMessageNotification as EventListener);
+    
+    // Audio call socket events
+    window.addEventListener('socket_incoming_call', handleIncomingCall as EventListener);
+    window.addEventListener('socket_call_accepted', handleCallAccepted as EventListener);
+    window.addEventListener('socket_call_rejected', handleCallRejected as EventListener);
+    window.addEventListener('socket_call_ended', handleCallEnded as EventListener);
+    window.addEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
 
     return () => {
       window.removeEventListener('socket_new_message', handleNewMessage as EventListener);
@@ -839,6 +1123,15 @@ export default function MessagesPage() {
       window.removeEventListener('socket_message_read', handleMessageRead as EventListener);
       window.removeEventListener('socket_user_status_change', handleUserStatusChange as EventListener);
       window.removeEventListener('socket_message_notification', handleMessageNotification as EventListener);
+      
+      // Video call service cleanup is handled globally via VideoCallProvider
+      
+      // Audio call socket events cleanup
+      window.removeEventListener('socket_incoming_call', handleIncomingCall as EventListener);
+      window.removeEventListener('socket_call_accepted', handleCallAccepted as EventListener);
+      window.removeEventListener('socket_call_rejected', handleCallRejected as EventListener);
+      window.removeEventListener('socket_call_ended', handleCallEnded as EventListener);
+      window.removeEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
       
       const setOfflineStatus = async () => {
         try {
@@ -858,7 +1151,7 @@ export default function MessagesPage() {
       };
 
       setOfflineStatus();
-      socketService.disconnect();
+      // Don't disconnect socket - keep it connected for video calls
     };
   }, [selectedConversation, typingUsers]);
 
@@ -937,11 +1230,271 @@ export default function MessagesPage() {
     return conversation.participants.find(p => p._id !== currentUserId) || conversation.participants[0];
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    const otherParticipant = getOtherParticipant(conv);
-    return otherParticipant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           otherParticipant.username.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  // Audio Call Functions
+  const initiateCall = async (receiverId: string) => {
+    const token = getToken();
+    if (!token) {
+      console.error('❌ No token found for call initiation');
+      return;
+    }
+
+    console.log('📞 Initiating call with:', {
+      receiverId,
+      token: token.substring(0, 20) + '...',
+      API_URL
+    });
+
+    try {
+      const response = await fetch(`${API_URL}/api/audio-calls/initiate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ receiverId, callType: 'audio' })
+      });
+
+      console.log('📞 Call initiation response:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentCall(data.call);
+        setCallType('outgoing');
+        setShowCallInterface(true);
+        
+        // Start WebRTC call
+        const callId = data.call._id;
+        // await startWebRTCCall(callId, receiverId, true);
+        
+        // Emit socket event for call initiation with actual call ID
+        socketService.getSocket()?.emit('initiate_call', {
+          receiverId,
+          callType: 'audio',
+          callId: callId
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Call initiation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Show user-friendly error message
+        if (errorData.message) {
+          alert(`Call failed: ${errorData.message}`);
+        } else {
+          alert('Failed to initiate call. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error initiating call:', error);
+    }
+  };
+
+  const acceptCall = async () => {
+    if (!currentCall) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/accept`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        setCallType('active');
+        
+        // Start WebRTC call
+        const callId = currentCall._id;
+        const callerId = currentCall.callerId._id;
+        // await acceptWebRTCCall(callId, callerId);
+        
+        // Emit socket event for call acceptance
+        socketService.getSocket()?.emit('accept_call', {
+          callId: currentCall._id,
+          callerId: currentCall.callerId._id
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Call acceptance failed:', errorData);
+        alert('Failed to accept call. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error accepting call:', error);
+      alert('Failed to accept call. Please try again.');
+    }
+  };
+
+  const rejectCall = async () => {
+    if (!currentCall) return;
+
+    // If call is active, end it instead of rejecting
+    if (callType === 'active') {
+      console.log('📞 Call is active, ending instead of rejecting');
+      await endCall();
+      return;
+    }
+
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        // Emit socket event for call rejection
+        socketService.getSocket()?.emit('reject_call', {
+          callId: currentCall._id,
+          callerId: currentCall.callerId._id,
+          reason: 'user_rejected'
+        });
+
+        // Close call interface
+        setShowCallInterface(false);
+        setCurrentCall(null);
+        setCaller(null);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Call rejection failed:', errorData);
+        
+        // If rejection fails because call is already answered, end it instead
+        if (errorData.message && errorData.message.includes('current status')) {
+          console.log('📞 Call already answered, ending instead');
+          await endCall();
+        } else {
+          alert('Failed to reject call. Please try again.');
+        }
+      }
+    } catch (error) {
+      console.error('Error rejecting call:', error);
+      alert('Failed to reject call. Please try again.');
+    }
+  };
+
+  const endCall = async () => {
+    if (!currentCall) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/end`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        // Emit socket event for call end
+        const otherUserId = currentCall.callerId._id === getCurrentUserId() 
+          ? currentCall.receiverId._id 
+          : currentCall.callerId._id;
+        
+        socketService.getSocket()?.emit('end_call', {
+          callId: currentCall._id,
+          otherUserId
+        });
+
+        // Clean up WebRTC connection
+        // await endWebRTCCall();
+        
+        // Close call interface
+        setShowCallInterface(false);
+        setCurrentCall(null);
+        setCaller(null);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Call end failed:', errorData);
+        alert('Failed to end call. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error ending call:', error);
+      alert('Failed to end call. Please try again.');
+    }
+  };
+
+  const cancelCall = async () => {
+    if (!currentCall) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        // Emit socket event for call cancellation
+        socketService.getSocket()?.emit('cancel_call', {
+          callId: currentCall._id,
+          receiverId: currentCall.receiverId._id
+        });
+
+        // Close call interface
+        setShowCallInterface(false);
+        setCurrentCall(null);
+        setCaller(null);
+      }
+    } catch (error) {
+      console.error('Error cancelling call:', error);
+    }
+  };
+
+  // Video Call Functions
+  // Video call handlers are now handled globally via VideoCallProvider
+
+  const initiateVideoCall = (userId: string, userName: string) => {
+    if (videoCallService) {
+      const callId = videoCallService.initiateCall(userId, userName);
+      const url = `/dashboard/video-call/${callId}?type=admin&caller=${encodeURIComponent(userName)}`;
+      
+      console.log('🎯 Initiating video call:', {
+        userId,
+        userName,
+        callId,
+        userType: 'ADMIN',
+        url
+      });
+      
+      router.push(url);
+    }
+  };
+
+  const filteredConversations = conversations
+    .filter(conv => {
+      const otherParticipant = getOtherParticipant(conv);
+      return otherParticipant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+             otherParticipant.username.toLowerCase().includes(searchQuery.toLowerCase());
+    })
+    .sort((a, b) => {
+      // Sort by updatedAt (most recent first)
+      const dateA = new Date(a.updatedAt || a.lastMessage?.timestamp || new Date(0));
+      const dateB = new Date(b.updatedAt || b.lastMessage?.timestamp || new Date(0));
+      
+      console.log('🔄 Sorting conversation:', {
+        name: getOtherParticipant(a).name,
+        updatedAt: a.updatedAt,
+        lastMessageTime: a.lastMessage?.timestamp,
+        finalDate: dateA.toISOString()
+      }, 'vs', {
+        name: getOtherParticipant(b).name,
+        updatedAt: b.updatedAt,
+        lastMessageTime: b.lastMessage?.timestamp,
+        finalDate: dateB.toISOString()
+      });
+      
+      return dateB.getTime() - dateA.getTime();
+    });
 
   if (loading) {
     return (
@@ -970,7 +1523,7 @@ export default function MessagesPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push('/dashboard')}
-                className={`p-2 rounded-lg transition-colors duration-200 hover:scale-105 active:scale-95 ${
+                className={`p-2 rounded-lg transition-colors duration-200 active:scale-95 ${
                   isDarkMode 
                     ? 'hover:bg-gray-700 text-gray-300' 
                     : 'hover:bg-gray-100 text-gray-600'
@@ -1101,7 +1654,7 @@ export default function MessagesPage() {
                   </span>
                 </div>
               ) : showFollowedUsers && followedUsers.length > 0 ? (
-                <div className="max-h-60 overflow-y-auto space-y-2">
+                <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
                   {followedUsers.map((user) => (
                     <div
                       key={user._id}
@@ -1156,7 +1709,7 @@ export default function MessagesPage() {
                   ))}
                 </div>
               ) : showFollowerUsers && followerUsers.length > 0 ? (
-                <div className="max-h-60 overflow-y-auto space-y-2">
+                <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
                   {followerUsers.map((user) => (
                     <div
                       key={user._id}
@@ -1228,12 +1781,16 @@ export default function MessagesPage() {
         </div>
 
      
-        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800">
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {filteredConversations.length > 0 ? (
             <div className="py-1">
               {filteredConversations.map((conversation) => {
                 const otherParticipant = getOtherParticipant(conversation);
                 const isSelected = selectedConversation?._id === conversation._id;
+                
+                // Check if conversation was updated recently (within last 5 minutes)
+                const lastUpdate = new Date(conversation.updatedAt || conversation.lastMessage?.timestamp || new Date(0));
+                const isRecent = (Date.now() - lastUpdate.getTime()) < 5 * 60 * 1000; // 5 minutes
                 
                 return (
                   <div
@@ -1262,7 +1819,7 @@ export default function MessagesPage() {
                         : isDarkMode
                           ? 'hover:bg-gray-700 hover:shadow-md'
                           : 'hover:bg-gray-50 hover:shadow-md'
-                    }`}
+                    } ${isRecent && !isSelected ? 'bg-green-50/50 dark:bg-green-900/20' : ''}`}
                   >
                     <div className="flex items-center gap-4 px-4 w-full">
                       {/* Avatar */}
@@ -1278,16 +1835,26 @@ export default function MessagesPage() {
                         {otherParticipant.isOnline && (
                           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
                         )}
+                        {isRecent && !isSelected && (
+                          <div className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        )}
                       </div>
 
                     
                       <div className="flex-1 min-w-0 w-full">
                         <div className="flex items-start justify-between mb-2 w-full">
-                          <h3 className={`font-medium transition-colors duration-200 text-sm sm:text-base flex-1 ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            {otherParticipant.name}
-                          </h3>
+                          <div className="flex items-center gap-2 flex-1">
+                            <h3 className={`font-medium transition-colors duration-200 text-sm sm:text-base ${
+                              isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {otherParticipant.name}
+                            </h3>
+                            {conversation.isP2PUser && (
+                              <span className="px-2 py-1 text-xs bg-orange-500 text-white rounded-full font-medium">
+                                P2P
+                              </span>
+                            )}
+                          </div>
                           <span className={`text-xs sm:text-sm transition-colors duration-200 flex-shrink-0 ml-2 ${
                             isDarkMode ? 'text-gray-400' : 'text-gray-500'
                           }`}>
@@ -1360,7 +1927,7 @@ export default function MessagesPage() {
     
       {/* Chat Section */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col h-screen lg:block" data-chat-section>
+        <div className="flex-1 flex flex-col h-screen" data-chat-section>
           {/* Chat Header */}
           <div className={`p-4 border-b transition-colors duration-200 flex-shrink-0 ${
             isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
@@ -1408,25 +1975,60 @@ export default function MessagesPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}>
+                <button 
+                  onClick={() => {
+                    const otherParticipant = getOtherParticipant(selectedConversation);
+                    console.log('📞 Call button clicked:', {
+                      selectedConversation,
+                      otherParticipant,
+                      receiverId: otherParticipant._id
+                    });
+                    initiateCall(otherParticipant._id);
+                  }}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'hover:bg-gray-700 text-gray-300' 
+                      : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                  title="Start Audio Call"
+                >
                   <Phone className="w-5 h-5" />
                 </button>
-                <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}>
+                <button 
+                  onClick={() => {
+                    const otherParticipant = getOtherParticipant(selectedConversation);
+                    console.log('📹 Video call button clicked:', {
+                      selectedConversation,
+                      otherParticipant,
+                      receiverId: otherParticipant._id
+                    });
+                    initiateVideoCall(otherParticipant._id, otherParticipant.name);
+                  }}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'hover:bg-gray-700 text-gray-300' 
+                      : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                  title="Start Video Call"
+                >
                   <Video className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setShowCallHistory(true)}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'hover:bg-gray-700 text-gray-300' 
+                      : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+                  title="Call History"
+                >
+                  <History className="w-5 h-5" />
                 </button>
                 <button className={`p-2 rounded-lg transition-colors duration-200 ${
                   isDarkMode 
                     ? 'hover:bg-gray-700 text-gray-300' 
                     : 'hover:bg-gray-100 text-gray-600'
-                }`}>
+                }`} title="Conversation Info">
                   <Info className="w-5 h-5" />
                 </button>
               </div>
@@ -1434,109 +2036,88 @@ export default function MessagesPage() {
           </div>
 
       
-          <div className="flex-1 overflow-y-auto space-y-4 min-h-0 p-4">
-            {(() => {
-              return null;
-            })()}
-            {messages.length > 0 ? (
-              messages.map((message) => {
-                const currentUserId = getCurrentUserId();
-                const isOwn = message.sender._id === currentUserId;
-                const isRead = message.isRead;
-              
-              return (
-                <div
-                  key={message._id}
-                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}
-                >
-                  <div className={`max-w-xs sm:max-w-sm lg:max-w-md px-3 sm:px-4 py-2 rounded-2xl transition-colors duration-200 ${
-                    isOwn
-                      ? isDarkMode
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-blue-500 text-white'
-                      : isDarkMode
-                        ? 'bg-gray-700 text-white'
-                        : 'bg-gray-200 text-gray-900'
-                  }`}>
-                    <p className="text-sm">{message.content}</p>
-                    <div className={`flex items-center justify-end gap-1 mt-1 ${
-                      isOwn ? 'text-blue-100' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+          {/* Messages Container */}
+          <div className="flex-1 overflow-y-auto min-h-0 flex flex-col messages-scrollbar">
+            <div className="flex-1 p-4 space-y-4">
+              {messages.length > 0 ? (
+                messages.map((message) => {
+                  const currentUserId = getCurrentUserId();
+                  const isOwn = message.sender._id === currentUserId;
+                  const isRead = message.isRead;
+                
+                return (
+                  <div
+                    key={message._id}
+                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}
+                  >
+                    <div className={`max-w-xs sm:max-w-sm lg:max-w-md px-3 sm:px-4 py-2 rounded-2xl transition-colors duration-200 ${
+                      isOwn
+                        ? isDarkMode
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-blue-500 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-white'
+                          : 'bg-gray-200 text-gray-900'
                     }`}>
-                      <span className="text-xs">
-                        {new Date(message.timestamp).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
-                      {isOwn && (
-                        <div className="ml-1">
-                          <Check className="w-3 h-3 text-gray-400" />
-                        </div>
-                      )}
+                      <p className="text-sm">{message.content}</p>
+                      <div className={`flex items-center justify-end gap-1 mt-1 ${
+                        isOwn ? 'text-blue-100' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                        <span className="text-xs">
+                          {new Date(message.timestamp).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                        {isOwn && (
+                          <div className="ml-1">
+                            <Check className="w-3 h-3 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
+                );
+                })
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+                    isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
+                    <MessageCircle className={`w-8 h-8 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`} />
+                  </div>
+                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    Start the conversation
+                  </h3>
+                  <p className={`text-sm transition-colors duration-200 ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
+                    Send a message to begin chatting
+                  </p>
                 </div>
-              );
-              })
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                  isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                }`}>
-                  <MessageCircle className={`w-8 h-8 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                </div>
-                <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                  Start the conversation
-                </h3>
-                <p className={`text-sm transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
-                  Send a message to begin chatting
-                </p>
-              </div>
-            )}
-          
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className={`px-4 py-2 rounded-2xl transition-colors duration-200 ${
-                  isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                }`}>
-                  <div className="flex items-center gap-1">
+              )}
+            
+              {isTyping && typingUsers.length > 0 && (
+                <div className={`px-4 py-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
                     <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
-                    <span className={`text-xs ml-2 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
-                      {getOtherParticipant(selectedConversation).name} is typing...
+                    <span>
+                      {typingUsers.length === 1 ? `${getOtherParticipant(selectedConversation).name} is typing...` : `${typingUsers.length} people are typing...`}
                     </span>
                   </div>
                 </div>
-              </div>
-            )}
-            
-            {isTyping && typingUsers.length > 0 && (
-              <div className={`px-4 py-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                <div className="flex items-center gap-2">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span>
-                    {typingUsers.length === 1 ? 'Someone is typing...' : `${typingUsers.length} people are typing...`}
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
           <div className={`p-3 sm:p-4 border-t transition-colors duration-200 flex-shrink-0 ${
@@ -1687,6 +2268,44 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+
+      {/* Audio Call Interface */}
+      <AudioCallInterface
+        isVisible={showCallInterface}
+        callType={callType}
+        caller={caller}
+        onAccept={acceptCall}
+        onReject={rejectCall}
+        onEnd={endCall}
+        onCancel={cancelCall}
+        onMuteToggle={() => {}}
+        onSpeakerToggle={() => {}}
+        isMuted={false}
+        isSpeakerOn={false}
+        callDuration={currentCall?.duration || 0}
+        connectionQuality="good"
+      />
+
+      {/* Video Call Notification */}
+      {incomingVideoCall && (
+        <VideoCallNotification
+          isVisible={showVideoCallNotification}
+          callerName={incomingVideoCall.callerName}
+          callerId={incomingVideoCall.callerId}
+          callId={incomingVideoCall.callId}
+          onAccept={() => acceptVideoCall(incomingVideoCall.callId)}
+          onDecline={() => declineVideoCall(incomingVideoCall.callId)}
+          onClose={() => setShowVideoCallNotification(false)}
+        />
+      )}
+
+
+      {/* Call History */}
+      <CallHistory
+        userId={getCurrentUserId() || ''}
+        isVisible={showCallHistory}
+        onClose={() => setShowCallHistory(false)}
+      />
     </div>
   );
-}       
+}

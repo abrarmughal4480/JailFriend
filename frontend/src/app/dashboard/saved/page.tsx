@@ -440,18 +440,32 @@ export default function SavedPosts() {
   return (
     <div className="w-full h-full overflow-y-auto scrollbar-hide">
       {/* Header */}
-              <div className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} ml-1 md:ml-2 mr-4`}>
+              <div className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-start justify-start w-full">
-            <div>
-              <h1 className={`text-xl sm:text-2xl font-semibold flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
-                Saved Posts
-              </h1>
-              <p className={`text-sm hidden sm:block transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Your saved albums and posts
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => router.back()}
+                className={`p-2 rounded-full transition-colors lg:hidden ${
+                  isDarkMode 
+                    ? 'hover:bg-gray-700' 
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <ArrowLeft className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
+              </button>
+              <div>
+                <h1 className={`text-xl sm:text-2xl font-semibold flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
+                  Saved Posts
+                </h1>
+                <p className={`text-sm hidden sm:block transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Your saved albums and posts
+                </p>
+              </div>
             </div>
+            
+            {/* Removed search, view mode toggle, and more options from header */}
           </div>
 
           {/* Search Bar */}
@@ -480,7 +494,7 @@ export default function SavedPosts() {
   {/* Removed filter tabs (All, Albums, Posts, Recent) from Saved page */}
 
       {/* Stats Bar */}
-      <div className={`border-b transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} ml-18 md:ml-72 mr-0 md:mr-20`}>
+      <div className={`border-b transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="px-4 sm:px-6 lg:px-8 py-2">
           <div className={`flex items-center justify-between text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             <div className="flex items-center gap-4">
@@ -500,8 +514,8 @@ export default function SavedPosts() {
       </div>
 
       {/* Main Content */}
-      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 ml-18 md:ml-72 mr-0 md:mr-20">
-        <div className="max-w-6xl mx-auto">
+      <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="max-w-4xl mx-auto">
           
           {loading ? (
             <div className="flex items-center justify-center min-h-64">

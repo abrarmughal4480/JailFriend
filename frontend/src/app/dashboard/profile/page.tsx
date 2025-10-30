@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit, Search, Camera, Video, Music, FileText, Plus, MapPin, Globe, Calendar, Users, Eye, Phone } from 'lucide-react';
@@ -377,7 +377,7 @@ const ProfilePage = () => {
             {/* Profile Picture */}
             <div className="relative">
               <img
-                src={userImages.avatar ? getMediaUrl(userImages.avatar) : '/default-avatar.svg'} onError={(e) => { console.log('❌ Avatar load failed for user:', userImages.avatar ? getMediaUrl(userImages.avatar) : '/default-avatar.svg'); e.currentTarget.src = '/default-avatar.svg'; }}
+                src={userImages.avatar ? getMediaUrl(userImages.avatar) : '/default-avatar.svg'} onError={(e) => { e.currentTarget.src = '/default-avatar.svg'; }}
                 alt={user.name}
                 className="w-32 h-32 sm:w-36 sm:h-36 lg:w-40 lg:h-40 rounded-full border-4 border-white shadow-xl object-cover bg-gray-200"
               />
@@ -695,7 +695,7 @@ const ProfilePage = () => {
                             <div className="p-5">
                               <div className="flex items-center gap-3 mb-4">
                                 <img
-                                  src={user?.avatar ? getMediaUrl(user.avatar) : '/default-avatar.svg'} onError={(e) => { console.log('❌ Avatar load failed for user:', user?.avatar ? getMediaUrl(user.avatar) : '/default-avatar.svg'); e.currentTarget.src = '/default-avatar.svg'; }}
+                                  src={user?.avatar ? getMediaUrl(user.avatar) : '/default-avatar.svg'} onError={(e) => { e.currentTarget.src = '/default-avatar.svg'; }}
                                   alt={user?.name || 'User'}
                                   className="w-10 h-10 rounded-full border-2 border-blue-400"
                                 />
@@ -762,7 +762,7 @@ const ProfilePage = () => {
                                   const token = localStorage.getItem('token');
                                   if (!token) return;
                                   
-                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/like`, {
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/like`, {
                                     method: 'POST',
                                     headers: {
                                       'Authorization': `Bearer ${token}`
@@ -781,7 +781,7 @@ const ProfilePage = () => {
                                   const token = localStorage.getItem('token');
                                   if (!token) return;
                                   
-                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/reaction`, {
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/reaction`, {
                                     method: 'POST',
                                     headers: {
                                       'Authorization': `Bearer ${token}`,
@@ -802,7 +802,7 @@ const ProfilePage = () => {
                                   const token = localStorage.getItem('token');
                                   if (!token) return;
                                   
-                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/comment`, {
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/comment`, {
                                     method: 'POST',
                                     headers: {
                                       'Authorization': `Bearer ${token}`,
@@ -823,7 +823,7 @@ const ProfilePage = () => {
                                   const token = localStorage.getItem('token');
                                   if (!token) return;
                                   
-                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/save`, {
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/save`, {
                                     method: 'POST',
                                     headers: {
                                       'Authorization': `Bearer ${token}`
@@ -842,7 +842,7 @@ const ProfilePage = () => {
                                   const token = localStorage.getItem('token');
                                   if (!token) return;
                                   
-                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${postId}/share`, {
+                                  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/share`, {
                                     method: 'POST',
                                     headers: {
                                       'Authorization': `Bearer ${token}`,
@@ -863,7 +863,6 @@ const ProfilePage = () => {
                               onDelete={handleDeletePost}
                               onEdit={handleEditPost}
                               onToggleComments={async (postId) => {
-                                console.log('Toggle comments for post:', postId);
                               }}
                               isOwner={true}
                               showEditDelete={true}

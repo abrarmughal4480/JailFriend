@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { config, getApiUrl } from './config';
 
+// Use centralized configuration
 const API_URL = config.API_URL;
 
 export const loginApi = async (data: { email: string; password: string }) => {
@@ -161,16 +162,20 @@ export const getAllAlbumsApi = async () => {
 // Explore Page APIs
 export const searchUsersApi = async (token: string, query?: string) => {
   const params = query ? `?q=${encodeURIComponent(query)}` : '';
+  console.log('🔍 Searching users with API URL:', `${API_URL}/api/users/search${params}`);
   const res = await axios.get(`${API_URL}/api/users/search${params}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
+  console.log('🔍 Search users response:', res.data);
   return res.data;
 };
 
 export const getSuggestedUsersApi = async (token: string) => {
+  console.log('🔍 Getting suggested users with API URL:', `${API_URL}/api/users/suggested`);
   const res = await axios.get(`${API_URL}/api/users/suggested`, {
     headers: { Authorization: `Bearer ${token}` }
   });
+  console.log('🔍 Suggested users response:', res.data);
   return res.data;
 };
 
@@ -393,6 +398,83 @@ export const getTrendingGifsApi = async (limit: number = 20) => {
       limit: limit,
       rating: 'g'
     }
+  });
+  return res.data;
+};
+
+// Audio Call API functions
+export const initiateCallApi = async (token: string, receiverId: string, callType: string = 'audio') => {
+  const res = await axios.post(`${API_URL}/api/audio-calls/initiate`, {
+    receiverId,
+    callType
+  }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const acceptCallApi = async (token: string, callId: string) => {
+  const res = await axios.post(`${API_URL}/api/audio-calls/${callId}/accept`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const rejectCallApi = async (token: string, callId: string, reason?: string) => {
+  const res = await axios.post(`${API_URL}/api/audio-calls/${callId}/reject`, { reason }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const endCallApi = async (token: string, callId: string) => {
+  const res = await axios.post(`${API_URL}/api/audio-calls/${callId}/end`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const cancelCallApi = async (token: string, callId: string) => {
+  const res = await axios.post(`${API_URL}/api/audio-calls/${callId}/cancel`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const getCallHistoryApi = async (token: string, page: number = 1, limit: number = 20) => {
+  const res = await axios.get(`${API_URL}/api/audio-calls/history?page=${page}&limit=${limit}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const getActiveCallsApi = async (token: string) => {
+  const res = await axios.get(`${API_URL}/api/audio-calls/active`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const getCallStatsApi = async (token: string, days: number = 30) => {
+  const res = await axios.get(`${API_URL}/api/audio-calls/stats?days=${days}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const updateCallQualityApi = async (token: string, callId: string, audioLevel?: number, connectionQuality?: string) => {
+  const res = await axios.put(`${API_URL}/api/audio-calls/${callId}/quality`, {
+    audioLevel,
+    connectionQuality
+  }, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const cleanupOldCallsApi = async (token: string) => {
+  const res = await axios.post(`${API_URL}/api/audio-calls/cleanup`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;
 };

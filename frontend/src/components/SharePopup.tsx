@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
-import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface SharePopupProps {
   isOpen: boolean;
@@ -28,11 +26,6 @@ const SharePopup: React.FC<SharePopupProps> = ({
   postMedia,
   isAlbum = false
 }) => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
-  const { isDarkMode } = useDarkMode();
-  
   const [shareMode, setShareMode] = useState<'internal' | 'social'>('internal');
   const [shareOptions, setShareOptions] = useState<ShareOptions>({
     shareOnTimeline: true,
@@ -110,17 +103,17 @@ const SharePopup: React.FC<SharePopupProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 backdrop-blur-md bg-white/10">
-      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-xl w-full max-w-xs sm:max-w-sm mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[85vh] overflow-y-auto scrollbar-hide`}>
-        <div className="p-3 sm:p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[95vh] overflow-y-auto">
+        <div className="p-4 sm:p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
               Share {isAlbum ? 'Album' : 'Post'}
             </h3>
             <button
               onClick={onClose}
-              className={`text-gray-400 transition-colors p-2 rounded-full touch-manipulation ${isDarkMode ? 'hover:text-gray-200 hover:bg-gray-700' : 'hover:text-gray-600 hover:bg-gray-100'}`}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 touch-manipulation"
               style={{ touchAction: 'manipulation' }}
             >
               <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,10 +124,10 @@ const SharePopup: React.FC<SharePopupProps> = ({
 
           {/* Content Preview */}
           {(postContent || postMedia) && (
-            <div className={`mb-3 sm:mb-4 p-2 sm:p-3 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
               <div className="flex items-start gap-3 sm:gap-4">
                 {postMedia && postMedia.length > 0 && (
-                  <div className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden flex-shrink-0 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 dark:bg-gray-600 rounded-lg overflow-hidden flex-shrink-0">
                     {postMedia[0].type === 'video' ? (
                       <video 
                         src={postMedia[0].url} 
@@ -156,11 +149,11 @@ const SharePopup: React.FC<SharePopupProps> = ({
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-xs sm:text-sm line-clamp-2 leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 line-clamp-3 leading-relaxed">
                     {postContent || (isAlbum ? 'Album' : 'Post')}
                   </p>
                   {isAlbum && postMedia && (
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-2">
                       {postMedia.length} media item{postMedia.length !== 1 ? 's' : ''}
                     </p>
                   )}
@@ -170,13 +163,13 @@ const SharePopup: React.FC<SharePopupProps> = ({
           )}
 
           {/* Mode Toggle */}
-          <div className={`flex rounded-lg p-1 mb-3 sm:mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-xl p-1 mb-4 sm:mb-6">
             <button
               onClick={() => setShareMode('internal')}
-              className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-md text-xs font-medium transition-all duration-200 touch-manipulation ${
+              className={`flex-1 py-2 sm:py-3 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 touch-manipulation ${
                 shareMode === 'internal' 
-                  ? `${isDarkMode ? 'bg-gray-600 text-blue-400' : 'bg-white text-blue-600'} shadow-sm` 
-                  : `${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
               style={{ touchAction: 'manipulation' }}
             >
@@ -184,10 +177,10 @@ const SharePopup: React.FC<SharePopupProps> = ({
             </button>
             <button
               onClick={() => setShareMode('social')}
-              className={`flex-1 py-1.5 sm:py-2 px-2 sm:px-3 rounded-md text-xs font-medium transition-all duration-200 touch-manipulation ${
+              className={`flex-1 py-2 sm:py-3 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 touch-manipulation ${
                 shareMode === 'social' 
-                  ? `${isDarkMode ? 'bg-gray-600 text-blue-400' : 'bg-white text-blue-600'} shadow-sm` 
-                  : `${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}`
+                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
               style={{ touchAction: 'manipulation' }}
             >
@@ -198,8 +191,8 @@ const SharePopup: React.FC<SharePopupProps> = ({
           {shareMode === 'internal' ? (
             <>
               {/* Internal Share Options */}
-              <div className="space-y-3 mb-4">
-                <label className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+              <div className="space-y-4 mb-6">
+                <label className="flex items-center space-x-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <input
                     type="checkbox"
                     checked={shareOptions.shareOnTimeline}
@@ -209,13 +202,13 @@ const SharePopup: React.FC<SharePopupProps> = ({
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl">📝</span>
                     <div>
-                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-700'}`}>Share on my timeline</span>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Post to your profile timeline</p>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">Share on my timeline</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Post to your profile timeline</p>
                     </div>
                   </div>
                 </label>
                 
-                <label className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                <label className="flex items-center space-x-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <input
                     type="checkbox"
                     checked={shareOptions.shareToPage}
@@ -225,13 +218,13 @@ const SharePopup: React.FC<SharePopupProps> = ({
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl">🏢</span>
                     <div>
-                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-700'}`}>Share to a page</span>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Share on your business page</p>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">Share to a page</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Share on your business page</p>
                     </div>
                   </div>
                 </label>
                 
-                <label className={`flex items-center space-x-3 cursor-pointer p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                <label className="flex items-center space-x-3 cursor-pointer p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <input
                     type="checkbox"
                     checked={shareOptions.shareToGroup}
@@ -241,16 +234,16 @@ const SharePopup: React.FC<SharePopupProps> = ({
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl">👥</span>
                     <div>
-                      <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-700'}`}>Share to a group</span>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Share in a community group</p>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">Share to a group</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Share in a community group</p>
                     </div>
                   </div>
                 </label>
 
                 {/* Privacy Options */}
                 {shareOptions.shareOnTimeline && (
-                  <div className={`ml-6 mt-3 p-3 rounded-lg border ${isDarkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'}`}>
-                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Privacy Settings</label>
+                  <div className="ml-8 mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Privacy Settings</label>
                     <div className="space-y-3">
                       <label className="flex items-center space-x-3 cursor-pointer">
                         <input
@@ -262,8 +255,8 @@ const SharePopup: React.FC<SharePopupProps> = ({
                           className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
                         <div>
-                          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-700'}`}>Friends</span>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Visible to your friends only</p>
+                          <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Friends</span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Visible to your friends only</p>
                         </div>
                       </label>
                       <label className="flex items-center space-x-3 cursor-pointer">
@@ -276,8 +269,8 @@ const SharePopup: React.FC<SharePopupProps> = ({
                           className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
                         <div>
-                          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-700'}`}>Public</span>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Visible to everyone</p>
+                          <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">Public</span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Visible to everyone</p>
                         </div>
                       </label>
                     </div>
@@ -286,22 +279,18 @@ const SharePopup: React.FC<SharePopupProps> = ({
               </div>
 
               {/* Custom Message */}
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Add a message (optional)
                 </label>
                 <textarea
                   value={shareOptions.customMessage}
                   onChange={(e) => setShareOptions(prev => ({ ...prev, customMessage: e.target.value }))}
                   placeholder={isAlbum ? "Write something about this album..." : "Write something here..."}
-                  className={`w-full h-20 px-3 py-2 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
+                  className="w-full h-28 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   maxLength={500}
                 />
-                <div className={`text-xs mt-1 text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
                   {shareOptions.customMessage.length}/500
                 </div>
               </div>
@@ -309,22 +298,22 @@ const SharePopup: React.FC<SharePopupProps> = ({
           ) : (
             <>
                              {/* Social Media Share Options */}
-               <div className="mb-3 sm:mb-4">
-                 <h4 className={`text-sm font-medium mb-2 sm:mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Share to social platforms</h4>
+               <div className="mb-4 sm:mb-6">
+                 <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 sm:mb-4">Share to social platforms</h4>
                  <div className="grid grid-cols-2 gap-2 sm:gap-3">
                    {socialPlatforms.map((platform) => (
                      <button
                        key={platform.id}
                        onClick={() => handleSocialShare(platform.id)}
-                       className={`flex items-center space-x-2 p-2 rounded-lg border-2 transition-all duration-200 hover:shadow-md touch-manipulation ${
+                       className={`flex items-center space-x-2 sm:space-x-3 p-3 sm:p-4 rounded-xl border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 transition-all duration-200 hover:shadow-md touch-manipulation ${
                          shareOptions.socialPlatforms?.includes(platform.id)
-                           ? `${isDarkMode ? 'border-blue-500 bg-blue-900/20' : 'border-blue-500 bg-blue-50'}`
-                           : `${isDarkMode ? 'border-gray-600 bg-gray-700 hover:border-blue-500' : 'border-gray-200 bg-white hover:border-blue-300'}`
+                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                           : 'bg-white dark:bg-gray-700'
                        }`}
                        style={{ touchAction: 'manipulation' }}
                      >
-                       <span className="text-lg">{platform.icon}</span>
-                       <span className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                       <span className="text-xl sm:text-2xl">{platform.icon}</span>
+                       <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                          {platform.name}
                        </span>
                      </button>
@@ -333,22 +322,18 @@ const SharePopup: React.FC<SharePopupProps> = ({
                </div>
 
               {/* Custom Message for Social */}
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Custom message for social sharing
                 </label>
                 <textarea
                   value={shareOptions.customMessage}
                   onChange={(e) => setShareOptions(prev => ({ ...prev, customMessage: e.target.value }))}
                   placeholder="Write a message to share with your social media followers..."
-                  className={`w-full h-16 px-3 py-2 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
+                  className="w-full h-24 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   maxLength={280}
                 />
-                <div className={`text-xs mt-1 text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-right">
                   {shareOptions.customMessage.length}/280
                 </div>
               </div>
@@ -356,14 +341,10 @@ const SharePopup: React.FC<SharePopupProps> = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <button
               onClick={onClose}
-              className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors text-xs touch-manipulation ${
-                isDarkMode 
-                  ? 'bg-gray-600 text-gray-300 hover:bg-gray-500' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              className="flex-1 py-3 px-4 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors text-sm touch-manipulation"
               style={{ touchAction: 'manipulation' }}
             >
               Cancel
@@ -371,11 +352,7 @@ const SharePopup: React.FC<SharePopupProps> = ({
             <button
               onClick={handleShare}
               disabled={shareMode === 'internal' && !shareOptions.shareOnTimeline && !shareOptions.shareToPage && !shareOptions.shareToGroup}
-              className={`flex-1 py-2 px-3 rounded-lg font-medium transition-colors text-xs touch-manipulation ${
-                shareMode === 'internal' && !shareOptions.shareOnTimeline && !shareOptions.shareToPage && !shareOptions.shareToGroup
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
+              className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm touch-manipulation"
               style={{ touchAction: 'manipulation' }}
             >
               {shareMode === 'internal' ? 'Share' : 'Copy Link'}
@@ -383,16 +360,6 @@ const SharePopup: React.FC<SharePopupProps> = ({
           </div>
         </div>
       </div>
-      
-      <style jsx>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar { 
-          display: none;
-        }
-      `}</style>
     </div>
   );
 };

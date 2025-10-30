@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { X, Play, Pause, Volume2, VolumeX, Maximize, SkipBack, SkipForward } from 'lucide-react';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface MoviePlayerProps {
   movie: {
@@ -13,9 +12,6 @@ interface MoviePlayerProps {
 }
 
 const MoviePlayer: React.FC<MoviePlayerProps> = ({ movie, isOpen, onClose }) => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);

@@ -1,13 +1,11 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import React, { useState, useRef, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 import SharePopup, { ShareOptions } from './SharePopup';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
-import MobileReactionPopup from './MobileReactionPopup';
 
 interface AlbumDisplayProps {
   album: any;
@@ -36,9 +34,6 @@ export default function AlbumDisplay({
   onWatch,
   deletingComments = {}
 }: AlbumDisplayProps) {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const { isDarkMode } = useDarkMode();
   const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -47,27 +42,14 @@ export default function AlbumDisplay({
   const [showReactionPopup, setShowReactionPopup] = useState(false);
   const [reactionTimeout, setReactionTimeout] = useState<NodeJS.Timeout | null>(null);
   const [showReactionsTemporarily, setShowReactionsTemporarily] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isReacting, setIsReacting] = useState(false);
 
-  // Check if device is mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
- 
+  // Check video format support and diagnose album issues
   useEffect(() => {
     checkVideoSupport();
     diagnoseAlbumIssue(album);
   }, [album]);
 
- 
+  // Track view when component mounts
   useEffect(() => {
     const trackView = async () => {
       const token = localStorage.getItem('token');
@@ -99,12 +81,14 @@ export default function AlbumDisplay({
         return url;
       }
       
-      
+      // Handle placeholder avatars that don't exist
       if (url.includes('/avatars/') || url.includes('/covers/')) {
         return '/default-avatar.svg';
       }
       
-      const constructedUrl = `${API_URL}/${url}`;
+      // Remove leading slash to avoid double slashes
+      const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+      const constructedUrl = `${API_URL}/${cleanUrl}`;
       
       return constructedUrl;
     } catch (error) {
@@ -113,28 +97,28 @@ export default function AlbumDisplay({
     }
   };
 
-
+  // Test if video URL is accessible (disabled due to CORS issues)
   const testVideoUrl = async (url: string) => {
-   
+    // Skip HEAD requests due to CORS issues
     console.log('⚠️ Skipping video URL test due to CORS restrictions');
     return false;
   };
 
- 
+  // Check if backend is properly serving video files (disabled due to CORS issues)
   const checkBackendVideoServing = async (url: string) => {
     // Skip HEAD requests due to CORS issues
     console.log('⚠️ Skipping backend video serving check due to CORS restrictions');
     return false;
   };
 
- 
+  // Try different video extensions if the original URL fails (disabled due to CORS issues)
   const tryVideoExtensions = async (baseUrl: string) => {
     // Skip HEAD requests due to CORS issues
     console.log('⚠️ Skipping extension testing due to CORS restrictions');
     return null;
   };
 
- 
+  // Check video format support
   const checkVideoSupport = () => {
     const video = document.createElement('video');
     const formats = {
@@ -145,30 +129,30 @@ export default function AlbumDisplay({
       'video/avi': video.canPlayType('video/x-msvideo')
     };
     
-    console.log('Browser video format support:', formats);
+    // console.log('Browser video format support:', formats);
     return formats;
   };
 
- 
+  // Diagnose album creation issues
   const diagnoseAlbumIssue = (album: any) => {
-    console.log('🔍 Album Diagnosis:', {
-      albumId: album._id,
-      albumName: album.name,
-      mediaCount: album.media?.length || 0,
-      mediaDetails: album.media?.map((item: any, index: number) => ({
-        index,
-        url: item.url,
-        type: item.type,
-        mimetype: item.mimetype,
-        hasUrl: !!item.url,
-        urlStartsWithSlash: item.url?.startsWith('/'),
-        urlStartsWithHttp: item.url?.startsWith('http')
-      })) || [],
-      createdAt: album.createdAt,
-      updatedAt: album.updatedAt
-    });
+    // console.log('🔍 Album Diagnosis:', {
+    //   albumId: album._id,
+    //   albumName: album.name,
+    //   mediaCount: album.media?.length || 0,
+    //   mediaDetails: album.media?.map((item: any, index: number) => ({
+    //     index,
+    //     url: item.url,
+    //     type: item.type,
+    //     mimetype: item.mimetype,
+    //     hasUrl: !!item.url,
+    //     urlStartsWithSlash: item.url?.startsWith('/'),
+    //     urlStartsWithHttp: item.url?.startsWith('http')
+    //   })) || [],
+    //   createdAt: album.createdAt,
+    //   updatedAt: album.updatedAt
+    // });
     
-   
+    // Check for common issues
     const issues = [];
     
     if (!album.media || album.media.length === 0) {
@@ -187,19 +171,19 @@ export default function AlbumDisplay({
     });
     
     if (issues.length > 0) {
-      console.log('🚨 Album Issues Found:', issues);
+      // console.log('🚨 Album Issues Found:', issues);
     } else {
-      console.log('✅ Album appears to be properly formatted');
+      // console.log('✅ Album appears to be properly formatted');
     }
     
     return issues;
   };
 
- 
+  // Enhanced video handling
   const renderVideo = (mediaItem: any, index: number) => {
     const videoUrl = getMediaUrl(mediaItem.url);
     
-   
+    // Better video type detection
     const isVideo = mediaItem.type === 'video' || 
                    /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
                    mediaItem.mimetype?.startsWith('video/');
@@ -216,7 +200,7 @@ export default function AlbumDisplay({
       isVideo: isVideo
     });
     
-   
+    // Test video URL accessibility
     if (videoUrl) {
       testVideoUrl(videoUrl);
     }
@@ -237,13 +221,13 @@ export default function AlbumDisplay({
             const video = e.currentTarget;
             const error = e.nativeEvent;
             
-           
+            // Validate video element exists
             if (!video) {
               console.error('Video element is null in error handler');
               return;
             }
             
-           
+            // Better error handling with fallbacks
             console.error('Video loading error details:', {
               videoElement: video,
               error: error,
@@ -259,13 +243,13 @@ export default function AlbumDisplay({
               timestamp: new Date().toISOString()
             });
             
-           
+            // Check if it's a format issue
             if (video.error) {
               console.error('Video error code:', video.error.code);
               console.error('Video error message:', video.error.message);
             }
             
-
+            // Show fallback content with clear error message
             video.style.display = 'none';
             
             const fallback = document.createElement('div');
@@ -290,7 +274,7 @@ export default function AlbumDisplay({
               </div>
             `;
             
-           
+            // Find the parent container to append the fallback
             const parentContainer = video.parentNode;
             if (parentContainer) {
               parentContainer.appendChild(fallback);
@@ -344,7 +328,7 @@ export default function AlbumDisplay({
             console.log('Video seeking completed:', videoUrl);
           }}
           onTimeUpdate={() => {
-           
+            // Only log occasionally to avoid spam
             if (Math.random() < 0.01) {
               console.log('Video time update:', videoUrl);
             }
@@ -359,14 +343,14 @@ export default function AlbumDisplay({
             console.log('Video emptied event:', videoUrl);
           }}
         />
-       
+        {/* Video loading indicator */}
         <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
           <div className="bg-black bg-opacity-70 text-white px-3 py-1 rounded-full text-sm">
             🎥 Video
           </div>
         </div>
         
-       
+        {/* Debug info overlay (only in development) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs p-2 rounded opacity-0 hover:opacity-100 transition-opacity">
             <div>Type: {mediaItem.type}</div>
@@ -383,7 +367,7 @@ export default function AlbumDisplay({
     if (album.reactions && Array.isArray(album.reactions)) {
       const token = localStorage.getItem('token');
       if (token) {
-       
+        // In a real app, you'd decode the token to get userId
         // For now, we'll check if any reaction exists
         return album.reactions.length > 0 ? album.reactions[0].type : null;
       }
@@ -396,11 +380,11 @@ export default function AlbumDisplay({
     if (album.reactions && Array.isArray(album.reactions)) {
       return album.reactions.length;
     }
-   
+    // Fallback to likes count for backward compatibility
     return album.likes ? (Array.isArray(album.likes) ? album.likes.length : album.likes) : 0;
   };
 
- 
+  // Get most common reaction emoji
   const getMostCommonReactionEmoji = (): string => {
     if (album.reactions && Array.isArray(album.reactions) && album.reactions.length > 0) {
       const reactionCounts: { [key: string]: number } = {};
@@ -450,64 +434,19 @@ export default function AlbumDisplay({
     setShowReactionPopup(false);
   };
 
-  const handleReaction = async (reactionType: ReactionType) => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please login to add a reaction.');
-        return;
-      }
-
-      setIsReacting(true);
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/albums/${album._id}/reaction`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          reactionType: reactionType
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Reaction updated successfully:', data);
-        
-        // Refresh the page to get updated data
-        window.location.reload();
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to update reaction:', errorData);
-        alert(`Failed to update reaction: ${errorData.message || 'Unknown error'}`);
-      }
-    } catch (error: any) {
-      console.error('Error adding reaction:', error);
-      
-      let errorMessage = 'Error adding reaction. Please try again.';
-      
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      
-      alert(errorMessage);
-    } finally {
-      setIsReacting(false);
-    setShowReactionPopup(false);
+  const handleReaction = (reactionType: ReactionType) => {
+    if (onReaction) {
+      onReaction(album._id, reactionType);
     }
+    setShowReactionPopup(false);
   };
 
- 
+  // Get current user ID for save checking
   const currentUserId = getCurrentUserId();
- 
+  // Check if current user has saved this album
   const isSaved = album.savedBy && Array.isArray(album.savedBy) && 
     album.savedBy.some((savedUser: any) => {
-     
+      // Handle both user ID strings and user objects
       if (typeof savedUser === 'string') {
         return savedUser === currentUserId;
       } else if (savedUser && typeof savedUser === 'object') {
@@ -520,7 +459,7 @@ export default function AlbumDisplay({
   const hasMoreMedia = (album.media || []).length > 3;
 
   return (
-    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow p-3 sm:p-4 mb-4 sm:mb-6 transition-colors duration-200 relative`}>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-3 sm:p-4 mb-4 sm:mb-6 transition-colors duration-200 relative">
       <div className="flex items-center gap-2 mb-3">
         <img 
           src={album.user?.avatar ? (album.user.avatar.startsWith('http') ? album.user.avatar : `${API_URL}/${album.user.avatar}`) : '/avatars/1.png.png'} 
@@ -573,7 +512,7 @@ export default function AlbumDisplay({
             return (
             <div key={index} className="relative mb-3 cursor-pointer" onClick={() => onWatch && onWatch(album)}>
                 {(() => {
-                 
+                  // Enhanced video detection
                   const isVideo = mediaItem.type === 'video' || 
                                  /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
                                  mediaItem.mimetype?.startsWith('video/');
@@ -607,40 +546,47 @@ export default function AlbumDisplay({
                   style={{ maxHeight: '40vh' }}
                         onError={(e) => {
                           try {
+                            // Create a safe error details object with only serializable properties
                             const errorDetails = {
-                              albumId: album._id,
+                              albumId: album?._id || 'unknown',
+                              albumName: album?.name || 'unknown',
                               mediaIndex: index,
-                              mediaUrl: mediaItem.url,
-                              fullUrl: getMediaUrl(mediaItem.url),
-                              errorEvent: e,
-                              nativeEvent: e.nativeEvent,
-                              target: e.target,
-                              currentTarget: e.currentTarget,
+                              mediaUrl: mediaItem?.url || 'unknown',
+                              fullUrl: mediaItem?.url ? getMediaUrl(mediaItem.url) : 'unknown',
                               timestamp: new Date().toISOString(),
-                              mediaItem: mediaItem
+                              mediaItem: {
+                                url: mediaItem?.url || 'unknown',
+                                type: mediaItem?.type || 'unknown',
+                                thumbnail: mediaItem?.thumbnail || 'unknown'
+                              },
+                              errorType: e?.type || 'unknown',
+                              errorMessage: 'Image failed to load'
                             };
-                            console.error('Image loading error for album media:', errorDetails);
+                            // console.error('Image loading error for album media:', errorDetails);
                           } catch (logError) {
                             console.error('Error logging image error:', logError);
-                            console.error('Image loading error for album media (fallback):', {
-                              albumId: album._id,
-                              mediaIndex: index,
-                              mediaUrl: mediaItem?.url || 'undefined',
-                              timestamp: new Date().toISOString()
-                            });
+                            // console.error('Image loading error for album media (fallback):', {
+                            //   albumId: album?._id || 'unknown',
+                            //   mediaIndex: index,
+                            //   mediaUrl: mediaItem?.url || 'unknown',
+                            //   timestamp: new Date().toISOString()
+                            // });
                           }
                           const img = e.currentTarget;
-                          img.style.display = 'none';
-                          
-                          const fallback = document.createElement('div');
-                          fallback.className = 'w-full h-64 sm:h-96 bg-gray-300 rounded-lg shadow-lg flex items-center justify-center';
-                          fallback.innerHTML = `
-                            <div class="text-center text-gray-600">
-                              <div class="text-4xl mb-2">🖼️</div>
-                              <div class="text-sm">Image could not be loaded</div>
-                            </div>
-                          `;
-                          img.parentNode?.appendChild(fallback);
+                          if (img) {
+                            img.style.display = 'none';
+                            // Show fallback content
+                            const fallback = document.createElement('div');
+                            fallback.className = 'w-full h-64 sm:h-96 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg flex items-center justify-center';
+                            fallback.innerHTML = `
+                              <div class="text-center text-gray-600 dark:text-gray-300">
+                                <div class="text-4xl mb-2">🖼️</div>
+                                <div class="text-sm">Image could not be loaded</div>
+                                <div class="text-xs mt-1 opacity-75">Check your connection</div>
+                              </div>
+                            `;
+                            img.parentNode?.appendChild(fallback);
+                          }
                         }}
                       />
                     );
@@ -657,7 +603,7 @@ export default function AlbumDisplay({
         </div>
       )}
       
-      
+      {/* Debug: Show when no media */}
       {(!album.media || album.media.length === 0) && (
         <div className="mb-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-700 border rounded-lg transition-colors duration-200">
           <div className="text-center transition-colors duration-200 text-yellow-800 dark:text-yellow-300">
@@ -669,7 +615,7 @@ export default function AlbumDisplay({
               Media length: {album.media?.length || 'undefined'}
             </div>
           
-          
+          {/* Right side - Empty for balance */}
           <div className="w-16 sm:w-20"></div>
         </div>
         </div>
@@ -685,21 +631,22 @@ export default function AlbumDisplay({
         </button>
       )}
 
-
+      {/* Social Actions */}
       <div className="flex items-center justify-between py-3 sm:py-4 md:py-6 px-2 sm:px-4 md:px-6">
         <div className="flex items-center space-x-4 sm:space-x-8 md:space-x-16">
+          {/* Reaction Button */}
           <div className="relative">
-           
+            {/* Main Reaction Button */}
             <button 
               onClick={() => {
-               
+                // Toggle reaction popup on click
                 setShowReactionPopup(!showReactionPopup);
               }}
               disabled={false}
               className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               style={{ touchAction: 'manipulation' }}
             >
-             
+              {/* Reaction Button - Same size as other buttons */}
               <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
                 <span className="text-lg sm:text-xl md:text-2xl">👍</span>
               </div>
@@ -708,11 +655,9 @@ export default function AlbumDisplay({
               </span>
             </button>
             
-           
+            {/* Reaction Popup */}
             {showReactionPopup && (
-              <>
-                {/* Desktop Reaction Popup */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 sm:mb-3 z-50 hidden sm:block">
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 sm:mb-3 z-50">
               <ReactionPopup
                 isOpen={showReactionPopup}
                 onClose={() => setShowReactionPopup(false)}
@@ -721,20 +666,10 @@ export default function AlbumDisplay({
                 position="top"
               />
             </div>
-                
-                {/* Mobile Reaction Popup */}
-                <MobileReactionPopup
-                  isOpen={showReactionPopup}
-                  onClose={() => setShowReactionPopup(false)}
-                  onReaction={handleReaction}
-                  currentReaction={getCurrentReaction()}
-                  isReacting={isReacting}
-                />
-              </>
             )}
           </div>
           
-         
+          {/* Comment Button */}
           <button 
             onClick={() => setShowCommentInput(!showCommentInput)}
             className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
@@ -748,7 +683,7 @@ export default function AlbumDisplay({
             <span className="text-xs sm:text-sm md:text-base font-medium transition-colors text-gray-600 dark:text-white">Comment</span>
           </button>
           
-         
+          {/* Share Button */}
           <button 
             onClick={() => setShowSharePopup(true)}
             className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400"
@@ -762,7 +697,7 @@ export default function AlbumDisplay({
             <span className="text-xs sm:text-sm md:text-base font-medium transition-colors text-gray-600 dark:text-white">Share</span>
           </button>
           
-         
+          {/* Review Button */}
           <button
             onClick={() => {}} // Add review functionality if needed
             className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation px-1 text-gray-600 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400"
@@ -776,7 +711,7 @@ export default function AlbumDisplay({
             <span className="text-xs sm:text-sm md:text-base font-medium whitespace-nowrap transition-colors text-gray-600 dark:text-white">Review</span>
           </button>
         
-         
+          {/* Save Button */}
         <button 
           onClick={() => onSave && onSave(album._id)}
             className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400"
@@ -798,7 +733,7 @@ export default function AlbumDisplay({
       
       
 
-     
+      {/* Comment Input */}
       {showCommentInput && (
         <div className="mt-3 p-2 sm:p-3 rounded-lg transition-colors duration-200 bg-gray-50 dark:bg-gray-700">
           <div className="flex gap-2">
@@ -827,11 +762,11 @@ export default function AlbumDisplay({
         </div>
       )}
 
-     
+      {/* Comments Display */}
       {album.comments && album.comments.length > 0 && (
         <div className="mt-3 space-y-2">
           {album.comments.slice(0, 3).map((comment: any, index: number) => {
-           
+            // Check if current user is the comment author
             const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
             const isCommentAuthor = comment.user && (
               comment.user._id === currentUser._id || 
@@ -861,7 +796,7 @@ export default function AlbumDisplay({
                       <span className="text-sm font-medium transition-colors duration-200 text-gray-900 dark:text-white">{comment.user?.name || 'User'}</span>
                     )}
                     
-                   
+                    {/* Delete button for comment author */}
                     {isCommentAuthor && onDeleteComment && (
                       <button
                         onClick={() => onDeleteComment(album._id, comment._id || comment.id)}
@@ -892,7 +827,7 @@ export default function AlbumDisplay({
         </div>
       )}
 
-        
+      {/* Share Popup */}
       <SharePopup
         isOpen={showSharePopup}
         onClose={() => setShowSharePopup(false)}

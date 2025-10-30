@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Camera, Search, Video, Image, Hash, AtSign, Link, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Users, FileText, Diamond, X, Upload, Smile, MapPin, Globe, Edit } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 import FeedPost from '@/components/FeedPost';
 
 interface Page {
@@ -69,9 +68,6 @@ interface Job {
 }
 
 const PageView: React.FC = () => {
-  // Ensure system dark mode has no effect - especially for mobile systems
-  useSystemThemeOverride();
-  
   const { isDarkMode } = useDarkMode();
   const { pageId } = useParams();
   const router = useRouter();

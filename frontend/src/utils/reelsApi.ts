@@ -1,21 +1,27 @@
 import axios from 'axios';
 import { config } from './config';
 
+// Use centralized configuration
 const API_URL = config.API_URL;
 
+// Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+// Health check function
 export const checkReelsApiHealth = async (): Promise<boolean> => {
   try {
+    console.log('🏥 Checking reels API health...');
     const response = await axios.get(`${API_URL}/api/reels/health`, {
       headers: getAuthHeaders(),
       timeout: 5000
     });
+    console.log('✅ Reels API health check passed:', response.data);
     return true;
   } catch (error: any) {
+    console.error('❌ Reels API health check failed:', error.message);
     return false;
   }
 };
@@ -131,6 +137,7 @@ export interface CommentData {
   text: string;
 }
 
+// Get all reels with pagination and filtering
 export const getReels = async (params?: {
   page?: number;
   limit?: number;
@@ -152,12 +159,14 @@ export const getReels = async (params?: {
   return response.data;
 };
 
+// Get trending reels
 export const getTrendingReels = async (limit?: number): Promise<Reel[]> => {
   const params = limit ? `?limit=${limit}` : '';
   const response = await axios.get(`${API_URL}/api/reels/trending${params}`, { headers: getAuthHeaders() });
   return response.data;
 };
 
+// Get reels by hashtag
 export const getReelsByHashtag = async (
   hashtag: string,
   page?: number,
@@ -171,6 +180,7 @@ export const getReelsByHashtag = async (
   return response.data;
 };
 
+// Get reels by user
 export const getUserReels = async (
   userId: string,
   page?: number,
@@ -184,11 +194,13 @@ export const getUserReels = async (
   return response.data;
 };
 
+// Get reel by ID
 export const getReelById = async (id: string): Promise<Reel> => {
   const response = await axios.get(`${API_URL}/api/reels/${id}`, { headers: getAuthHeaders() });
   return response.data;
 };
 
+// Create a new reel
 export const createReel = async (
   reelData: CreateReelData,
   videoFile: File
@@ -198,9 +210,11 @@ export const createReel = async (
   try {
     const formData = new FormData();
     
+    // Add video file
     formData.append('video', videoFile);
     console.log('📁 Video file added to FormData:', videoFile.name, videoFile.type, videoFile.size);
     
+    // Add other data
     Object.entries(reelData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         if (key === 'hashtags' && Array.isArray(value)) {
@@ -219,6 +233,7 @@ export const createReel = async (
     console.log('🔐 Auth headers:', getAuthHeaders());
     console.log('🌐 API_URL from config:', API_URL);
     
+    // Test if the API URL is reachable
     try {
       const testResponse = await axios.get(`${API_URL}/api/reels/health`, {
         headers: getAuthHeaders(),
@@ -235,7 +250,7 @@ export const createReel = async (
         'Content-Type': 'multipart/form-data',
         ...getAuthHeaders(),
       },
-      timeout: 60000, 
+      timeout: 60000, // 60 seconds timeout for file upload
     });
     
     console.log('✅ API response:', response.data);
@@ -246,16 +261,20 @@ export const createReel = async (
     if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
       throw new Error(`Network error: Cannot connect to server at ${API_URL}. Please check your internet connection and try again.`);
     } else if (error.response) {
+      // Server responded with error status
       const errorMessage = error.response.data?.message || error.response.data?.error || 'Server error';
       throw new Error(`Server error (${error.response.status}): ${errorMessage}`);
     } else if (error.request) {
+      // Request was made but no response received
       throw new Error(`No response from server at ${API_URL}. Please check if the server is running.`);
     } else {
+      // Something else happened
       throw new Error(`Unexpected error: ${error.message}`);
     }
   }
 };
 
+// Update reel
 export const updateReel = async (
   id: string,
   reelData: Partial<CreateReelData>
@@ -264,11 +283,13 @@ export const updateReel = async (
   return response.data;
 };
 
+// Delete reel
 export const deleteReel = async (id: string): Promise<{ message: string }> => {
   const response = await axios.delete(`${API_URL}/api/reels/${id}`, { headers: getAuthHeaders() });
   return response.data;
 };
 
+// Like/Unlike reel
 export const toggleLike = async (id: string): Promise<{
   likes: string[];
   liked: boolean;
@@ -278,6 +299,7 @@ export const toggleLike = async (id: string): Promise<{
   return response.data;
 };
 
+// Share reel
 export const shareReel = async (id: string): Promise<{
   shares: string[];
   trendingScore: number;
@@ -286,6 +308,7 @@ export const shareReel = async (id: string): Promise<{
   return response.data;
 };
 
+// Save/Unsave reel
 export const toggleSave = async (id: string): Promise<{
   saved: string[];
   isSaved: boolean;
@@ -294,6 +317,7 @@ export const toggleSave = async (id: string): Promise<{
   return response.data;
 };
 
+// Add comment to reel
 export const addComment = async (
   id: string,
   commentData: CommentData
@@ -306,6 +330,7 @@ export const addComment = async (
   return response.data;
 };
 
+// Delete comment from reel
 export const deleteComment = async (
   reelId: string,
   commentId: string
@@ -318,24 +343,29 @@ export const deleteComment = async (
   return response.data;
 };
 
+// Check if user has liked a reel
 export const hasUserLiked = (reel: Reel, userId?: string): boolean => {
   return userId ? reel.likes.includes(userId) : false;
 };
 
+// Check if user has saved a reel
 export const hasUserSaved = (reel: Reel, userId?: string): boolean => {
   return userId ? reel.savedBy.includes(userId) : false;
 };
 
+// Check if user has viewed a reel
 export const hasUserViewed = (reel: Reel, userId?: string): boolean => {
   return userId ? reel.views.includes(userId) : false;
 };
 
+// Format duration from seconds to MM:SS
 export const formatDuration = (seconds: number): string => {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 };
 
+// Format view count
 export const formatViewCount = (count: number): string => {
   if (count >= 1000000) {
     return `${(count / 1000000).toFixed(1)}M`;
@@ -345,6 +375,7 @@ export const formatViewCount = (count: number): string => {
   return count.toString();
 };
 
+// Format like count
 export const formatLikeCount = (count: number): string => {
   if (count >= 1000000) {
     return `${(count / 1000000).toFixed(1)}M`;
@@ -354,7 +385,9 @@ export const formatLikeCount = (count: number): string => {
   return count.toString();
 };
 
+// Additional real API functions for reels
 
+// Get reels by category
 export const getReelsByCategory = async (
   category: string,
   page?: number,
@@ -370,6 +403,7 @@ export const getReelsByCategory = async (
   return response.data;
 };
 
+// Get featured reels
 export const getFeaturedReels = async (limit?: number): Promise<Reel[]> => {
   const params = limit ? `?limit=${limit}` : '';
   const response = await axios.get(`${API_URL}/api/reels/featured${params}`, {
@@ -378,6 +412,7 @@ export const getFeaturedReels = async (limit?: number): Promise<Reel[]> => {
   return response.data;
 };
 
+// Get reels for you (personalized feed)
 export const getReelsForYou = async (
   page?: number,
   limit?: number
@@ -392,6 +427,7 @@ export const getReelsForYou = async (
   return response.data;
 };
 
+// Add view to reel
 export const addView = async (id: string): Promise<{
   views: string[];
   viewCount: number;
@@ -402,6 +438,7 @@ export const addView = async (id: string): Promise<{
   return response.data;
 };
 
+// Report reel
 export const reportReel = async (
   id: string,
   reason: string,
@@ -416,6 +453,7 @@ export const reportReel = async (
   return response.data;
 };
 
+// Get reel analytics (for reel owner)
 export const getReelAnalytics = async (id: string): Promise<{
   views: number;
   likes: number;
@@ -431,6 +469,7 @@ export const getReelAnalytics = async (id: string): Promise<{
   return response.data;
 };
 
+// Duet with existing reel
 export const createDuet = async (
   originalReelId: string,
   videoFile: File,
@@ -438,8 +477,10 @@ export const createDuet = async (
 ): Promise<Reel> => {
   const formData = new FormData();
   
+  // Add video file
   formData.append('video', videoFile);
   
+  // Add duet data
   formData.append('originalReelId', originalReelId);
   
   Object.entries(duetData).forEach(([key, value]) => {
@@ -463,6 +504,7 @@ export const createDuet = async (
   return response.data;
 };
 
+// Get duets for a reel
 export const getDuets = async (
   reelId: string,
   page?: number,
@@ -478,6 +520,7 @@ export const getDuets = async (
   return response.data;
 };
 
+// Search reels
 export const searchReels = async (
   query: string,
   page?: number,
@@ -504,6 +547,7 @@ export const searchReels = async (
   return response.data;
 };
 
+// Get reel recommendations
 export const getReelRecommendations = async (
   reelId: string,
   limit?: number
@@ -515,6 +559,7 @@ export const getReelRecommendations = async (
   return response.data;
 };
 
+// Pin reel to profile
 export const pinReel = async (id: string): Promise<{ message: string }> => {
   const response = await axios.post(`${API_URL}/api/reels/${id}/pin`, {}, {
     headers: getAuthHeaders()
@@ -522,6 +567,7 @@ export const pinReel = async (id: string): Promise<{ message: string }> => {
   return response.data;
 };
 
+// Unpin reel from profile
 export const unpinReel = async (id: string): Promise<{ message: string }> => {
   const response = await axios.delete(`${API_URL}/api/reels/${id}/pin`, {
     headers: getAuthHeaders()
@@ -529,6 +575,7 @@ export const unpinReel = async (id: string): Promise<{ message: string }> => {
   return response.data;
 };
 
+// Get pinned reels for user
 export const getPinnedReels = async (userId: string): Promise<Reel[]> => {
   const response = await axios.get(`${API_URL}/api/reels/user/${userId}/pinned`, {
     headers: getAuthHeaders()
@@ -536,7 +583,9 @@ export const getPinnedReels = async (userId: string): Promise<Reel[]> => {
   return response.data;
 };
 
+// Utility functions for better error handling and processing
 
+// Enhanced error handling wrapper
 export const withErrorHandling = async <T>(
   apiCall: () => Promise<T>,
   errorMessage: string = 'An error occurred'
@@ -564,6 +613,7 @@ export const withErrorHandling = async <T>(
   }
 };
 
+// Retry mechanism for failed requests
 export const withRetry = async <T>(
   apiCall: () => Promise<T>,
   maxRetries: number = 3,
@@ -581,6 +631,7 @@ export const withRetry = async <T>(
         throw lastError;
       }
       
+      // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay * attempt));
     }
   }
@@ -588,6 +639,7 @@ export const withRetry = async <T>(
   throw lastError!;
 };
 
+// Batch operations for multiple reels
 export const batchLikeReels = async (reelIds: string[]): Promise<{
   successful: string[];
   failed: string[];
@@ -638,6 +690,7 @@ export const batchSaveReels = async (reelIds: string[]): Promise<{
   return results;
 };
 
+// Cache management for reels
 export const reelsCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
 
 export const getCachedReel = (key: string, ttl: number = 5 * 60 * 1000): any => {
@@ -656,6 +709,7 @@ export const clearReelsCache = (): void => {
   reelsCache.clear();
 };
 
+// Enhanced getReels with caching
 export const getReelsWithCache = async (params?: {
   page?: number;
   limit?: number;
@@ -676,6 +730,7 @@ export const getReelsWithCache = async (params?: {
   return data;
 };
 
+// Analytics and insights
 export const getReelsInsights = async (timeframe: 'day' | 'week' | 'month' = 'week'): Promise<{
   totalViews: number;
   totalLikes: number;

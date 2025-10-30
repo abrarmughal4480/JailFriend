@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated } from '../utils/auth';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -15,9 +14,6 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   requireAuth = true, 
   redirectTo = '/' 
 }) => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuth, setIsAuth] = useState(false);
@@ -31,7 +27,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
       if (requireAuth && !authenticated) {
         router.push(redirectTo);
       } else if (!requireAuth && authenticated) {
-       
+        // If user is authenticated but this page doesn't require auth (like login page)
         router.push('/dashboard');
       }
       
@@ -50,11 +46,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({
   }
 
   if (requireAuth && !isAuth) {
-    return null; 
+    return null; // Will redirect to login
   }
 
   if (!requireAuth && isAuth) {
-      return null; 
+    return null; // Will redirect to dashboard
   }
 
   return <>{children}</>;

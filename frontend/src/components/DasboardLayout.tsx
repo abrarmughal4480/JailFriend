@@ -1,9 +1,8 @@
-"use client";
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { logout } from '@/utils/auth';
 import FloatingActionButton from './FloatingActionButton';
 import FollowersSidebar from './FollowersSidebar';
 
@@ -57,9 +56,6 @@ interface DashboardLayoutProps {
 type DropdownType = 'people' | 'messages' | 'notifications' | 'profile' | null;
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  // Ensure system dark mode has no effect - especially for mobile systems
-  useSystemThemeOverride();
-  
   const { isDarkMode, toggleDarkMode, resetToSystem, isSystemMode } = useDarkMode();
   const router = useRouter();
   const pathname = usePathname();
@@ -70,7 +66,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   
-  
+  // Navbar States
   const [profile, setProfile] = useState<Profile>({
     name: 'Waleed',
     avatar: '/avatars/1.png.png',
@@ -89,43 +85,77 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     isOpen: false
   });
 
-  
+  // Settings Sidebar States
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
   const [profileSettingsOpen, setProfileSettingsOpen] = useState<boolean>(false);
   const [securitySettingsOpen, setSecuritySettingsOpen] = useState<boolean>(false);
 
-  
+  // Profile Sidebar State
   const [profileSidebarOpen, setProfileSidebarOpen] = useState<boolean>(false);
   
-  
+  // Search States
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
   
-  
+  // Check if token is valid
+  const isTokenValid = (token: string): boolean => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp > currentTime;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // Fetch notification count
   const fetchNotificationCount = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        console.log('No token found, skipping notification fetch');
+        return;
+      }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/notifications/stats`, {
+      // Check if token is valid
+      if (!isTokenValid(token)) {
+        console.log('Token is expired or invalid, logging out user');
+        logout();
+        return;
+      }
+
+      // console.log('Fetching notifications with token:', token.substring(0, 20) + '...');
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
+      // console.log('Notification response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
-        // Hide notification count for now - set to 0 to remove the red bubble
-        setNotificationCount(0); // data.data?.unreadCount || 0
+        setNotificationCount(data.data?.unreadCount || 0);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.log('Notification fetch failed:', response.status, errorData);
+        
+        // Handle authentication errors
+        if (response.status === 401) {
+          console.log('Token expired or invalid, logging out user');
+          logout();
+          return;
+        }
       }
     } catch (error) {
       console.error('Error fetching notification count:', error);
     }
   };
 
-  
+  // Search function
   const handleSearch = async (query: string) => {
     if (!query.trim() || query.length < 2) {
       setSearchResults([]);
@@ -141,7 +171,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/search/quick?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/search/quick?q=${encodeURIComponent(query)}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -163,7 +193,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
   };
 
-  
+  // Debounced search effect
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (searchQuery.trim() && searchQuery.length >= 2) {
@@ -177,7 +207,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  
+  // Close search results when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -190,7 +220,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  
+  // Admin Sidebar States
   const [adminSettingsOpen, setAdminSettingsOpen] = useState<boolean>(true);
   const [adminManageFeaturesOpen, setAdminManageFeaturesOpen] = useState<boolean>(false);
   const [adminLanguagesOpen, setAdminLanguagesOpen] = useState<boolean>(false);
@@ -201,22 +231,25 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const [adminToolsOpen, setAdminToolsOpen] = useState<boolean>(false);
   const [adminPagesOpen, setAdminPagesOpen] = useState<boolean>(false);
   
-  
+  // Notification state
   const [notificationCount, setNotificationCount] = useState<number>(0);
   const [lastNotificationCount, setLastNotificationCount] = useState<number>(0);
   const [adminReportsOpen, setAdminReportsOpen] = useState<boolean>(false);
   const [adminApiSettingsOpen, setAdminApiSettingsOpen] = useState<boolean>(false);
 
-
+  // Check if current route is settings
   const isSettingsPage = pathname.startsWith('/dashboard/settings');
   
-    
+  // Check if current route is admin
   const isAdminPage = pathname.startsWith('/dashboard/admin');
   
-    
+  // Check if current route is messages
   const isMessagesPage = pathname.startsWith('/dashboard/messages');
+  
+  // Check if current route is video call
+  const isVideoCallPage = pathname.startsWith('/dashboard/video-call');
 
-    
+  // Handle screen size changes
   useEffect(() => {
     const handleResize = (): void => {
       const width = window.innerWidth;
@@ -235,7 +268,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-    
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent): void {
       const target = event.target as HTMLElement;
@@ -252,14 +285,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     };
   }, []);
 
-    
+  // Close mobile sidebar when route changes
   useEffect(() => {
     if (isMobile) {
       setSidebarOpen(false);
     }
   }, [pathname, isMobile]);
 
-    
+  // Auto-open settings sections when on settings page
   useEffect(() => {
     if (isSettingsPage) {
       setSettingsOpen(true);
@@ -268,7 +301,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
   }, [isSettingsPage]);
 
-    
+  // Add event listeners for notifications
   useEffect(() => {
     window.addEventListener('notificationsUpdated', fetchNotificationCount);
     
@@ -277,15 +310,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     };
   }, []);
 
-
+  // Real-time notification polling
   useEffect(() => {
-    
+    // Initial fetch
     fetchNotificationCount();
     
-    
+    // Set up polling every 30 seconds for real-time updates
     const pollInterval = setInterval(fetchNotificationCount, 30000);
     
-    
+    // Set up focus listener to refresh when user returns to tab
     const handleFocus = () => {
       fetchNotificationCount();
     };
@@ -298,13 +331,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     };
   }, []);
 
-  
+  // Play notification sound when count increases
   useEffect(() => {
     if (notificationCount > lastNotificationCount && lastNotificationCount > 0) {
-      
+      // Play notification sound (if user has sound enabled)
       const playNotificationSound = () => {
         try {
-          
+          // Check if user has sound enabled from notification settings
           const notificationSettings = localStorage.getItem('notificationSettings');
           let soundEnabled = true; // Default to true
           
@@ -319,11 +352,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           
           if (!soundEnabled) return;
           
-          
+          // Try to play custom notification sound
           const audio = new Audio('/notification-sound.mp3');
           audio.volume = 0.3;
           audio.play().catch(() => {
-            
+            // Fallback: create a pleasant notification sound
             try {
               const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
               const oscillator = audioContext.createOscillator();
@@ -332,16 +365,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               oscillator.connect(gainNode);
               gainNode.connect(audioContext.destination);
               
-              
+              // Create a pleasant notification sound (two-tone)
               const now = audioContext.currentTime;
               
-              
+              // First tone
               oscillator.frequency.setValueAtTime(800, now);
               gainNode.gain.setValueAtTime(0, now);
               gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05);
               gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
               
-              
+              // Second tone
               oscillator.frequency.setValueAtTime(1000, now + 0.25);
               gainNode.gain.setValueAtTime(0, now + 0.25);
               gainNode.gain.linearRampToValueAtTime(0.08, now + 0.3);
@@ -358,7 +391,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         }
       };
       
-      
+      // Only play sound if user is not on notifications page
       if (!pathname.includes('/notifications')) {
         playNotificationSound();
       }
@@ -367,11 +400,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     setLastNotificationCount(notificationCount);
   }, [notificationCount, lastNotificationCount, pathname]);
 
-  
+  // Load user profile from API
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-              fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())
@@ -380,18 +413,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
   }, []);
 
-
+  // Fetch notification count on mount
   useEffect(() => {
     fetchNotificationCount();
   }, []);
 
-    
+  // Listen for image updates from settings page
   useEffect(() => {
     const handleImagesUpdated = () => {
       console.log('Images updated event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -409,7 +442,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.log('Privacy settings updated event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -422,7 +455,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.log('Password changed event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -442,13 +475,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     };
   }, []);
 
-    
+  // Listen for profile updates from settings pages
   useEffect(() => {
     const handleProfileUpdated = () => {
       console.log('Profile updated event received in DashboardLayout, refreshing profile...');
       const token = localStorage.getItem('token');
       if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         })
           .then((res) => res.json())
@@ -464,9 +497,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     };
   }, []);
 
-
+  // Menu sections for sidebar
   const menuSections: MenuSections = {
-    me: [],
+    me: [
+      { name: "Messages", icon: "💬", color: "bg-blue-100", href: "/dashboard/messages" },
+    ],
     community: [
     ],
     explore: [
@@ -478,6 +513,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       { name: "Explore  ", icon: "📸", color: "bg-green-100", href: "/dashboard/explore" },
       { name: "Market", icon: "🛒", color: "bg-green-100", href: "/dashboard/market" },
       { name: "My Products", icon: "📦", color: "bg-yellow-100", href: "/dashboard/products" },
+      { name: "P2P Services", icon: "🤝", color: "bg-indigo-100", href: "/dashboard/p2p" },
       { name: "My Groups", icon: "👥", color: "bg-purple-100", href: "/dashboard/groups" },
       { name: "My Pages", icon: "📄", color: "bg-gray-100", href: "/dashboard/pages" },
       { name: "Popular Posts", icon: "🔥", color: "bg-red-100", href: "/dashboard/popular" },
@@ -564,7 +600,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     { name: "FAQs", icon: "⋮", active: false, hasPlus: false, href: "/dashboard/admin/faqs" }
   ];
 
-  
+  // Settings sections for settings sidebar
   const settingsSections: SettingsSections = {
     settings: [
       { name: "General", icon: "⚙️", href: "/dashboard/settings" },
@@ -585,7 +621,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     ]
   };
 
-  
+  // Popup Functions
   const showPopup = (type: 'success' | 'error' | 'info', title: string, message: string): void => {
     setPopup({ isOpen: true, type, title, message });
   };
@@ -594,17 +630,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     setPopup(prev => ({ ...prev, isOpen: false }));
   };
 
-  
+  // Navbar Functions
   const handleDropdownClick = (dropdownType: 'people' | 'messages' | 'notifications' | 'profile'): void => {
     if (dropdownType === 'profile') {
       setProfileSidebarOpen(true);
       setOpenDropdown(null);
-      
+      // Close main sidebar on mobile when opening profile sidebar
       if (isMobile) {
         setSidebarOpen(false);
       }
     } else if (dropdownType === 'notifications') {
-      
+      // Navigate to notifications page instead of showing dropdown
       router.push('/dashboard/notifications');
       setOpenDropdown(null);
     } else {
@@ -618,8 +654,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
+        // Get current user's profile to get their ID
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -627,7 +663,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         if (response.ok) {
           const userData = await response.json();
-          
+          // Open profile in new tab instead of redirecting
           window.open(`/dashboard/profile/${userData.id}`, '_blank');
           return;
         }
@@ -636,7 +672,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       console.error('Error fetching user profile:', error);
     }
     
-    
+    // Fallback to general profile page in new tab
     window.open('/dashboard/profile', '_blank');
   };
 
@@ -671,7 +707,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }, 1000);
   };
 
-  
+  // Sidebar Functions
   const renderMenuItems = (items: MenuItem[], collapsed: boolean = false): React.ReactElement => {
     if (collapsed) {
       return (
@@ -683,13 +719,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-all duration-200 group relative ${
                 pathname === item.href 
                   ? 'bg-blue-500 text-white' 
-                  : isDarkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-50 text-black'
+                  : isDarkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-50 text-gray-700'
               }`}
               title={item.name}
             >
-              <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-sm group-hover:scale-110 transition-transform leading-none relative`}>
+              <div className={`w-8 h-8 rounded-lg ${item.color} flex items-center justify-center text-sm transition-transform leading-none relative`}>
                 {item.icon}
-                
+                {/* Notification badge for notifications item in collapsed view */}
                 {item.name === "Notifications" && notificationCount > 0 && (
                   <span className={`absolute -top-1 -right-1 min-w-3 h-3 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold transition-all duration-300 shadow-lg ${
                     notificationCount > lastNotificationCount && lastNotificationCount > 0 
@@ -700,7 +736,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </span>
                 )}
               </div>
-              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none transform -translate-x-full">
+              <div className="absolute left-full ml-2 px-1 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none transform -translate-x-full">
                 {item.name}
               </div>
             </Link>
@@ -710,7 +746,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 p-4">
         {items.map((item) => (
           <Link
             key={item.name}
@@ -718,7 +754,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 group ${
               pathname === item.href 
                 ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
-                : isDarkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-black hover:text-white hover:bg-gray-50'
+                : isDarkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-gray-700 hover:text-white hover:bg-gray-50'
             }`}
             style={{
               background: pathname === item.href 
@@ -733,25 +769,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             onMouseEnter={(e) => {
               if (pathname !== item.href) {
                 e.currentTarget.style.background = 'linear-gradient(45deg, #022e8a, #5d97fe)';
-                e.currentTarget.style.transform = 'translateX(8px)';
                 e.currentTarget.style.boxShadow = '0 4px 15px rgba(93, 151, 254, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
               if (pathname !== item.href) {
                 e.currentTarget.style.background = isDarkMode ? '#374151' : '#ffffff';
-                e.currentTarget.style.transform = 'translateX(0)';
                 e.currentTarget.style.boxShadow = isDarkMode 
                   ? '4px 4px 8px rgba(0, 0, 0, 0.3), -4px -4px 8px rgba(0, 0, 0, 0.1)' 
                   : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)';
               }
             }}
           >
-            <div className={`w-8 h-8 rounded-md flex items-center justify-center text-base group-hover:scale-110 transition-transform leading-none relative ${
+            <div className={`w-8 h-8 rounded-md flex items-center justify-center text-base transition-transform leading-none relative ${
               pathname === item.href ? 'bg-white/20' : isDarkMode ? 'bg-gray-600' : 'bg-gray-100'
             }`}>
               {item.icon}
-                
+              {/* Notification badge for notifications item */}
               {item.name === "Notifications" && notificationCount > 0 && (
                 <span className={`absolute -top-1 -right-1 min-w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold transition-all duration-300 shadow-lg ${
                   notificationCount > lastNotificationCount && lastNotificationCount > 0 
@@ -784,7 +818,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 : 'bg-blue-100 text-blue-700 shadow-md'
               : isDarkMode 
                 ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
-                : 'text-black hover:bg-gray-100 hover:text-gray-900'
+                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
           }`}
         >
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-lg mr-3 transition-all duration-200 ${
@@ -794,7 +828,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 : 'bg-blue-200 text-blue-600'
               : isDarkMode 
                 ? 'bg-gray-600 text-gray-300 group-hover:bg-gray-500 group-hover:text-white' 
-                : 'bg-gray-100 text-black group-hover:bg-gray-200 group-hover:text-gray-700'
+                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200 group-hover:text-gray-700'
           }`}>
             {item.icon}
           </div>
@@ -914,28 +948,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Main component return
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} overflow-x-hidden`}>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden" style={{ padding: '0' }}>
       {/* Popup Modals */}
       {popup.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black bg-opacity-50">
-          <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100`}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100">
             <div className="p-6">
               <div className="flex items-center justify-center mb-4">
                 {popup.type === 'success' ? (
-                  <div className={`w-16 h-16 ${isDarkMode ? 'bg-green-900/30' : 'bg-green-100'} rounded-full flex items-center justify-center`}>
-                    <svg className={`w-8 h-8 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                     </svg>
                   </div>
                 ) : popup.type === 'error' ? (
-                  <div className={`w-16 h-16 ${isDarkMode ? 'bg-red-900/30' : 'bg-red-100'} rounded-full flex items-center justify-center`}>
-                    <svg className={`w-8 h-8 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                   </div>
                 ) : (
-                  <div className={`w-16 h-16 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-full flex items-center justify-center`}>
-                    <svg className={`w-8 h-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0 1 18 0z"></path>
                     </svg>
                   </div>
@@ -943,13 +977,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </div>
               
               <div className="text-center">
-                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>{popup.title}</h3>
-                <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{popup.message}</p>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{popup.title}</h3>
+                <p className="mb-6 text-gray-600 dark:text-gray-300">{popup.message}</p>
                 
                 {(popup.title !== 'Logging Out...' && popup.title !== 'Redirecting...') && (
                   <button
                     onClick={closePopup}
-                    className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                    className={`w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 ${
                       popup.type === 'success'
                         ? 'bg-green-500 hover:bg-green-600 text-white'
                         : popup.type === 'error'
@@ -969,36 +1003,36 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Switch Account Modal */}
       {switchAccountModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black bg-opacity-50">
-          <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl shadow-2xl max-w-md w-full mx-4`}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4">
             <div className="p-6 relative">
               <button
                 onClick={() => setSwitchAccountModal({ isOpen: false })}
-                className={`absolute top-4 right-4 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                className="absolute top-4 right-4 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
                 ×
               </button>
 
               <div className="text-center pt-4">
-                <div className={`w-16 h-16 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-full flex items-center justify-center mb-4 mx-auto`}>
-                  <svg className={`w-8 h-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4 mx-auto">
+                  <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 1 1 0 5.292M15 21H3v-1a6 6 0 0 1 12 0v1zm0 0h6v-1a6 6 0 0 0-9-5.197m13.5-1a5 5 0 1 1-11 0 5 5 0 0 1 11 0z"></path>
                   </svg>
                 </div>
                 
-                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>Switch Account</h3>
-                <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Would you like to add a new account?</p>
+                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Switch Account</h3>
+                <p className="mb-6 text-gray-600 dark:text-gray-300">Would you like to add a new account?</p>
                 
                 <div className="space-y-3">
                   <button
                     onClick={handleAddAccount}
-                    className="w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white"
+                    className="w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white"
                   >
                     Add Account
                   </button>
                   
                   <button
                     onClick={() => setSwitchAccountModal({ isOpen: false })}
-                    className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-black'}`}
+                    className="w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
                   >
                     Cancel
                   </button>
@@ -1010,13 +1044,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       )}
 
       {/* Navbar */}
-      {!isMessagesPage && (
-        <nav className={`w-full flex justify-center items-center px-4 py-3 z-[70] fixed top-0 left-0 shadow-md border-b transition-colors duration-200 ${
+      {!isMessagesPage && !isVideoCallPage && (
+        <nav className={`w-full flex justify-center items-center px-1 py-3 z-[50] fixed top-0 left-0 shadow-md border-b transition-colors duration-200 ${
           isAdminPage 
             ? 'bg-gray-800 border-gray-700' 
-            : isDarkMode 
-              ? 'bg-gray-800 border-gray-700' 
-              : 'bg-white border-gray-200'
+            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
         }`}>
         <div className="flex items-center gap-2 w-full max-w-7xl justify-between mx-auto">
           
@@ -1032,9 +1064,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     setProfileSidebarOpen(false);
                   }
                 }}
-                className={`w-10 h-10 rounded-lg text-white flex items-center justify-center shadow-sm transition-colors ${
-                  isDarkMode ? 'bg-blue-500 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                className="w-10 h-10 rounded-lg bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
               >
                 ☰
               </button>
@@ -1042,14 +1072,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className={`rounded-lg w-8 h-8 flex items-center justify-center shadow-sm ${
-                isDarkMode ? 'bg-blue-500' : 'bg-blue-600'
-              }`}>
+              <div className="bg-blue-600 dark:bg-blue-500 rounded-lg w-8 h-8 flex items-center justify-center shadow-sm">
                 <span className="text-white text-lg font-bold">J</span>
               </div>
-              <span className={`text-xl font-bold tracking-wide hidden sm:block ${
-                isDarkMode ? 'text-blue-400' : 'text-blue-600'
-              }`}>
+              <span className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-wide hidden sm:block">
                 jaifriend
               </span>
             </Link>
@@ -1057,16 +1083,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
           {/* Center - Search Bar (Hidden on mobile and tablet) */}
           <div className="hidden lg:flex flex-1 justify-center max-w-lg mx-4 search-container relative">
-            <div className={`rounded-full px-4 py-2 w-full flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all ${
+            <div className={`rounded-full px-1 py-2 w-full flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all ${
               isAdminPage 
                 ? 'bg-gray-700 focus-within:bg-gray-600' 
-                : isDarkMode
-                  ? 'bg-gray-700 focus-within:bg-gray-600'
-                  : 'bg-gray-100 focus-within:bg-white'
+                : 'bg-gray-100 dark:bg-gray-700 focus-within:bg-white dark:focus-within:bg-gray-600'
             }`}>
-              <span className={`text-sm ${
-                isAdminPage ? 'text-gray-400' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>🔍</span>
+              <span className={`text-sm ${isAdminPage ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>🔍</span>
               <input
                 type="text"
                 placeholder="Search for people, pages, groups and #hashtags"
@@ -1080,9 +1102,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 className={`bg-transparent outline-none border-none flex-1 text-sm ${
                   isAdminPage 
                     ? 'placeholder-gray-400 text-white' 
-                    : isDarkMode
-                      ? 'placeholder-gray-400 text-white'
-                      : 'placeholder-gray-400 text-black'
+                    : 'placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white'
                 }`}
               />
               {isSearching && (
@@ -1092,17 +1112,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults.length > 0 && (
-              <div className={`absolute top-full left-0 right-0 mt-2 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl shadow-xl border max-h-96 overflow-y-auto z-50`}>
-                <div className={`p-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <h3 className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                     Search Results ({searchResults.length})
                   </h3>
                 </div>
-                <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
                   {searchResults.map((result, index) => (
                     <div 
                       key={index} 
-                      className={`p-3 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} cursor-pointer transition-colors`}
+                      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                       onClick={() => {
                         if (result.type === 'user') {
                           router.push(`/dashboard/profile/${result.id}`);
@@ -1141,10 +1161,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                             {result.title}
                           </p>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} truncate`}>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                             {result.subtitle}
                           </p>
                         </div>
@@ -1157,11 +1177,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* No Results Message */}
             {showSearchResults && searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
-              <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl border z-50 ${
-                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-              }`}>
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50">
                 <div className="p-4 text-center">
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     No results found for "{searchQuery}"
                   </p>
                 </div>
@@ -1178,9 +1196,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all ${
                   isAdminPage 
                     ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                    : isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                      : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
                 }`}>
                 🔍
               </button>
@@ -1188,9 +1204,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* Mobile Search Modal */}
             {isMobile && showSearchResults && (
-              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-4">
-                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden`}>
-                  <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-1">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden">
+                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
                       <input
@@ -1198,7 +1214,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         placeholder="Search for people, pages, groups and #hashtags"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className={`w-full pl-10 pr-4 py-3 border rounded-lg ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-300 text-black placeholder-gray-500'} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         autoFocus
                       />
                       {isSearching && (
@@ -1209,16 +1225,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   
                   {searchResults.length > 0 && (
                     <div className="max-h-80 overflow-y-auto">
-                      <div className={`p-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                        <h3 className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                           Search Results ({searchResults.length})
                         </h3>
                       </div>
-                      <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                      <div className="divide-y divide-gray-200 dark:divide-gray-700">
                         {searchResults.map((result, index) => (
                           <div 
                             key={index} 
-                            className={`p-3 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} cursor-pointer transition-colors`}
+                            className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                             onClick={() => {
                               if (result.type === 'user') {
                                 router.push(`/dashboard/profile/${result.id}`);
@@ -1257,10 +1273,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-black'} truncate`}>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                                   {result.title}
                                 </p>
-                                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} truncate`}>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                   {result.subtitle}
                                 </p>
                               </div>
@@ -1273,16 +1289,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   
                   {searchQuery.trim().length >= 3 && searchResults.length === 0 && !isSearching && (
                     <div className="p-4 text-center">
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
                         No results found for "{searchQuery}"
                       </p>
                     </div>
                   )}
                   
-                  <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div className="p-3 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => setShowSearchResults(false)}
-                      className={`w-full py-2 text-sm ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors`}
+                      className="w-full py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                     >
                       Close
                     </button>
@@ -1301,10 +1317,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       openDropdown === 'people' 
                         ? isAdminPage 
                           ? 'bg-blue-900/50 text-blue-400' 
-                          : `${isDarkMode ? 'bg-blue-900/50 text-blue-400' : 'bg-blue-100 text-blue-600'}`
+                          : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
                         : isAdminPage 
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`
+                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
                     }`}
                     onClick={() => handleDropdownClick('people')}
                     onTouchStart={(e) => {
@@ -1317,12 +1333,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </button>
                   
                   {openDropdown === 'people' && (
-                    <div className={`absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
+                    <div className="absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                       <div className="flex flex-col items-center text-center">
-                        <div className={`w-12 h-12 rounded-full ${isDarkMode ? 'bg-purple-900/30' : 'bg-purple-100'} flex items-center justify-center mb-3`}>
-                          <span className={`text-lg ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>👥</span>
+                        <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-3">
+                          <span className="text-purple-600 dark:text-purple-400 text-lg">👥</span>
                         </div>
-                        <h3 className={`text-base font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        <h3 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
                           You do not have any requests
                         </h3>
                       </div>
@@ -1337,14 +1353,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       openDropdown === 'messages' 
                         ? isAdminPage 
                           ? 'bg-blue-900/50 text-blue-400' 
-                          : isDarkMode
-                            ? 'bg-blue-900/50 text-blue-400'
-                            : 'bg-blue-100 text-blue-600'
+                          : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
                         : isAdminPage 
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : isDarkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
                     }`}
                     onClick={() => handleDropdownClick('messages')}
                     onTouchStart={(e) => {
@@ -1357,16 +1369,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </button>
                   
                   {openDropdown === 'messages' && (
-                    <div className={`absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 border ${
-                      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                    }`}>
+                    <div className="absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
                       <div className="flex flex-col items-center text-center">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
-                          isDarkMode ? 'bg-red-900/30' : 'bg-red-100'
-                        }`}>
-                          <span className={`text-lg ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>💬</span>
+                        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3">
+                          <span className="text-red-500 dark:text-red-400 text-lg">💬</span>
                         </div>
-                        <h3 className={`text-base font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                        <h3 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
                           No more message
                         </h3>
                       </div>
@@ -1380,9 +1388,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all touch-manipulation ${
                       isAdminPage 
                         ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : isDarkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
+                        : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
                     }`}
                     onClick={() => router.push('/dashboard/notifications')}
                     onTouchStart={(e) => {
@@ -1395,12 +1401,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </button>
                   
                   {/* Tooltip */}
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                     {notificationCount > 0 
                       ? `${notificationCount} unread notification${notificationCount !== 1 ? 's' : ''}`
                       : 'No new notifications'
                     }
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900 dark:border-b-gray-700"></div>
                   </div>
                   
                   {/* Notification count badge */}
@@ -1431,8 +1437,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <button
                 className={`w-8 h-8 rounded-full overflow-hidden transition-all touch-manipulation ${
                   profileSidebarOpen 
-                    ? `${isDarkMode ? 'ring-2 ring-blue-800' : 'ring-2 ring-blue-200'}` 
-                    : `${isDarkMode ? 'hover:ring-2 hover:ring-gray-600' : 'hover:ring-2 hover:ring-gray-200'}`
+                    ? 'ring-2 ring-blue-200 dark:ring-blue-800' 
+                    : 'hover:ring-2 hover:ring-gray-200 dark:hover:ring-gray-600'
                 }`}
                 onClick={() => handleDropdownClick('profile')}
                 onTouchStart={(e) => {
@@ -1454,9 +1460,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       )}
 
       {/* Layout Container */}
-      <div className="flex">
+      <div className="flex" style={{ padding: '0', margin: '0' }}>
         {/* Followers Sidebar */}
-        <FollowersSidebar isAdminPage={isAdminPage} />
+        {!isVideoCallPage && <FollowersSidebar isAdminPage={isAdminPage} />}
         
         {/* Mobile Sidebar Overlay */}
         {isMobile && (sidebarOpen || profileSidebarOpen) && (
@@ -1481,14 +1487,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <h2 className={`font-bold text-lg ${
                 isDarkMode 
                   ? 'text-white' 
-                  : 'text-black'
+                  : 'text-gray-900'
               }`}>Profile</h2>
               <button
                 onClick={() => setProfileSidebarOpen(false)}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                   isDarkMode 
                     ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-black'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
               >
                 ✕
@@ -1544,60 +1550,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               {/* Menu Items */}
               <div className="space-y-1">
                 <button 
-                  className={`flex items-center gap-2 py-2 px-3 rounded-md text-left w-full transition-all duration-200 ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700' 
-                      : 'hover:bg-gray-50'
-                  }`}
+                  className="flex items-center gap-2 py-2 px-3 rounded-md text-left w-full transition-all duration-200"
                   onClick={handleSwitchAccount}
-                  style={isDarkMode ? {
-                    background: '#374151',
-                    borderRadius: '8px',
-                    boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.3), -2px -2px 4px rgba(0, 0, 0, 0.1)',
-                    border: '1px solid #4b5563'
-                  } : {
+                  style={{
                     background: '#ffffff',
                     borderRadius: '8px',
                     boxShadow: '2px 2px 4px rgba(0, 0, 0, 0.1), -2px -2px 4px rgba(255, 255, 255, 0.9)',
                     border: '1px solid #e5e7eb'
                   }}
                   onMouseEnter={(e) => {
-                    if (isDarkMode) {
-                      e.currentTarget.style.background = '#4b5563';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '3px 3px 6px rgba(0, 0, 0, 0.4), -3px -3px 6px rgba(0, 0, 0, 0.2)';
-                    } else {
-                      e.currentTarget.style.background = '#f8fafc';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '3px 3px 6px rgba(0, 0, 0, 0.15), -3px -3px 6px rgba(255, 255, 255, 1)';
-                    }
+                    e.currentTarget.style.background = '#f8fafc';
+                    e.currentTarget.style.boxShadow = '3px 3px 6px rgba(0, 0, 0, 0.15), -3px -3px 6px rgba(255, 255, 255, 1)';
                   }}
                   onMouseLeave={(e) => {
-                    if (isDarkMode) {
-                      e.currentTarget.style.background = '#374151';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.3), -2px -2px 4px rgba(0, 0, 0, 0.1)';
-                    } else {
-                      e.currentTarget.style.background = '#ffffff';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.1), -2px -2px 4px rgba(255, 255, 255, 0.9)';
-                    }
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.1), -2px -2px 4px rgba(255, 255, 255, 0.9)';
                   }}
                 >
-                  <span className={`p-1.5 rounded-full text-sm ${
-                    isDarkMode 
-                      ? 'bg-gray-600' 
-                      : 'bg-gray-100'
-                  }`} style={isDarkMode ? {
-                    boxShadow: 'inset 1px 1px 2px rgba(0, 0, 0, 0.3), inset -1px -1px 2px rgba(0, 0, 0, 0.1)'
-                  } : {
+                  <span className="p-1.5 rounded-full text-sm" style={{
+                    background: '#f1f5f9',
                     boxShadow: 'inset 1px 1px 2px rgba(0, 0, 0, 0.1), inset -1px -1px 2px rgba(255, 255, 255, 0.9)'
                   }}>🔄</span>
-                  <span className={`font-medium text-sm ${
-                    isDarkMode 
-                      ? 'text-white' 
-                      : 'text-black'
-                  }`}>Switch Account</span>
+                  <span className="font-medium text-gray-900 text-sm">Switch Account</span>
                 </button>
                 
                 <button 
@@ -1616,7 +1590,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>Upgrade To Pro</span>
                 </button>
                 
@@ -1636,7 +1610,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>Advertising</span>
                 </button>
                 
@@ -1656,7 +1630,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>Subscriptions</span>
                 </button>
                 
@@ -1685,7 +1659,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>Privacy Setting</span>
                 </button>
                 
@@ -1708,7 +1682,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>General Setting</span>
                 </button>
                 
@@ -1728,7 +1702,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>Invite Your Friends</span>
                 </button>
                 
@@ -1751,22 +1725,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   <span className={`font-medium text-sm ${
                     isDarkMode 
                       ? 'text-white' 
-                      : 'text-black'
+                      : 'text-gray-900'
                   }`}>Admin Dashboard</span>
                 </button>
                 
-                <div className={`border-t my-2 ${
-                  isDarkMode ? 'border-gray-600' : 'border-gray-200'
-                }`}></div>
+                <div className="border-t border-gray-200 dark:border-gray-600 my-2"></div>
                 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 py-3 px-4">
-                    <span className={`p-2 rounded-full text-lg ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                    }`}>🌙</span>
-                    <span className={`font-medium flex-1 ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
+                <div className="space-y-2 p-4">
+                  <div className="flex items-center gap-3 py-3 px-1">
+                    <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🌙</span>
+                    <span className="font-medium flex-1 text-gray-900 dark:text-white">
                       {isSystemMode ? 'Follow System' : 'Night mode'}
                     </span>
                     <input 
@@ -1782,11 +1750,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </div>
                   {!isSystemMode && (
                     <button 
-                      className={`flex items-center gap-2 py-2 px-4 text-sm rounded-lg transition-colors w-full ${
-                        isDarkMode 
-                          ? 'text-blue-400 hover:bg-blue-900/20' 
-                          : 'text-blue-600 hover:bg-blue-50'
-                      }`}
+                      className="flex items-center gap-2 py-2 px-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors w-full"
                       onClick={resetToSystem}
                     >
                       <span className="text-sm">🔄</span>
@@ -1796,19 +1760,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 </div>
                 
                 <button 
-                  className={`flex items-center gap-3 py-3 px-4 rounded-lg text-left w-full transition-colors ${
-                    isDarkMode 
-                      ? 'hover:bg-red-900/20' 
-                      : 'hover:bg-red-50'
-                  }`}
+                  className="flex items-center gap-3 py-3 px-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-left w-full transition-colors"
                   onClick={handleLogout}
                 >
-                  <span className={`p-2 rounded-full text-lg ${
-                    isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                  }`}>🚪</span>
-                  <span className={`font-medium ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>Log Out</span>
+                  <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🚪</span>
+                  <span className="font-medium text-red-600 dark:text-red-400">Log Out</span>
                 </button>
               </div>
 
@@ -1876,17 +1832,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         )}
 
         {/* Sidebar */}
-        {isMobile ? (
+        {!isMessagesPage && !isVideoCallPage && (isMobile ? (
           <>
             {/* Main Sidebar */}
             <aside className={`fixed left-0 top-0 ${isAdminPage ? 'w-48' : 'w-64'} h-screen flex flex-col z-[60] transform transition-transform duration-300 ${
               isMobile 
                 ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
                 : 'translate-x-0'
-            } ${isAdminPage ? 'bg-gray-900' : isDarkMode ? 'bg-gray-800' : 'bg-white'}`} style={{
+            } ${isAdminPage ? 'bg-gray-900' : 'bg-white dark:bg-gray-800'}`} style={{
               height: 'calc(100vh - 64px)',
               top: '64px',
-              padding: isAdminPage ? '12px' : '16px',
+              padding: '0',
               scrollbarWidth: 'thin',
               scrollbarColor: isAdminPage ? '#4A4A4A #2C2C2C' : isDarkMode ? '#4A4A4A #374151' : '#022e8a #f4f4f9',
               display: 'flex',
@@ -1894,28 +1850,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               overflow: 'hidden',
               boxShadow: isAdminPage ? 'none' : isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'
             }}>
-                          <div className="flex items-center justify-between mb-4">
-              <h2 className={`font-bold text-lg ${isAdminPage ? 'text-white' : isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {isSettingsPage ? 'Settings' : isAdminPage ? 'Admin' : 'Menu'}
-              </h2>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center hover:transition-colors ${
-                    isAdminPage 
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                      : isDarkMode
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                        : 'bg-gray-100 hover:bg-gray-200 text-black'
-                  }`}
-                  style={!isAdminPage ? {
-                    boxShadow: isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'
-                  } : {}}
-              >
-                ✕
-              </button>
-            </div>
+              <div className="px-1 py-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className={`font-bold text-lg ${isAdminPage ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                    {isSettingsPage ? 'Settings' : isAdminPage ? 'Admin' : 'Menu'}
+                  </h2>
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center hover:transition-colors ${
+                        isAdminPage 
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                          : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                      }`}
+                      style={!isAdminPage ? {
+                        boxShadow: isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'
+                      } : {}}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
 
-              <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="flex-1 overflow-y-auto scrollbar-hide px-1" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {isSettingsPage ? (
                 <>
                   {/* Back to Dashboard */}
@@ -2018,13 +1974,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span>© 2025 Jaifriend</span>
                         <button className="px-3 py-1 rounded-md text-white text-sm transition-all duration-300" style={{
                           background: '#022e8a'
-                        }} onMouseEnter={(e) => {
+                        }}                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#5d97fe';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
                           e.currentTarget.style.boxShadow = '0 4px 8px rgba(93, 151, 254, 0.3)';
                         }} onMouseLeave={(e) => {
                           e.currentTarget.style.background = '#022e8a';
-                          e.currentTarget.style.transform = 'translateY(0)';
                           e.currentTarget.style.boxShadow = 'none';
                         }}>
                           Language
@@ -2052,7 +2006,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             }`} style={{
               height: 'calc(100vh - 64px)',
               top: '64px',
-              padding: '16px',
+              padding: '0',
               scrollbarWidth: 'thin',
               scrollbarColor: isAdminPage ? '#4A4A4A #2C2C2C' : isDarkMode ? '#4A4A4A #374151' : '#022e8a #f4f4f9',
               display: 'flex',
@@ -2061,7 +2015,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             }}>
               
               
-              <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="flex-1 overflow-y-auto scrollbar-hide px-1" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {isSettingsPage ? (
                   <>
                     {!sidebarCollapsed && (
@@ -2100,15 +2054,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group relative ${
                                     pathname === item.href 
                                       ? isDarkMode 
-                                        ? 'bg-blue-600 text-white shadow-lg scale-105' 
-                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md scale-105' 
+                                        ? 'bg-blue-600 text-white shadow-lg ' 
+                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md ' 
                                       : isDarkMode 
                                         ? 'hover:bg-gray-700 text-gray-300' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                   }`}
                                   title={item.name}
                                 >
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow group-hover:scale-110 transition-all duration-200 ${
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow  transition-all duration-200 ${
                                     pathname === item.href
                                       ? isDarkMode 
                                         ? 'bg-white/20 text-white' 
@@ -2119,7 +2073,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   }`}>
                                     {item.icon}
                                   </div>
-                                  <div className={`absolute left-full ml-3 px-3 py-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-800'} text-white text-sm rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none font-medium transform -translate-x-full`}>
+                                  <div className="absolute left-full ml-3 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none font-medium transform -translate-x-full">
                                     {item.name}
                                   </div>
                                 </Link>
@@ -2158,15 +2112,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group relative ${
                                     pathname === item.href 
                                       ? isDarkMode 
-                                        ? 'bg-blue-600 text-white shadow-lg scale-105' 
-                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md scale-105' 
+                                        ? 'bg-blue-600 text-white shadow-lg ' 
+                                        : 'bg-blue-100 border-2 border-blue-300 shadow-md ' 
                                       : isDarkMode 
                                         ? 'hover:bg-gray-700 text-gray-300' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                   }`}
                                   title={item.name}
                                 >
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow group-hover:scale-110 transition-all duration-200 ${
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow  transition-all duration-200 ${
                                     pathname === item.href
                                       ? isDarkMode 
                                         ? 'bg-white/20 text-white' 
@@ -2177,7 +2131,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   }`}>
                                     {item.icon}
                                   </div>
-                                  <div className={`absolute left-full ml-3 px-3 py-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-800'} text-white text-sm rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none font-medium transform -translate-x-full`}>
+                                  <div className="absolute left-full ml-3 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none font-medium transform -translate-x-full">
                                     {item.name}
                                   </div>
                                 </Link>
@@ -2216,15 +2170,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   className={`flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 group relative ${
                                     pathname === item.href 
                                       ? isDarkMode 
-                                        ? 'bg-red-600 text-white shadow-lg scale-105' 
-                                        : 'bg-red-100 border-2 border-red-300 shadow-md scale-105' 
+                                        ? 'bg-red-600 text-white shadow-lg ' 
+                                        : 'bg-red-100 border-2 border-red-300 shadow-md ' 
                                       : isDarkMode 
                                         ? 'hover:bg-gray-700 text-gray-300' 
                                         : 'hover:bg-gray-100 text-gray-700'
                                   }`}
                                   title={item.name}
                                 >
-                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow group-hover:scale-110 transition-all duration-200 ${
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow  transition-all duration-200 ${
                                     pathname === item.href
                                       ? isDarkMode 
                                         ? 'bg-white/20 text-white' 
@@ -2235,7 +2189,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                   }`}>
                                     {item.icon}
                                   </div>
-                                  <div className={`absolute left-full ml-3 px-3 py-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-800'} text-white text-sm rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none font-medium transform -translate-x-full`}>
+                                  <div className="absolute left-full ml-3 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-sm rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none font-medium transform -translate-x-full">
                                     {item.name}
                                   </div>
                                 </Link>
@@ -2278,15 +2232,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           <span>© 2025 Jaifriend</span>
                           <button className="px-3 py-1 rounded-md text-white text-sm transition-all duration-300" style={{
                             background: '#022e8a'
-                          }} onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#5d97fe';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(93, 151, 254, 0.3)';
-                          }} onMouseLeave={(e) => {
-                            e.currentTarget.style.background = '#022e8a';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}>
+                          }}                         onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#5d97fe';
+                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(93, 151, 254, 0.3)';
+                        }} onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#022e8a';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}>
                             Language
                       </button>
                       </div>
@@ -2317,14 +2269,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     <h2 className={`font-bold text-lg ${
                       isDarkMode 
                         ? 'text-white' 
-                        : 'text-black'
+                        : 'text-gray-900'
                     }`}>Profile</h2>
                     <button
                       onClick={() => setProfileSidebarOpen(false)}
                       className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                         isDarkMode 
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                          : 'bg-gray-100 hover:bg-gray-200 text-black'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                       }`}
                     >
                       ✕
@@ -2390,12 +2342,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#f8fafc';
-                          e.currentTarget.style.transform = 'translateY(-1px)';
                           e.currentTarget.style.boxShadow = '3px 3px 6px rgba(0, 0, 0, 0.15), -3px -3px 6px rgba(255, 255, 255, 1)';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = '#ffffff';
-                          e.currentTarget.style.transform = 'translateY(0)';
                           e.currentTarget.style.boxShadow = '2px 2px 4px rgba(0, 0, 0, 0.1), -2px -2px 4px rgba(255, 255, 255, 0.9)';
                         }}
                       >
@@ -2422,7 +2372,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>Upgrade To Pro</span>
                       </button>
                       
@@ -2442,7 +2392,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>Advertising</span>
                       </button>
                       
@@ -2462,7 +2412,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>Subscriptions</span>
                       </button>
                       
@@ -2491,7 +2441,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>Privacy Setting</span>
                       </button>
                       
@@ -2514,7 +2464,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>General Setting</span>
                       </button>
                       
@@ -2534,7 +2484,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>Invite Your Friends</span>
                       </button>
                       
@@ -2557,16 +2507,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         <span className={`font-medium text-sm ${
                           isDarkMode 
                             ? 'text-white' 
-                            : 'text-black'
+                            : 'text-gray-900'
                         }`}>Admin Dashboard</span>
                       </button>
                       
                       <div className="border-t border-gray-200 my-2"></div>
                       
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-3 py-3 px-4">
-                          <span className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-2 rounded-full text-lg`}>🌙</span>
-                          <span className={`font-medium flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      <div className="space-y-2 p-4">
+                        <div className="flex items-center gap-3 py-3 px-1">
+                          <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🌙</span>
+                          <span className="font-medium flex-1 text-gray-900 dark:text-white">
                             {isSystemMode ? 'Follow System' : 'Night mode'}
                           </span>
                           <input 
@@ -2582,7 +2532,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         </div>
                         {!isSystemMode && (
                           <button 
-                            className={`flex items-center gap-2 py-2 px-4 text-sm ${isDarkMode ? 'text-blue-400 hover:bg-blue-900/20' : 'text-blue-600 hover:bg-blue-50'} rounded-lg transition-colors w-full`}
+                            className="flex items-center gap-2 py-2 px-1 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors w-full"
                             onClick={resetToSystem}
                           >
                             <span className="text-sm">🔄</span>
@@ -2592,11 +2542,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       </div>
                       
                       <button 
-                        className={`flex items-center gap-3 py-3 px-4 ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'} rounded-lg text-left w-full transition-colors`}
+                        className="flex items-center gap-3 py-3 px-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-left w-full transition-colors"
                         onClick={handleLogout}
                       >
-                        <span className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-2 rounded-full text-lg`}>🚪</span>
-                        <span className={`font-medium ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>Log Out</span>
+                        <span className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-lg">🚪</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">Log Out</span>
                       </button>
                     </div>
 
@@ -2664,30 +2614,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               )}
             </aside>
           </>
-        )}
+        ))}
 
         {/* Main Content Area */}
         <main className={`
-          flex-1 transition-all duration-300 min-h-screen overflow-x-hidden ${
-            isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+          flex-1 transition-all duration-300 min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900
+          ${isMessagesPage || isVideoCallPage
+            ? 'ml-0 mr-0 pt-0 pb-0' 
+            : isMobile 
+              ? 'ml-0 mr-0 pb-20'
+              : sidebarCollapsed 
+                ? 'ml-16' 
+                : isAdminPage 
+                  ? 'ml-48' 
+                  : 'ml-64'
           }
-          ${isMobile 
-            ? isMessagesPage ? 'ml-0 mr-0 pb-0' : 'ml-0 mr-0 pb-12'
-            : sidebarCollapsed 
-              ? 'ml-16' 
-              : isAdminPage 
-                ? 'ml-48' 
-              : 'ml-64'
-          }
-          ${!isMobile ? 'mr-16' : ''}
-          ${!isMobile && profileSidebarOpen ? 'ml-96' : ''}
-          ${isMessagesPage ? 'pt-0' : 'pt-16'}
+          ${!isMessagesPage && !isVideoCallPage && 'md:mr-20'}
+          ${!isMobile && !isMessagesPage && !isVideoCallPage && profileSidebarOpen ? 'ml-96' : ''}
+          ${!isMessagesPage && !isVideoCallPage && 'pt-16'}
         `} style={{ 
           paddingLeft: '0', 
           paddingRight: '0'
         }}>
-          <div className={`w-full h-full overflow-x-hidden max-w-full ${isMessagesPage ? 'pt-0' : 'pt-16'}`}>
-            <div className="w-full max-w-full overflow-x-hidden">
+          <div className="w-full h-full overflow-x-hidden max-w-full">
+            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage ? 'max-w-none pt-0 pb-0' : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'}`}>
               {children}
             </div>
           </div>
@@ -2695,42 +2645,42 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {isMobile && !isMessagesPage && (
-        <nav className={`fixed bottom-0 left-0 right-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-t z-[40] overflow-x-hidden transition-colors duration-200`}>
-          <div className="flex justify-around items-center py-0.5 w-full max-w-full">
+      {isMobile && !isMessagesPage && !isVideoCallPage && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-[65] overflow-x-hidden transition-colors duration-200">
+          <div className="flex justify-around items-center py-3 w-full max-w-full">
             <Link
               href="/dashboard"
-              className={`flex flex-col items-center p-0.5 rounded-lg transition-colors ${
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
                 pathname === '/dashboard' 
-                  ? `${isDarkMode ? 'text-blue-400' : 'text-blue-600'}` 
-                  : `${isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'}`
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              <span className="text-base mb-0">🏠</span>
+              <span className="text-xl mb-1">🏠</span>
               <span className="text-xs font-medium">Home</span>
             </Link>
             
             <Link
               href="/dashboard/find-friends"
-              className={`flex flex-col items-center p-0.5 rounded-lg transition-colors ${
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
                 pathname === '/dashboard/find-friends' 
-                  ? `${isDarkMode ? 'text-blue-400' : 'text-blue-600'}` 
-                  : `${isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'}`
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              <span className="text-base mb-0">👥</span>
+              <span className="text-xl mb-1">👥</span>
               <span className="text-xs font-medium">Friends</span>
             </Link>
             
             <Link
               href="/dashboard/messages"
-              className={`flex flex-col items-center p-0.5 rounded-lg transition-colors ${
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
                 pathname === '/dashboard/messages' 
-                  ? `${isDarkMode ? 'text-blue-400' : 'text-blue-600'}` 
-                  : `${isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'}`
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'
               }`}
             >
-              <span className="text-base mb-0">💬</span>
+              <span className="text-xl mb-1">💬</span>
               <span className="text-xs font-medium">Messages</span>
             </Link>
             
@@ -2738,12 +2688,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               href="/dashboard/notifications"
               className={`flex flex-col items-center p-2 rounded-lg transition-colors relative ${
                 pathname === '/dashboard/notifications' 
-                  ? `${isDarkMode ? 'text-blue-400' : 'text-blue-600'}` 
-                  : `${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'}`
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
             >
               <div className="relative">
-                <span className="text-base mb-0">🔔</span>
+                <span className="text-xl mb-1">🔔</span>
                 {/* Notification count badge for mobile */}
                 {notificationCount > 0 && (
                   <span className={`absolute -top-1 -right-1 min-w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold transition-all duration-300 shadow-lg ${
@@ -2769,16 +2719,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             <Link
               href="/dashboard/profile"
-              className={`flex flex-col items-center p-0.5 rounded-lg transition-colors ${
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
                 pathname === '/dashboard/profile' 
-                  ? `${isDarkMode ? 'text-blue-400' : 'text-blue-600'}` 
-                  : `${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'}`
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
             >
               <img
                 src={profile.avatar}
                 alt="Profile"
-                className="w-4 h-4 rounded-full mb-0 object-cover"
+                className="w-6 h-6 rounded-full mb-1 object-cover"
               />
               <span className="text-xs font-medium">Profile</span>
             </Link>
@@ -2787,7 +2737,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       )}
 
       {/* Floating Action Button */}
-      {!isMessagesPage && <FloatingActionButton isAdminPage={isAdminPage} />}
+      {!isMessagesPage && !isVideoCallPage && <FloatingActionButton isAdminPage={isAdminPage} />}
 
       <style jsx>{`
         .scrollbar-hide {
