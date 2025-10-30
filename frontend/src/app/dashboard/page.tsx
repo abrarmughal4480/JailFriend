@@ -16,7 +16,9 @@ import LocationDetector from '@/components/LocationDetector';
 import LocationDisplay from '@/components/LocationDisplay';
 
 import { isAuthenticated, clearAuth, getCurrentUserId } from '@/utils/auth';
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { useDarkMode } from '@/contexts/DarkModeContext';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
 import {
   searchGifsApi,
   getTrendingGifsApi,
@@ -70,7 +72,7 @@ function getUserAvatar() {
       // Handle avatar URLs properly
       if (user.avatar.includes('/avatars/') || user.avatar.includes('/covers/')) {
         // For avatar paths, construct the full URL
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
         if (user.avatar.startsWith('http')) {
           return user.avatar;
         }
@@ -94,6 +96,7 @@ function getUserAvatar() {
   } catch (error) {
     // Only log errors in development
     if (process.env.NODE_ENV === 'development') {
+      console.error('getUserAvatar Error:', error);
     }
     return '/default-avatar.svg';
   }
@@ -141,6 +144,11 @@ function getUserId(user: any): string {
 }
 
 export default function Dashboard() {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
+  
   const router = useRouter();
   const [posts, setPosts] = useState<any[]>([]);
   const [albums, setAlbums] = useState<any[]>([]);
@@ -218,7 +226,7 @@ export default function Dashboard() {
   const [selectedStoryIndex, setSelectedStoryIndex] = useState(0);
   const [selectedUserStories, setSelectedUserStories] = useState<any[]>([]);
   const [stories, setStories] = useState<any[]>([]);
-  const [loadingStories, setLoadingStories] = useState(false);
+  const [loadingStories, setLoadingStories] = useState(true);
 
   const [popup, setPopup] = useState<PopupState>({
     isOpen: false,
@@ -364,6 +372,7 @@ export default function Dashboard() {
           postsData = await postsResponse.json();
         }
       } catch (error) {
+        console.log('Error fetching posts:', error);
       }
 
       const albumsResponse = await fetch(`${API_URL}/api/albums`, token ? { headers: { 'Authorization': `Bearer ${token}` } } : {});
@@ -397,6 +406,7 @@ export default function Dashboard() {
             } catch (error) {
               // Only log errors in development
               if (process.env.NODE_ENV === 'development') {
+                console.error('Error fetching user data for post:', error);
               }
               return post;
             }
@@ -413,6 +423,7 @@ export default function Dashboard() {
       setPosts(postsData);
       setAlbums(albumsData);
     } catch (error) {
+      console.error('Error fetching feed data:', error);
     } finally {
       setLoadingPosts(false);
       setLoadingAlbums(false);
@@ -604,6 +615,7 @@ export default function Dashboard() {
           } catch (error) {
             // Only log errors in development
             if (process.env.NODE_ENV === 'development') {
+              console.error('Error fetching user data for new post:', error);
             }
           }
         }
@@ -1176,31 +1188,12 @@ export default function Dashboard() {
     if (!url) {
       return '/default-avatar.svg';
     }
-    
-    // Handle localhost URLs that might be stored incorrectly
-    if (url.includes('localhost:3000') || url.includes('localhost:3001')) {
-      if (!process.env.NEXT_PUBLIC_API_URL) {
-        console.error('❌ NEXT_PUBLIC_API_URL is not set!');
-        return url;
-      }
-      const correctedUrl = url.replace(/localhost:\d+/, process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, '')).replace('http://', 'http://');
-      // console.log('🔗 Dashboard - Fixed localhost URL:', { original: url, corrected: correctedUrl });
-      return correctedUrl;
-    }
-    
     if (url.startsWith('http')) {
       return url;
     }
-    
     // Remove leading slash to avoid double slashes
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    if (!process.env.NEXT_PUBLIC_API_URL) {
-      console.error('❌ NEXT_PUBLIC_API_URL is not set!');
-      return url;
-    }
-    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
-    // console.log('📸 Dashboard - Original:', url, 'Full:', fullUrl);
-    return fullUrl;
+    return `${API_URL}/${cleanUrl}`;
   };
 
   const [userEmail, setUserEmail] = useState("");
@@ -1213,6 +1206,10 @@ export default function Dashboard() {
     if (process.env.NODE_ENV === 'development') {
       const user = localStorage.getItem("user");
       const userImages = localStorage.getItem("userImages");
+      console.log('Dashboard useEffect - localStorage data:', {
+        user: user ? JSON.parse(user) : null,
+        userImages: userImages ? JSON.parse(userImages) : null
+      });
     }
   }, []);
 
@@ -1229,12 +1226,14 @@ export default function Dashboard() {
   useEffect(() => {
     const handleProfileUpdated = () => {
       if (process.env.NODE_ENV === 'development') {
+        console.log('Profile updated event received, refreshing page...');
       }
       window.location.reload();
     };
 
     const handleImagesUpdated = () => {
       if (process.env.NODE_ENV === 'development') {
+        console.log('Images updated event received, refreshing page...');
       }
       window.location.reload();
     };
@@ -1255,7 +1254,7 @@ export default function Dashboard() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -1266,7 +1265,7 @@ export default function Dashboard() {
           localStorage.setItem('user', JSON.stringify(userData));
 
           // Also fetch user images
-          const imagesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages`, {
+          const imagesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/userimages`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
 
@@ -1278,6 +1277,7 @@ export default function Dashboard() {
       } catch (error) {
         // Only log errors in development
         if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching current user data:', error);
         }
       }
     };
@@ -1330,11 +1330,10 @@ export default function Dashboard() {
 
   const fetchStories = async () => {
     try {
-      setLoadingStories(true);
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/feed`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/feed`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1352,7 +1351,7 @@ export default function Dashboard() {
                 // Check if story has user ID (could be in user field as string or userId field)
                 const userId = story.user || story.userId;
                 if (userId && typeof userId === 'string') {
-                  const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`, {
+                  const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${userId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
                   if (userResponse.ok) {
@@ -1372,6 +1371,7 @@ export default function Dashboard() {
               } catch (error) {
                 // Only log errors in development
                 if (process.env.NODE_ENV === 'development') {
+                  console.error('Error fetching user data for story:', error);
                 }
                 return story;
               }
@@ -1385,6 +1385,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching stories:', error);
       }
     } finally {
       setLoadingStories(false);
@@ -1397,7 +1398,7 @@ export default function Dashboard() {
       if (!token) return;
 
       setLoadingPages(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages/latest`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages/latest`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1410,6 +1411,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching latest pages:', error);
       }
     } finally {
       setLoadingPages(false);
@@ -1422,7 +1424,7 @@ export default function Dashboard() {
       if (!token) return;
 
       setLoadingSuggestedPages(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/pages`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1435,6 +1437,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error fetching suggested pages:', error);
       }
     } finally {
       setLoadingSuggestedPages(false);
@@ -1451,7 +1454,7 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/${storyId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/${storyId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1465,6 +1468,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error deleting story:', error);
       }
       showPopup('error', 'Error', 'Failed to delete story');
     }
@@ -1475,7 +1479,7 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/${storyId}/react`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/${storyId}/react`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1497,6 +1501,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error reacting to story:', error);
       }
     }
   };
@@ -1506,7 +1511,7 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories/${storyId}/reply`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories/${storyId}/reply`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1528,6 +1533,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error replying to story:', error);
       }
     }
   };
@@ -1786,7 +1792,7 @@ export default function Dashboard() {
         formData.append('media', file);
       });
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1808,7 +1814,7 @@ export default function Dashboard() {
             try {
               const token = localStorage.getItem('token');
               if (token && newPostData.userId) {
-                const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${newPostData.userId}`, {
+                const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${newPostData.userId}`, {
                   headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (userResponse.ok) {
@@ -1825,6 +1831,7 @@ export default function Dashboard() {
                 }
               }
             } catch (error) {
+              console.error('Error fetching user data for new post:', error);
             }
           }
 
@@ -1848,6 +1855,7 @@ export default function Dashboard() {
         } else {
           // Handle non-JSON response
           const responseText = await response.text();
+          console.error('Non-JSON response:', responseText);
           showPopup('error', 'API Error', 'Server returned invalid response format');
         }
       } else {
@@ -1878,6 +1886,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error creating post:', error);
       }
       showPopup('error', 'Error', 'Failed to create post. Please try again.');
     } finally {
@@ -2016,6 +2025,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error searching locations:', error);
       }
       setLocationSearchResults([]);
     } finally {
@@ -2039,6 +2049,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error searching GIFs:', error);
       }
       setGifResults([]);
     } finally {
@@ -2055,6 +2066,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error loading trending GIFs:', error);
       }
       setGifResults([]);
     } finally {
@@ -2102,6 +2114,7 @@ export default function Dashboard() {
     } catch (error) {
       // Only log errors in development
       if (process.env.NODE_ENV === 'development') {
+        console.error('Error starting recording:', error);
       }
       showPopup('error', 'Recording Error', 'Could not access microphone. Please check permissions.');
     }
@@ -2178,7 +2191,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen w-full transition-colors duration-200 touch-manipulation">
+    <div className="bg-white min-h-screen w-full transition-colors duration-200 touch-manipulation md:mr-20">
       <Popup popup={popup} onClose={closePopup} />
 
       <SharePopup
@@ -2197,10 +2210,10 @@ export default function Dashboard() {
         isAlbum={selectedPostForShare?.type === 'album'}
       />
 
-      <div className="px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 w-full">
+      <div className="px-1 xs:px-2 sm:px-4 lg:px-6 w-full">
 
 
-        <div className="w-full pt-2 xs:pt-3 sm:pt-4 mb-3 xs:mb-4 sm:mb-6">
+        <div className="w-full pt-3 xs:pt-2 mb-2 xs:mb-3 sm:mb-4">
           <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-2 scrollbar-hide touch-pan-x">
             {/* Your Story */}
             <div
@@ -2218,18 +2231,18 @@ export default function Dashboard() {
                 userStory.startsWith('data:video') ? (
                   <video
                     src={userStory}
-                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform"
+                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform group-hover:scale-105"
                     controls
                   />
                 ) : (
                   <img
                     src={userStory}
-                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform"
+                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform group-hover:scale-105"
                     alt="Your Story"
                   />
                 )
               ) : (
-                <div className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-gray-300 mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gray-100 dark:bg-gray-200 relative overflow-hidden transition-transform">
+                <div className={`w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-gray-300 mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gray-100 relative overflow-hidden transition-transform group-hover:scale-105`}>
                   {/* User Profile Picture */}
                   {(() => {
                     const avatarUrl = getUserAvatar();
@@ -2258,7 +2271,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-              <span className="text-xs xs:text-sm text-gray-700 dark:text-gray-300 font-medium transition-colors duration-200">Create new story</span>
+              <span className={`text-xs xs:text-sm text-black font-medium transition-colors duration-200`}>Create new story</span>
             </div>
 
             {/* Other Users' Stories */}
@@ -2285,22 +2298,20 @@ export default function Dashboard() {
                   style={{ touchAction: 'manipulation' }}
                 >
                   {/* Story Container with Professional Styling */}
-                  <div className="relative w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg sm:shadow-xl border-2 border-white dark:border-gray-700 transition-all duration-300">
-                    {/* Media Content - Lazy Loading */}
+                  <div className={`relative w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg sm:shadow-xl border-2 border-white group-hover:shadow-2xl transition-all duration-300`}>
+                    {/* Media Content */}
                     {groupedStory.latestStory.mediaType === 'video' ? (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <div className="text-2xl mb-1">🎥</div>
-                          <div className="text-xs font-medium">Video Story</div>
-                        </div>
-                      </div>
+                      <video
+                        src={groupedStory.latestStory.media}
+                        poster={groupedStory.latestStory.thumbnail}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-orange-500 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <div className="text-2xl mb-1">📸</div>
-                          <div className="text-xs font-medium">Photo Story</div>
-                        </div>
-                      </div>
+                      <img
+                        src={groupedStory.latestStory.media}
+                        className="w-full h-full object-cover"
+                        alt={`${groupedStory.user.username}'s Story`}
+                      />
                     )}
 
                     {/* Gradient Overlay for Better Text Visibility */}
@@ -2340,7 +2351,7 @@ export default function Dashboard() {
                   </div>
 
                   {/* Username Below (for better visibility) */}
-                  <span className="text-xs xs:text-sm text-[#34495e] dark:text-gray-300 group-hover:text-[#022e8a] dark:group-hover:text-blue-400 font-medium transition-colors duration-200 text-center mt-2">
+                  <span className={`text-xs xs:text-sm text-[#34495e] group-hover:text-[#022e8a] font-medium transition-colors duration-200 truncate max-w-[60px] xs:max-w-[80px] text-center mt-2`}>
                     {groupedStory.user.fullName || groupedStory.user.username}
                   </span>
                 </div>
@@ -2351,13 +2362,31 @@ export default function Dashboard() {
         </div>
 
         {/* Content Filter Bar */}
-        <div className="mb-3 sm:mb-4 transition-colors duration-200">
-          <div className="flex items-center justify-center gap-1 xs:gap-2 sm:gap-3 overflow-x-auto scrollbar-hide touch-pan-x pb-2">
+        <div className={`bg-white rounded-lg sm:rounded-xl shadow p-3 sm:p-4 mb-3 sm:mb-4 transition-colors duration-200`}>
+          {/* Filter Count Display */}
+          <div className="flex items-center justify-between mb-3">
+            <div className={`text-sm text-gray-600`}>
+              Showing {getFilteredPosts().length} {activeFilter === 'all' ? 'posts' : activeFilter} posts
+            </div>
+            <div className={`text-xs text-gray-500`}>
+              Total: {posts.length} posts
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 xs:gap-2 sm:gap-3 overflow-x-auto scrollbar-hide touch-pan-x pb-2">
+            {/* Filter Button */}
+            <button className={`flex-shrink-0 w-8 h-8 xs:w-10 xs:h-10 border rounded-full flex items-center justify-center transition-colors bg-white border-gray-300 hover:bg-gray-50`}>
+              <svg className={`w-5 h-5 text-gray-600`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </button>
+
+            {/* Content Category Buttons */}
             <button
               onClick={() => setActiveFilter('all')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'all'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2369,8 +2398,8 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveFilter('text')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'text'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2382,8 +2411,8 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveFilter('photos')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'photos'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2396,8 +2425,8 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveFilter('videos')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'videos'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2409,8 +2438,8 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveFilter('sounds')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'sounds'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2422,8 +2451,8 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveFilter('files')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'files'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2435,8 +2464,8 @@ export default function Dashboard() {
             <button
               onClick={() => setActiveFilter('maps')}
               className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'maps'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+                  ? 'bg-red-100 text-red-700 border-red-200'
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-50'
                 }`}
             >
               <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2462,26 +2491,26 @@ export default function Dashboard() {
             {/* Left Section - Feed */}
             <div
               id="left-section"
-              className="w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 flex flex-col order-1 lg:order-1"
+              className={`w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin ${isDarkMode ? 'scrollbar-thumb-gray-600 scrollbar-track-gray-800' : 'scrollbar-thumb-gray-300 scrollbar-track-gray-100'} flex flex-col order-1 lg:order-1`}
               style={{
                 boxSizing: 'border-box',
                 height: 'auto'
               }}
             >
-              <div className="bg-custom-secondary rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6">
+              <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6`}>
                 {/* Top Section: Content Type Selection */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1 xs:gap-2 sm:gap-3">
                     <button
                       onClick={() => setShowReelsModal(true)}
-                      className="flex items-center gap-1 xs:gap-2 bg-pink-50 dark:bg-pink-900/20 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border border-pink-200 dark:border-pink-700 hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors cursor-pointer"
+                      className={`flex items-center gap-1 xs:gap-2 ${isDarkMode ? 'bg-pink-900/20 border-pink-700 hover:bg-pink-900/30' : 'bg-pink-50 border-pink-200 hover:bg-pink-100'} px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors cursor-pointer`}
                     >
                       <span className="text-pink-500 text-lg">💎</span>
-                      <span className="text-xs xs:text-sm font-medium text-pink-700 dark:text-pink-300">Reels Video</span>
+                      <span className={`text-xs xs:text-sm font-medium ${isDarkMode ? 'text-pink-300' : 'text-pink-700'}`}>Reels Video</span>
                     </button>
-                    <div className="flex items-center gap-1 xs:gap-2 bg-pink-50 dark:bg-pink-900/20 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border border-pink-200 dark:border-pink-700">
+                    <div className={`flex items-center gap-1 xs:gap-2 ${isDarkMode ? 'bg-pink-900/20 border-pink-700' : 'bg-pink-50 border-pink-200'} px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border`}>
                       <span className="text-pink-500 text-lg">🕐</span>
-                      <span className="text-xs xs:text-sm font-medium text-pink-700 dark:text-pink-300">Free live streams</span>
+                      <span className={`text-xs xs:text-sm font-medium ${isDarkMode ? 'text-pink-300' : 'text-pink-700'}`}>Free live streams</span>
                     </div>
                   </div>
                 </div>
@@ -2514,7 +2543,7 @@ export default function Dashboard() {
                       {/* Content Textarea */}
                       <textarea
                         placeholder="Click to create a new post..."
-                        className={`w-full border border-custom-primary rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm bg-custom-tertiary text-custom-primary placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'
+                        className={`w-full border border-gray-300 rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm ${isDarkMode ? 'bg-gray-700 text-white placeholder-gray-400 border-gray-600' : 'bg-gray-100 text-black placeholder-gray-500'} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'
                           }`}
                         value=""
                         readOnly
@@ -2531,7 +2560,7 @@ export default function Dashboard() {
                     {/* Camera Icon - Positioned to the right of textarea */}
                     <div className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0">
                       <button
-                        className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 text-custom-secondary hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-custom-hover"
+                        className={`flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 ${isDarkMode ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' : 'text-gray-600 hover:text-blue-500 hover:bg-gray-100'} transition-colors rounded-full`}
                         onClick={() => fileInputRef.current && fileInputRef.current.click()}
                         disabled={posting}
                         title="Add photos or videos"
@@ -2544,7 +2573,7 @@ export default function Dashboard() {
 
                 {/* Character Count and Word Count */}
                 {newPost.trim() && (
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  <div className={`flex items-center justify-between text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-3`}>
                     <span>Words: {newPost.split(/\s+/).filter(word => word && word.length > 0).length}/300</span>
                     <span>Characters: {newPost.length}/1800</span>
                   </div>
@@ -2588,14 +2617,14 @@ export default function Dashboard() {
                 />
                 {mediaFiles.length > 0 && (
                   <div className="mt-2">
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 transition-colors duration-200">Selected files ({mediaFiles.length}):</div>
+                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mb-2 transition-colors duration-200`}>Selected files ({mediaFiles.length}):</div>
                     <div className="space-y-3">
                       {mediaFiles.map((file, index) => (
-                        <div key={index} className="bg-custom-tertiary rounded-lg p-3 border border-custom-primary">
+                        <div key={index} className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-200'} rounded-lg p-3 border`}>
                           <div className="flex items-start gap-3">
                             {/* Image/Video Thumbnail Preview */}
                             {file.type.startsWith('image/') ? (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} flex-shrink-0`}>
                                 <img
                                   src={URL.createObjectURL(file)}
                                   alt={file.name}
@@ -2610,7 +2639,7 @@ export default function Dashboard() {
                                 />
                               </div>
                             ) : file.type.startsWith('video/') ? (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0 relative">
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} flex-shrink-0 relative`}>
                                 <video
                                   src={URL.createObjectURL(file)}
                                   className="w-full h-full object-cover"
@@ -2626,7 +2655,7 @@ export default function Dashboard() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} flex items-center justify-center flex-shrink-0`}>
                                 <span className="text-3xl sm:text-4xl">
                                   {file.type.startsWith('audio/') ? '🎵' : '📄'}
                                 </span>
@@ -2634,16 +2663,16 @@ export default function Dashboard() {
                             )}
 
                             {/* File Info */}
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
+                                <div className="flex-1 min-w-0">
+                                  <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'} text-sm truncate mb-1`}>
                                     {file.name}
                                   </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                     {(file.size / 1024 / 1024).toFixed(1)}MB
                                   </div>
-                                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                  <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} mt-1`}>
                                     {file.type.startsWith('image/') ? 'Image' :
                                       file.type.startsWith('video/') ? 'Video' :
                                         file.type.startsWith('audio/') ? 'Audio' : 'Document'}
@@ -2653,7 +2682,7 @@ export default function Dashboard() {
                                 {/* Remove Button */}
                                 <button
                                   onClick={() => removeMediaFile(index)}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors flex-shrink-0"
+                                  className={`text-red-500 hover:text-red-700 ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-100'} p-1.5 rounded-full transition-colors flex-shrink-0`}
                                   title="Remove file"
                                 >
                                   <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2670,7 +2699,7 @@ export default function Dashboard() {
                     {/* Clear All Button */}
                     <button
                       onClick={clearAllMediaFiles}
-                      className="mt-3 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-lg transition-colors font-medium"
+                      className={`mt-3 text-sm text-red-500 hover:text-red-700 ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'} px-3 py-2 rounded-lg transition-colors font-medium`}
                     >
                       Clear all files
                     </button>
@@ -2687,8 +2716,8 @@ export default function Dashboard() {
                 ) : posts.length === 0 && albums.length === 0 ? (
                   <div className="text-center py-8">
                     <div className="text-4xl mb-3">📱</div>
-                    <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">No posts yet</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm transition-colors duration-200">Be the first to share something amazing!</p>
+                    <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-gray-300' : 'text-black'} mb-2 transition-colors duration-200`}>No posts yet</h3>
+                    <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-sm transition-colors duration-200`}>Be the first to share something amazing!</p>
                   </div>
                 ) : (
                   <>
@@ -2712,10 +2741,10 @@ export default function Dashboard() {
                         if (combinedFeed.length === 0) {
                           return (
                             <div className="text-center py-8">
-                              <div className="text-gray-500 dark:text-gray-400 text-lg mb-2">
+                              <div className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-lg mb-2`}>
                                 📭 No {activeFilter === 'all' ? '' : activeFilter} posts found
                               </div>
-                              <div className="text-gray-400 dark:text-gray-500 text-sm">
+                              <div className={`${isDarkMode ? 'text-gray-500' : 'text-gray-400'} text-sm`}>
                                 Try changing your filter or create a new post
                               </div>
                             </div>
@@ -2804,28 +2833,28 @@ export default function Dashboard() {
             >
               <div className="lg:sticky lg:top-4 space-y-3 sm:space-y-4">
                 {/* Pro Members Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 transition-colors duration-200">
-                  <div className="font-semibold mb-2 text-sm text-gray-900 dark:text-white transition-colors duration-200">Pro Members</div>
+                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 transition-colors duration-200`}>
+                  <div className={`font-semibold mb-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-black'}`}>Pro Members</div>
                   <button className="bg-orange-400 text-white px-2 xs:px-3 py-1.5 xs:py-2 rounded-full w-full mb-2 text-xs xs:text-sm">Upgrade To Pro</button>
                 </div>
 
                 {/* Latest Products Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow p-3 sm:p-4 transition-colors duration-200">
+                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg sm:rounded-xl shadow p-3 sm:p-4 transition-colors duration-200`}>
                   <LatestProducts />
                 </div>
 
                 {/* Latest Pages Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow p-3 sm:p-4 transition-colors duration-200">
-                  <div className="font-semibold mb-3 text-sm text-gray-900 dark:text-white transition-colors duration-200">Latest Pages</div>
+                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg sm:rounded-xl shadow p-3 sm:p-4 transition-colors duration-200`}>
+                  <div className={`font-semibold mb-3 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-black'}`}>Latest Pages</div>
 
                   {loadingPages ? (
                     <div className="space-y-3">
                       {Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="w-10 h-r10 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse" />
+                          <div className={`w-10 h-10 rounded-full animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
                           <div className="flex-1 space-y-2">
-                            <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-                            <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded w-2/3 animate-pulse" />
+                            <div className={`h-3 rounded animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
+                            <div className={`h-2 rounded w-2/3 animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
                           </div>
                         </div>
                       ))}
@@ -2835,11 +2864,11 @@ export default function Dashboard() {
                       {latestPages.slice(0, 3).map((page) => (
                         <div
                           key={page._id}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
+                          className={`flex items-center gap-3 p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors cursor-pointer group`}
                           onClick={() => router.push(`/dashboard/pages/${page._id}`)}
                         >
                           {/* Page Avatar */}
-                          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-200 dark:border-gray-600">
+                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                             {page.profileImage ? (
                               <img
                                 src={page.profileImage}
@@ -2859,17 +2888,17 @@ export default function Dashboard() {
                           </div>
 
                           {/* Page Info */}
-                                <div className="flex-1">
-                            <div className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-medium ${isDarkMode ? 'text-white group-hover:text-blue-400' : 'text-black group-hover:text-blue-600'} text-sm truncate transition-colors`}>
                               {page.name}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} truncate`}>
                               {page.category}
                             </div>
                           </div>
 
                           {/* Followers Count */}
-                          <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                          <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-right`}>
                             <div className="font-medium">{page.followers?.length || 0}</div>
                             <div>followers</div>
                           </div>
@@ -2879,18 +2908,18 @@ export default function Dashboard() {
                       {/* View All Pages Button */}
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className="w-full mt-3 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 py-2 rounded-lg transition-colors"
+                        className={`w-full mt-3 text-sm ${isDarkMode ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'} font-medium py-2 rounded-lg transition-colors`}
                       >
                         View All Pages
                       </button>
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <div className="text-gray-400 dark:text-gray-500 text-2xl mb-2">📄</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">No pages yet</div>
+                      <div className={`text-2xl mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>📄</div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No pages yet</div>
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                        className={`mt-2 text-xs ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} font-medium`}
                       >
                         Create Page
                       </button>
@@ -2899,17 +2928,17 @@ export default function Dashboard() {
                 </div>
 
                 {/* Suggested Pages Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 transition-colors duration-200">
-                  <div className="font-semibold mb-3 text-sm text-gray-900 dark:text-white transition-colors duration-200">Suggested Pages</div>
+                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 transition-colors duration-200`}>
+                  <div className={`font-semibold mb-3 text-sm ${isDarkMode ? 'text-white' : 'text-black'} transition-colors duration-200`}>Suggested Pages</div>
 
                   {loadingSuggestedPages ? (
                     <div className="space-y-3">
                       {Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse" />
+                          <div className={`w-10 h-10 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-full animate-pulse`} />
                           <div className="flex-1 space-y-2">
-                            <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-                            <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded w-2/3 animate-pulse" />
+                            <div className={`h-3 rounded animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
+                            <div className={`h-2 rounded w-2/3 animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
                           </div>
                         </div>
                       ))}
@@ -2919,11 +2948,11 @@ export default function Dashboard() {
                       {suggestedPages.slice(0, 5).map((page) => (
                         <div
                           key={page._id}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
+                          className={`flex items-center gap-3 p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors cursor-pointer group`}
                           onClick={() => router.push(`/dashboard/pages/${page._id}`)}
                         >
                           {/* Page Avatar */}
-                          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-gray-200 dark:border-gray-600">
+                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                             {page.profileImage ? (
                               <img
                                 src={page.profileImage}
@@ -2943,20 +2972,20 @@ export default function Dashboard() {
                           </div>
 
                           {/* Page Info */}
-                                <div className="flex-1">
-                            <div className="font-medium text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-medium ${isDarkMode ? 'text-white group-hover:text-blue-400' : 'text-black group-hover:text-blue-600'} text-sm truncate transition-colors`}>
                               {page.name}
                             </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} truncate`}>
                               @{page.url}
                             </div>
-                            <div className="text-xs text-gray-400 dark:text-gray-500">
+                            <div className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                               {page.category}
                             </div>
                           </div>
 
                           {/* Followers Count */}
-                          <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
+                          <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-right`}>
                             <div className="font-medium">{page.followers?.length || 0}</div>
                             <div>followers</div>
                           </div>
@@ -2966,18 +2995,18 @@ export default function Dashboard() {
                       {/* View All Pages Button */}
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className="w-full mt-3 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 py-2 rounded-lg transition-colors"
+                        className={`w-full mt-3 text-sm ${isDarkMode ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'} font-medium py-2 rounded-lg transition-colors`}
                       >
                         View All Pages
                       </button>
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <div className="text-gray-400 dark:text-gray-500 text-2xl mb-2">📄</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">No pages yet</div>
+                      <div className={`text-2xl mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>📄</div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>No pages yet</div>
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                        className={`mt-2 text-xs ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} font-medium`}
                       >
                         Create Page
                       </button>
@@ -3029,31 +3058,39 @@ export default function Dashboard() {
       {/* Watch Modal - Enhanced Jaifriend Style */}
       {showWatchModal && selectedPostForWatch && (
         <>
+          {console.log('🔍 Watch Modal - Post Data:', {
+            id: selectedPostForWatch._id || selectedPostForWatch.id,
+            content: selectedPostForWatch.content,
+            media: selectedPostForWatch.media,
+            mediaCount: selectedPostForWatch.media?.length || 0,
+            user: selectedPostForWatch.user,
+            type: selectedPostForWatch.type
+          })}
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/80 backdrop-blur-sm">
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl h-[75vh] flex flex-col border border-gray-200 dark:border-gray-700 mx-auto">
+            <div className={`${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} rounded-lg shadow-xl w-full max-w-4xl h-[75vh] flex flex-col border mx-auto`}>
               {/* Modal Header - Simple */}
-              <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+              <div className={`flex items-center justify-between p-3 sm:p-4 border-b ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} flex-shrink-0`}>
                 <div className="flex items-center gap-3">
                   <img
                     src={selectedPostForWatch.user?.avatar || selectedPostForWatch.createdBy?.avatar || '/default-avatar.svg'}
                     alt="User avatar"
-                    className="w-8 h-8 rounded-full border border-gray-300 dark:border-gray-600"
+                    className={`w-8 h-8 rounded-full border ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}
                     onError={(e) => {
                       e.currentTarget.src = '/default-avatar.svg';
                     }}
                   />
                   <div>
-                    <div className="font-medium text-sm text-gray-900 dark:text-white">
+                    <div className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>
                       {selectedPostForWatch.user?.name || selectedPostForWatch.user?.username || selectedPostForWatch.createdBy?.name || 'User'}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       {new Date(selectedPostForWatch.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowWatchModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'} p-2 rounded-full`}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3064,13 +3101,13 @@ export default function Dashboard() {
               {/* Modal Content - Fixed Layout */}
               <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                 {/* Left Side - Content */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto lg:max-w-[60%]">
                   <div className="p-4 pb-8">
                     {/* Post Content */}
                     {selectedPostForWatch.content && (
-                      <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className={`mb-4 p-3 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'} rounded-lg`}>
                         <div
-                          className="text-gray-900 dark:text-white text-sm whitespace-pre-wrap break-words"
+                          className={`text-sm whitespace-pre-wrap break-words ${isDarkMode ? 'text-white' : 'text-black'}`}
                           dangerouslySetInnerHTML={{
                             __html: selectedPostForWatch.content.replace(/<pre[^>]*>/g, '').replace(/<\/pre>/g, '').replace(/class="[^"]*"/g, '')
                           }}
@@ -3082,7 +3119,7 @@ export default function Dashboard() {
                     {selectedPostForWatch.media && selectedPostForWatch.media.length > 0 ? (
                       <div className="space-y-3 mb-6">
                         {selectedPostForWatch.media.map((media: any, index: number) => (
-                          <div key={index} className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                          <div key={index} className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-lg border overflow-hidden`}>
                             {media.type === 'image' ? (
                               <img
                                 src={getMediaUrl(media.url)}
@@ -3098,30 +3135,15 @@ export default function Dashboard() {
                                 controls
                                 className="w-full max-h-[40vh] object-contain"
                                 poster={media.thumbnail ? getMediaUrl(media.thumbnail) : ''}
-                                onError={(e) => {
-                                  console.error('Album video loading error:', e.currentTarget.src);
-                                  e.currentTarget.style.display = 'none';
-                                  // Show fallback content
-                                  const fallback = document.createElement('div');
-                                  fallback.className = 'w-full h-64 sm:h-96 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg flex items-center justify-center';
-                                  fallback.innerHTML = `
-                                    <div class="text-center text-gray-600 dark:text-gray-300">
-                                      <div class="text-4xl mb-2">🎥</div>
-                                      <div class="text-sm">Video could not be loaded</div>
-                                      <div class="text-xs mt-1 opacity-75">Check your connection</div>
-                                    </div>
-                                  `;
-                                  e.currentTarget.parentNode?.appendChild(fallback);
-                                }}
                               />
                             ) : (
                               <div className="p-4 text-center">
-                                <div className="w-8 h-8 mx-auto mb-2 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className={`w-8 h-8 mx-auto mb-2 ${isDarkMode ? 'bg-blue-900' : 'bg-blue-100'} rounded-full flex items-center justify-center`}>
+                                  <svg className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                 </div>
-                                <div className="text-sm text-gray-700 dark:text-gray-300">
+                                <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                                   {media.originalName || media.filename || media.name || 'File'}
                                 </div>
                               </div>
@@ -3131,7 +3153,7 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       selectedPostForWatch.content && (
-                        <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                        <div className={`text-center py-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           Text only post
                         </div>
                       )
@@ -3161,7 +3183,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Side - Enhanced Actions & Comments */}
-                <div className="w-full border-l border-gray-200 dark:border-gray-700 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 p-4 flex flex-col min-h-0 flex-shrink-0">
+                <div className={`w-full lg:w-80 border-l ${isDarkMode ? 'border-gray-700 bg-gradient-to-b from-gray-900 to-gray-800' : 'border-gray-200 bg-gradient-to-b from-white to-gray-50'} p-4 flex flex-col min-h-0 flex-shrink-0`}>
                   {/* Action Buttons - Enhanced */}
                   <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
                     {/* Like Button - Enhanced */}
@@ -3174,8 +3196,8 @@ export default function Dashboard() {
                         }
                       }}
                       className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId()))
-                          ? 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-500'
+                          ? `${isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-100 text-red-600'}`
+                          : `${isDarkMode ? 'bg-gray-700 text-white hover:bg-red-900/10 hover:text-red-500' : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-500'}`
                         }`}
                     >
                       <span>❤️</span>
@@ -3190,7 +3212,7 @@ export default function Dashboard() {
                         const commentInput = document.getElementById('watch-comment-input');
                         if (commentInput) commentInput.focus();
                       }}
-                      className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-500"
+                      className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 text-white hover:bg-blue-900/10 hover:text-blue-500' : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-500'}`}
                     >
                       <span>💬</span>
                       <span>Comment</span>
@@ -3207,7 +3229,7 @@ export default function Dashboard() {
                         });
                         setShowWatchModal(false);
                       }}
-                      className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-white hover:bg-green-50 dark:hover:bg-green-900/10 hover:text-green-500"
+                      className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 text-white hover:bg-green-900/10 hover:text-green-500' : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-500'}`}
                     >
                       <span>📤</span>
                       <span>Share</span>
@@ -3216,7 +3238,7 @@ export default function Dashboard() {
 
                   {/* Like Count - Enhanced */}
                   {(selectedPostForWatch.likes?.length > 0 || selectedPostForWatch.likedBy?.length > 0) && (
-                    <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-red-600 dark:text-red-400 flex-shrink-0">
+                    <div className={`mb-3 p-2 ${isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'} rounded-lg text-sm flex-shrink-0`}>
                       {selectedPostForWatch.likes?.length || selectedPostForWatch.likedBy?.length} likes
                     </div>
                   )}
@@ -3224,13 +3246,13 @@ export default function Dashboard() {
                   {/* Comments Section - Enhanced */}
                   <div className="flex-1 flex flex-col min-h-0">
                     <div className="mb-3 flex-shrink-0">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         Comments ({selectedPostForWatch.comments?.length || 0})
                       </h3>
                     </div>
 
                     {/* Comment Input - Enhanced */}
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 mb-3 flex-shrink-0">
+                    <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-lg p-3 border mb-3 flex-shrink-0`}>
                       <div className="flex gap-2">
                         <img
                           src={JSON.parse(localStorage.getItem('user') || '{}')?.avatar || '/default-avatar.svg'}
@@ -3245,7 +3267,7 @@ export default function Dashboard() {
                             id="watch-comment-input"
                             type="text"
                             placeholder="Add a comment..."
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none"
+                            className={`flex-1 px-3 py-2 border rounded-lg ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none`}
                           />
                           <button
                             onClick={() => {
@@ -3266,7 +3288,7 @@ export default function Dashboard() {
                     {/* Comments List - Enhanced */}
                     <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-2">
                       {selectedPostForWatch.comments?.map((comment: any, index: number) => (
-                        <div key={index} className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                        <div key={index} className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg p-3 border`}>
                           <div className="flex gap-2">
                             <img
                               src={comment.user?.avatar || '/default-avatar.svg'}
@@ -3276,16 +3298,16 @@ export default function Dashboard() {
                                 e.currentTarget.src = '/default-avatar.svg';
                               }}
                             />
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-sm text-gray-900 dark:text-white">
+                                <span className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
                                   {comment.user?.name || comment.user?.username || 'User'}
                                 </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} flex-shrink-0`}>
                                   {new Date(comment.createdAt).toLocaleDateString()}
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                              <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} leading-relaxed`}>
                                 {comment.text || comment.content}
                               </div>
                             </div>
@@ -3294,7 +3316,7 @@ export default function Dashboard() {
                       ))}
 
                       {(!selectedPostForWatch.comments || selectedPostForWatch.comments.length === 0) && (
-                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           <div className="text-4xl mb-2">💬</div>
                           <div className="text-sm">No comments yet. Be the first to comment!</div>
                         </div>
@@ -3311,12 +3333,12 @@ export default function Dashboard() {
       {/* Post Creation Modal */}
       {showPostModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black/20 backdrop-blur-md" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
+          <div className={`${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'} backdrop-blur-sm border rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden`}>
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className={`flex items-center justify-between p-3 sm:p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <button
                 onClick={() => setShowPostModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1"
+                className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors p-1`}
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3324,7 +3346,7 @@ export default function Dashboard() {
               </button>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{1800 - (newPost.length)}</span>
+                <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{1800 - (newPost.length)}</span>
                 <button
                   onClick={handleModalPost}
                   disabled={posting || (!newPost.trim() && modalMediaFiles.length === 0 && !selectedGif && !voiceRecording && !selectedFeeling && !sellData && !pollData && !locationData)}
@@ -3342,21 +3364,21 @@ export default function Dashboard() {
                 placeholder="What's happening?"
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
-                className="w-full border-none outline-none text-sm sm:text-base resize-none min-h-[60px] sm:min-h-[80px] bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                className={`w-full border-none outline-none text-sm sm:text-base resize-none min-h-[60px] sm:min-h-[80px] bg-transparent ${isDarkMode ? 'text-white placeholder-gray-400' : 'text-black placeholder-gray-500'}`}
                 maxLength={1800}
               />
 
               {/* Media Preview */}
               {modalMediaFiles.length > 0 && (
                 <div className="mt-3 sm:mt-4">
-                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">Selected files ({modalMediaFiles.length}):</div>
+                  <div className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-black'} mb-2`}>Selected files ({modalMediaFiles.length}):</div>
                   <div className="space-y-3">
                     {modalMediaFiles.map((file, index) => (
-                      <div key={index} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                      <div key={index} className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-200'} rounded-lg p-3 border`}>
                         <div className="flex items-start gap-3">
                           {/* Image/Video Thumbnail Preview */}
                           {file.type.startsWith('image/') ? (
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} flex-shrink-0`}>
                               <img
                                 src={URL.createObjectURL(file)}
                                 alt={file.name}
@@ -3371,7 +3393,7 @@ export default function Dashboard() {
                               />
                             </div>
                           ) : file.type.startsWith('video/') ? (
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0 relative">
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} flex-shrink-0 relative`}>
                               <video
                                 src={URL.createObjectURL(file)}
                                 className="w-full h-full object-cover"
@@ -3387,7 +3409,7 @@ export default function Dashboard() {
                               </div>
                             </div>
                           ) : (
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} flex items-center justify-center flex-shrink-0`}>
                               <span className="text-3xl sm:text-4xl">
                                 {file.type.startsWith('audio/') ? '🎵' : '📄'}
                               </span>
@@ -3395,13 +3417,13 @@ export default function Dashboard() {
                           )}
 
                           {/* File Info */}
-                                <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
+                              <div className="flex-1 min-w-0">
+                                <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-black'} text-sm truncate mb-1`}>
                                   {file.name}
                                 </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                   {(file.size / 1024 / 1024).toFixed(1)}MB
                                 </div>
                                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -3414,7 +3436,7 @@ export default function Dashboard() {
                               {/* Remove Button */}
                               <button
                                 onClick={() => removeModalMedia(index)}
-                                className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors flex-shrink-0"
+                                className={`text-red-500 hover:text-red-700 ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-100'} p-1.5 rounded-full transition-colors flex-shrink-0`}
                                 title="Remove file"
                               >
                                 <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3431,7 +3453,7 @@ export default function Dashboard() {
                   {/* Clear All Button */}
                   <button
                     onClick={clearModalMedia}
-                    className="mt-3 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-lg transition-colors font-medium"
+                    className={`mt-3 text-sm text-red-500 hover:text-red-700 ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'} px-3 py-2 rounded-lg transition-colors font-medium`}
                   >
                     Clear all files
                   </button>
@@ -3514,9 +3536,9 @@ export default function Dashboard() {
               )}
 
               {/* Audience Selector */}
-              <div className="flex items-center gap-2 mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <div className={`flex items-center gap-2 mt-3 sm:mt-4 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-lg`}>
                 <span className="text-sm sm:text-base">🌐</span>
-                <span className="text-xs sm:text-xs xs:text-sm font-medium text-gray-700 dark:text-gray-300">Everyone</span>
+                <span className={`text-xs sm:text-xs xs:text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Everyone</span>
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
@@ -3528,81 +3550,81 @@ export default function Dashboard() {
               <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3 mt-3 sm:mt-4">
                 <button
                   onClick={handleModalImageUpload}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">📷</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Images</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Images</span>
                 </button>
 
                 <button
                   onClick={handleModalAudioUpload}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">🎵</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Audio</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Audio</span>
                 </button>
 
                 <button
                   onClick={handleModalFileUpload}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">📄</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Files</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Files</span>
                 </button>
 
                 <button
                   onClick={handleModalGIF}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">🎭</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">GIF</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>GIF</span>
                 </button>
 
                 <button
                   onClick={handleModalVoice}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">🎤</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Voice</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Voice</span>
                 </button>
 
                 <button
                   onClick={handleModalFeelings}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">😊</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Feelings</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Feelings</span>
                 </button>
 
                 <button
                   onClick={handleModalSell}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">🏪</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Sell</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Sell</span>
                 </button>
 
                 <button
                   onClick={handleModalPoll}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">📊</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Poll</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Poll</span>
                 </button>
 
                 <button
                   onClick={handleModalLocation}
-                  className="flex flex-col items-center gap-1 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'} rounded-lg transition-colors`}
                 >
                   <span className="text-lg sm:text-xl">📍</span>
-                  <span className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">Location</span>
+                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Location</span>
                 </button>
               </div>
 
 
 
               {/* Mark/Formatting Icons */}
-              <div className="flex items-center gap-2 sm:gap-3 mt-3 sm:mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className={`flex items-center gap-2 sm:gap-3 mt-3 sm:mt-4 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <button
                   onClick={() => {
                     const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
@@ -3619,7 +3641,7 @@ export default function Dashboard() {
                       setNewPost(textarea.value);
                     }
                   }}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'} transition-colors p-1.5 sm:p-2 rounded-lg`}
                   title="Add hashtag"
                 >
                   <span className="text-base sm:text-lg font-bold">#</span>
@@ -3641,7 +3663,7 @@ export default function Dashboard() {
                       setNewPost(textarea.value);
                     }
                   }}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'} transition-colors p-1.5 sm:p-2 rounded-lg`}
                   title="Mention user"
                 >
                   <span className="text-base sm:text-lg font-bold">@</span>
@@ -3649,7 +3671,7 @@ export default function Dashboard() {
 
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                  className={`${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'} transition-colors p-1.5 sm:p-2 rounded-lg`}
                   title="Add emoji"
                 >
                   <span className="text-base sm:text-lg">😊</span>
@@ -3660,7 +3682,7 @@ export default function Dashboard() {
               {showEmojiPicker && (
                 <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                   <div className="flex items-center justify-between mb-2 sm:mb-3">
-                    <span className="text-sm sm:text-base font-medium text-gray-700 dark:text-gray-300">Select Emoji</span>
+                    <span className="text-sm sm:text-base font-medium text-black dark:text-gray-300">Select Emoji</span>
                     <button
                       onClick={() => setShowEmojiPicker(false)}
                       className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -3671,7 +3693,7 @@ export default function Dashboard() {
 
                   {emojiCategories.map((category, categoryIndex) => (
                     <div key={categoryIndex} className="mb-3 sm:mb-4">
-                      <h4 className="text-xs sm:text-xs xs:text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{category.name}</h4>
+                      <h4 className="text-xs sm:text-xs xs:text-sm font-medium text-black dark:text-gray-400 mb-2">{category.name}</h4>
                       <div className="grid grid-cols-8 sm:grid-cols-10 gap-1 sm:gap-2">
                         {category.emojis.map((emoji, emojiIndex) => (
                           <button
@@ -3735,7 +3757,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Select GIF</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">Select GIF</h3>
               <button
                 onClick={() => setShowGifModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -3752,7 +3774,7 @@ export default function Dashboard() {
                     type="text"
                     placeholder="Search GIFs..."
                     value={gifSearchQuery}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white pr-10"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white pr-10"
                     onChange={(e) => handleGifSearch(e.target.value)}
                   />
                   {gifSearchLoading && (
@@ -3813,7 +3835,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Record Voice</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">Record Voice</h3>
               <button
                 onClick={() => setShowVoiceModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -3832,7 +3854,7 @@ export default function Dashboard() {
                 >
                   {isRecording ? '⏹️' : '🎤'}
                 </button>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-black dark:text-gray-400 mb-4">
                   {isRecording ? 'Recording... Click to stop' : 'Click to start recording'}
                 </p>
                 {recordingTime > 0 && (
@@ -3885,7 +3907,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">How are you feeling?</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">How are you feeling?</h3>
               <button
                 onClick={() => setShowFeelingsModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -3920,7 +3942,7 @@ export default function Dashboard() {
                     className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                   >
                     <span className="text-3xl mb-2">{feeling.emoji}</span>
-                    <span className="text-xs text-gray-700 dark:text-gray-300 text-center">{feeling.description}</span>
+                    <span className="text-xs text-black dark:text-gray-300 text-center">{feeling.description}</span>
                   </button>
                 ))}
               </div>
@@ -3934,7 +3956,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Sell Product</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">Sell Product</h3>
               <button
                 onClick={() => setShowSellModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -3951,19 +3973,19 @@ export default function Dashboard() {
                   placeholder="Product name"
                   value={sellFormData.productName || ''}
                   onChange={(e) => setSellFormData(prev => ({ ...prev, productName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <input
                   type="number"
                   placeholder="Price"
                   value={sellFormData.price || ''}
                   onChange={(e) => setSellFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <select
                   value={sellFormData.condition || 'New'}
                   onChange={(e) => setSellFormData(prev => ({ ...prev, condition: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 >
                   <option value="New">New</option>
                   <option value="Used">Used</option>
@@ -3977,7 +3999,7 @@ export default function Dashboard() {
                     onChange={(e) => setSellFormData(prev => ({ ...prev, negotiable: e.target.checked }))}
                     className="w-3 xs:w-4 h-3 xs:h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="negotiable" className="text-sm text-gray-700 dark:text-gray-300">Price negotiable</label>
+                  <label htmlFor="negotiable" className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>Price negotiable</label>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -4012,7 +4034,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create Poll</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">Create Poll</h3>
               <button
                 onClick={() => setShowPollModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -4029,35 +4051,35 @@ export default function Dashboard() {
                   placeholder="Poll question"
                   value={pollFormData.question || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, question: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <input
                   type="text"
                   placeholder="Option 1"
                   value={pollFormData.option1 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option1: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <input
                   type="text"
                   placeholder="Option 2"
                   value={pollFormData.option2 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option2: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <input
                   type="text"
                   placeholder="Option 3 (optional)"
                   value={pollFormData.option3 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option3: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <input
                   type="text"
                   placeholder="Option 4 (optional)"
                   value={pollFormData.option4 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option4: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                 />
                 <div className="flex items-center gap-2">
                   <input
@@ -4067,7 +4089,7 @@ export default function Dashboard() {
                     onChange={(e) => setPollFormData(prev => ({ ...prev, isMultipleChoice: e.target.checked }))}
                     className="w-3 xs:w-4 h-3 xs:h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="multipleChoice" className="text-sm text-gray-700 dark:text-gray-300">Allow multiple choices</label>
+                  <label htmlFor="multipleChoice" className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-black'}`}>Allow multiple choices</label>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -4110,7 +4132,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
           <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add Location</h3>
+              <h3 className="text-lg font-semibold text-black dark:text-white">Add Location</h3>
               <button
                 onClick={() => setShowLocationModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -4124,7 +4146,7 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {/* Worldwide Location Search */}
                 <div className="space-y-2">
-                  <label className="text-xs xs:text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="text-xs xs:text-sm font-medium text-black dark:text-gray-300">
                     🌍 Search Worldwide Location
                   </label>
                   <div className="relative">
@@ -4136,7 +4158,7 @@ export default function Dashboard() {
                         setLocationSearchQuery(e.target.value);
                         searchWorldwideLocation(e.target.value);
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white pr-10"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white pr-10"
                     />
                     {locationSearchLoading && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -4166,10 +4188,10 @@ export default function Dashboard() {
                           }}
                           className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 border-b border-gray-100 dark:border-gray-600 last:border-b-0 transition-colors"
                         >
-                          <div className="font-medium text-gray-900 dark:text-white text-sm">
+                          <div className="font-medium text-black dark:text-white text-sm">
                             {result.display_name.split(',')[0]}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} truncate`}>
                             {result.display_name}
                           </div>
                         </button>
@@ -4222,7 +4244,7 @@ export default function Dashboard() {
 
                 {/* Manual Location Input */}
                 <div className="space-y-2">
-                  <label className="text-xs xs:text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="text-xs xs:text-sm font-medium text-black dark:text-gray-300">
                     📝 Manual Location Input
                   </label>
                   <input
@@ -4230,19 +4252,19 @@ export default function Dashboard() {
                     placeholder="Location name"
                     value={locationFormData.name || ''}
                     onChange={(e) => setLocationFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                   />
                   <input
                     type="text"
                     placeholder="Address"
                     value={locationFormData.address || ''}
                     onChange={(e) => setLocationFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                   />
                   <select
                     value={locationFormData.category || ''}
                     onChange={(e) => setLocationFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-black dark:text-white"
                   >
                     <option value="">Select category</option>
                     <option value="restaurant">Restaurant</option>
@@ -4256,16 +4278,16 @@ export default function Dashboard() {
                   {/* Map Preview */}
                   {locationFormData.coordinates && (
                     <div className="space-y-2">
-                      <label className="text-xs xs:text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <label className="text-xs xs:text-sm font-medium text-black dark:text-gray-300">
                         🗺️ Location Preview
                       </label>
                       <div className="w-full h-32 bg-gray-100 dark:bg-gray-600 rounded-lg flex items-center justify-center">
                         <div className="text-center">
                           <div className="text-lg">📍</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
+                          <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             {locationFormData.name}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             {locationFormData.coordinates.lat.toFixed(6)}, {locationFormData.coordinates.lng.toFixed(6)}
                           </div>
                         </div>
@@ -4323,7 +4345,7 @@ const AddCommentForm = ({ postId, onAddComment }: { postId: string, onAddComment
     >
       <input
         type="text"
-        className="flex-1 border border-gray-300 dark:border-gray-600 rounded-full px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+        className="flex-1 border border-gray-300 dark:border-gray-600 rounded-full px-3 py-2 text-sm bg-white dark:bg-gray-700 text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
         placeholder="Add a comment..."
         value={text}
         onChange={e => setText(e.target.value)}

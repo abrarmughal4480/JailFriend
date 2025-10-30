@@ -1,7 +1,9 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Reel, getReels, toggleLike, toggleSave, addComment, shareReel, formatDuration, formatViewCount, formatLikeCount, hasUserLiked, hasUserSaved } from '@/utils/reelsApi';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
+import MobileReactionPopup from './MobileReactionPopup';
 import ReelsCreationModal from './ReelsCreationModal';
 
 interface ReelsDisplayProps {
@@ -17,6 +19,9 @@ export default function ReelsDisplay({
   hashtag, 
   trending = false 
 }: ReelsDisplayProps) {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const [reels, setReels] = useState<Reel[]>([]);
   const [currentReelIndex, setCurrentReelIndex] = useState(0);
   
@@ -37,12 +42,26 @@ export default function ReelsDisplay({
   const [reactionButtonHovered, setReactionButtonHovered] = useState<string | null>(null);
   const [showReactionsTemporarily, setShowReactionsTemporarily] = useState<string | null>(null);
   const [isReacting, setIsReacting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isFollowing, setIsFollowing] = useState<{ [key: string]: boolean }>({});
   
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
 
 
   const currentReelRef = useRef(0);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     loadReels();
@@ -268,23 +287,26 @@ export default function ReelsDisplay({
     }
   };
 
-  const handleComment = async (reelId: string) => {
-    if (!commentText.trim()) return;
-    
+  const handleFollow = async (userId: string) => {
     try {
-      const response = await addComment(reelId, { text: commentText });
-      setReels(prev => prev.map(reel => 
-        reel._id === reelId 
-          ? { 
-              ...reel, 
-              comments: [...(reel.comments || []), response.comment || reel.comments?.[0] || {}],
-              trendingScore: response.trendingScore || reel.trendingScore
-            }
-          : reel
-      ));
-      setCommentText('');
-    } catch (err) {
-      console.error('Error adding comment:', err);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/users/${userId}/follow`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setIsFollowing(prev => ({
+          ...prev,
+          [userId]: !prev[userId]
+        }));
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
     }
   };
 
@@ -606,7 +628,7 @@ export default function ReelsDisplay({
       {/* Reels Container */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto scrollbar-hide"
+        className="flex-1 overflow-y-auto scrollbar-hide snap-y snap-mandatory"
         onScroll={handleScroll}
       >
         {reels.length === 0 && !loading ? (
@@ -853,13 +875,41 @@ export default function ReelsDisplay({
                 <button 
                   onMouseEnter={() => handleReactionButtonMouseEnter(reel._id || `reel-${index}`)}
                   onMouseLeave={() => handleReactionButtonMouseLeave(reel._id || `reel-${index}`)}
-                  onClick={() => handleLike(reel._id || `reel-${index}`)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isMobile) {
+                      setShowReactionPopup(showReactionPopup === (reel._id || `reel-${index}`) ? null : (reel._id || `reel-${index}`));
+                    } else {
+                      handleLike(reel._id || `reel-${index}`);
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    if (isMobile) {
+                      setShowReactionPopup(showReactionPopup === (reel._id || `reel-${index}`) ? null : (reel._id || `reel-${index}`));
+                    }
+                  }}
                   className={`flex flex-col items-center gap-1 text-white ${
                     getCurrentReaction(reel) ? 'text-red-500' : ''
                   }`}
+                  style={{ touchAction: 'manipulation' }}
                 >
                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors ${
-                    getCurrentReaction(reel) ? 'bg-red-500' : 'bg-black/30 hover:bg-black/50'
+                    getCurrentReaction(reel) 
+                      ? getCurrentReaction(reel) === 'like' 
+                        ? 'bg-blue-500' 
+                        : getCurrentReaction(reel) === 'love'
+                        ? 'bg-red-500'
+                        : getCurrentReaction(reel) === 'haha'
+                        ? 'bg-yellow-500'
+                        : getCurrentReaction(reel) === 'wow'
+                        ? 'bg-purple-500'
+                        : getCurrentReaction(reel) === 'sad'
+                        ? 'bg-blue-400'
+                        : getCurrentReaction(reel) === 'angry'
+                        ? 'bg-red-600'
+                        : 'bg-red-500'
+                      : 'bg-black/30 hover:bg-black/50'
                   }`}>
                     <span className="text-lg sm:text-xl">{getMostCommonReactionEmoji(reel)}</span>
                   </div>
@@ -871,12 +921,24 @@ export default function ReelsDisplay({
                   onMouseEnter={handleReactionPopupMouseEnter}
                   onMouseLeave={handleReactionPopupMouseLeave}
                 >
-                  <ReactionPopup
+                  {/* Desktop Reaction Popup */}
+                  <div className="hidden sm:block">
+                    <ReactionPopup
+                      isOpen={showReactionPopup === (reel._id || `reel-${index}`)}
+                      onClose={() => setShowReactionPopup(null)}
+                      onReaction={(reactionType) => handleReaction(reel._id || `reel-${index}`, reactionType)}
+                      currentReaction={getCurrentReaction(reel)}
+                      position="top"
+                    />
+                  </div>
+                  
+                  {/* Mobile Reaction Popup */}
+                  <MobileReactionPopup
                     isOpen={showReactionPopup === (reel._id || `reel-${index}`)}
                     onClose={() => setShowReactionPopup(null)}
                     onReaction={(reactionType) => handleReaction(reel._id || `reel-${index}`, reactionType)}
                     currentReaction={getCurrentReaction(reel)}
-                    position="top"
+                    isReacting={isReacting}
                   />
                 </div>
               </div>
@@ -939,16 +1001,35 @@ export default function ReelsDisplay({
                 )}
                 
                 {/* User Info */}
-                <div className="flex items-center gap-2">
-                  <img 
-                    src={reel.user?.avatar} 
-                    alt={reel.user?.name || 'User'}
-                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-white"
-                  />
-                  <div>
-                    <div className="font-medium text-xs sm:text-sm">{reel.user?.name || 'Unknown User'}</div>
-                    <div className="text-xs text-gray-300">{reel.category || 'General'} • {formatDuration(reel.duration || 0)}</div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <img 
+                      src={reel.user?.avatar} 
+                      alt={reel.user?.name || 'User'}
+                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-white"
+                    />
+                    <div>
+                      <div className="font-medium text-xs sm:text-sm">{reel.user?.name || 'Unknown User'}</div>
+                      <div className="text-xs text-gray-300">{reel.category || 'General'} • {formatDuration(reel.duration || 0)}</div>
+                    </div>
                   </div>
+                  
+                  {/* Follow Button */}
+                  <button
+                    onClick={() => handleFollow(reel.user?.userId || reel.user?._id || '')}
+                    className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 active:scale-95 ${
+                      isFollowing[reel.user?.userId || reel.user?._id || ''] 
+                        ? 'bg-gray-600 text-white hover:bg-gray-700' 
+                        : 'bg-white text-black hover:bg-gray-200'
+                    }`}
+                  >
+                    <span className="hidden xs:inline">
+                      {isFollowing[reel.user?.userId || reel.user?._id || ''] ? 'Following' : 'Follow'}
+                    </span>
+                    <span className="xs:hidden">
+                      {isFollowing[reel.user?.userId || reel.user?._id || ''] ? '✓' : '+'}
+                    </span>
+                  </button>
                 </div>
                 
                 {/* View Count */}
@@ -1007,11 +1088,16 @@ export default function ReelsDisplay({
                         <div className="font-medium text-xs sm:text-sm">{comment.user?.name || 'Unknown User'}</div>
                         <div className="text-xs sm:text-sm text-gray-300">{comment.text || 'No text'}</div>
                         <div className="text-xs text-gray-400 mt-1">
-                          {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : 'Unknown date'}
+                          {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : 'Just now'}
                         </div>
                       </div>
                     </div>
                   ))}
+                  {(!reel.comments || reel.comments.length === 0) && (
+                    <div className="text-center text-gray-400 text-sm py-4">
+                      No comments yet. Be the first to comment!
+                    </div>
+                  )}
                 </div>
               </div>
             )}

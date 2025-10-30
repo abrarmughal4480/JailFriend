@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePrivacy } from '@/contexts/PrivacyContext';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 import {
   getDisplayName,
   getDisplayBio,
@@ -47,6 +49,10 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
   onEditProfile, 
   onViewActivities 
 }) => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
   const { privacySettings, profileSettings } = usePrivacy();
   const [isOnline, setIsOnline] = useState(user.isOnline || false);
   const [followersCount, setFollowersCount] = useState(user.followers?.length || 0);
@@ -97,10 +103,10 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
   if (!privacySettings || !profileSettings) {
     // Fallback to basic display if settings are not loaded
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-6`}>
         <div className="text-center mb-6">
           <div className="relative inline-block mb-4">
-            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center">
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
               {user.avatar ? (
                 <img 
                   src={user.avatar} onError={(e) => { console.log('❌ Avatar load failed for user:', user.avatar); e.currentTarget.src = '/default-avatar.svg'; }} 
@@ -112,18 +118,18 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
               )}
             </div>
             {isOnline && (
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
+              <div className={`absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-2 rounded-full ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
             )}
           </div>
           
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+          <h1 className={`text-2xl font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {user.name}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
+          <p className={`text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             @{user.username}
           </p>
           {isOnline && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isDarkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-800'}`}>
               <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
               Online
             </span>
@@ -131,12 +137,12 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
         </div>
         
         {user.bio && (
-          <p className="text-gray-700 dark:text-gray-300 mb-4 text-center">
+          <p className={`mb-4 text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
             {user.bio}
           </p>
         )}
 
-        <div className="flex flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4 justify-center">
+        <div className={`flex flex-wrap gap-2 text-sm mb-4 justify-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           {user.location && (
             <div className="flex items-center gap-1">
               <MapPin className="w-4 h-4" />
@@ -177,10 +183,10 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
   return (
     <div className="space-y-6">
       {/* Profile Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} p-6`}>
         <div className="text-center mb-6">
           <div className="relative inline-block mb-4">
-            <div className="w-24 h-24 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center">
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
               {user.avatar ? (
                 <img 
                   src={user.avatar} onError={(e) => { console.log('❌ Avatar load failed for user:', user.avatar); e.currentTarget.src = '/default-avatar.svg'; }} 
@@ -196,7 +202,7 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
             )}
           </div>
           
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+          <h1 className="text-2xl font-bold text-black dark:text-white mb-1">
             {displayName}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-2">
@@ -211,7 +217,7 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
         </div>
         
         {displayBio && (
-          <p className="text-gray-700 dark:text-gray-300 mb-4 text-center">
+          <p className="text-black dark:text-gray-300 mb-4 text-center">
             {displayBio}
           </p>
         )}
@@ -288,13 +294,13 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+          <div className="text-2xl font-bold text-black dark:text-white mb-1">
             {canViewFriendsList ? followingCount : '0'}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Following</div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+          <div className="text-2xl font-bold text-black dark:text-white mb-1">
             {canViewFriendsList ? followersCount : '0'}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Followers</div>
@@ -307,7 +313,7 @@ const PrivacyAwareProfile: React.FC<PrivacyAwareProfileProps> = ({
           <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           <span className="text-sm font-medium text-gray-900 dark:text-white">Posts</span>
         </div>
-        <div className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="text-2xl font-bold text-black dark:text-white">
           {canViewActivitiesList ? postsCount : '0'} posts
         </div>
       </div>

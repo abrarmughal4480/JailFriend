@@ -25,7 +25,11 @@ const MarketplaceSeller: React.FC = () => {
   const { isDarkMode } = useDarkMode();
   const [activeTab, setActiveTab] = useState<string>('My Products');
   const [showSellModal, setShowSellModal] = useState<boolean>(false);
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -45,6 +49,18 @@ const MarketplaceSeller: React.FC = () => {
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState('');
 
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'My Products') {
       setLoading(true);
@@ -56,17 +72,6 @@ const MarketplaceSeller: React.FC = () => {
           return res.json();
         })
         .then(data => {
-          console.log('Products fetched:', data.length);
-          console.log('Products data:', data);
-          // Log image information for each product
-          data.forEach((product: any, index: number) => {
-            console.log(`Product ${index + 1}:`, {
-              name: product.name,
-              image: product.image,
-              hasImage: !!product.image,
-              imageType: typeof product.image
-            });
-          });
           setProducts(data);
           setLoading(false);
         })
@@ -142,12 +147,6 @@ const MarketplaceSeller: React.FC = () => {
         return;
       }
 
-      console.log('=== Product Creation Debug ===');
-      console.log('Token exists:', !!token);
-      console.log('Token length:', token.length);
-      console.log('Form data:', formData);
-          console.log('API URL:', API_URL);
-
       const form = new FormData();
       form.append('name', formData.name.trim());
       form.append('description', formData.description.trim());
@@ -161,21 +160,9 @@ const MarketplaceSeller: React.FC = () => {
       // Only append image if it exists
       if (formData.photos[0]) {
         form.append('image', formData.photos[0]);
-        console.log('Image file attached:', formData.photos[0].name, formData.photos[0].size, formData.photos[0].type);
       }
       
-      // Log the FormData contents for debugging
-      console.log('FormData contents:');
-      for (let [key, value] of form.entries()) {
-        if (value instanceof File) {
-          console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
-        } else {
-          console.log(`${key}: ${value}`);
-        }
-      }
-      
-  const apiUrl = `${API_URL}/api/products`;
-      console.log('Making request to:', apiUrl);
+      const apiUrl = `${API_URL}/api/products`;
       
       const res = await fetch(apiUrl, {
         method: 'POST',
@@ -259,6 +246,91 @@ const MarketplaceSeller: React.FC = () => {
     resetForm();
   };
 
+  const handleEditCancel = (): void => {
+    setShowEditModal(false);
+    setEditingProduct(null);
+    resetForm();
+  };
+
+  const handleEdit = (product: any) => {
+    setEditingProduct(product);
+    setFormData({
+      name: product.name || '',
+      description: product.description || '',
+      currency: product.currency || 'USD ($)',
+      price: product.price || '',
+      type: product.type || 'Physical',
+      location: product.location || '',
+      category: product.category || 'Electronics',
+      totalItemUnits: product.totalItemUnits || '1',
+      photos: []
+    });
+    setImagePreview(product.image ? `${API_URL}/${product.image}` : null);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!formData.name.trim() || !formData.price.trim()) {
+      setError('Product name and price are required');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        return;
+      }
+
+      const form = new FormData();
+      form.append('name', formData.name.trim());
+      form.append('description', formData.description.trim());
+      form.append('currency', formData.currency);
+      form.append('price', formData.price.trim());
+      form.append('type', formData.type);
+      form.append('location', formData.location.trim());
+      form.append('category', formData.category);
+      form.append('totalItemUnits', formData.totalItemUnits || '1');
+      
+      // Only append image if it exists
+      if (formData.photos[0]) {
+        form.append('image', formData.photos[0]);
+      }
+      
+      const response = await fetch(`${API_URL}/api/products/${editingProduct._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: form
+      });
+
+      if (response.ok) {
+        alert('Product updated successfully!');
+        setShowEditModal(false);
+        setEditingProduct(null);
+        handleEditCancel();
+        // Refresh products list
+        if (activeTab === 'My Products') {
+          fetch(`${API_URL}/api/products`)
+            .then(res => res.json())
+            .then(data => setProducts(data))
+            .catch(err => console.error('Error refreshing products:', err));
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || 'Failed to update product');
+      }
+    } catch (err) {
+      setError('Network error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDeleteProduct = async (productId: string) => {
     try {
       const token = localStorage.getItem('token');
@@ -317,51 +389,10 @@ const MarketplaceSeller: React.FC = () => {
 
   // Product Card Component
   const ProductCard: React.FC<{ product: any }> = ({ product }) => {
-    // Helper function to get the correct image URL
-    const getImageUrl = (imagePath: string): string | undefined => {
-      if (!imagePath) return undefined;
-      
-      // If it's already a full URL (starts with http/https), return as is
-      // This handles Cloudinary URLs and other external URLs
-      if (imagePath.startsWith('http')) {
-        return imagePath;
-      }
-      
-      // If it's a relative path (local uploads), prefix with API URL
-      // Always use HTTPS to avoid mixed content errors
-  const apiUrl = API_URL;
-      
-      // Ensure we're using HTTPS
-      const secureUrl = apiUrl.replace('http://', 'https://');
-      
-      // Ensure proper URL construction with forward slash
-      const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-      
-      return `${secureUrl}${cleanPath}`;
-    };
-
-    const imageUrl = getImageUrl(product.image);
-    
-    // Debug logging
-    console.log('Product image debug:', {
-      productName: product.name,
-      originalImage: product.image,
-      processedImageUrl: imageUrl,
-      hasImage: !!product.image,
-      imageType: typeof product.image,
-      imageLength: product.image ? product.image.length : 0
-    });
-    
-    // Test if the image URL is accessible
-    if (imageUrl) {
-      fetch(imageUrl, { method: 'HEAD' })
-        .then(response => {
-          console.log(`✅ Image accessible: ${imageUrl} - Status: ${response.status}`);
-        })
-        .catch(error => {
-          console.error(`❌ Image not accessible: ${imageUrl} - Error:`, error);
-        });
-    }
+    // Simple image URL handling
+    const imageUrl = product.image ? 
+      (product.image.startsWith('http') ? product.image : `${API_URL}/${product.image}`) : 
+      null;
     
     return (
       <div className={`rounded-lg border overflow-hidden hover:shadow-md transition-all duration-200 ${viewMode === 'list' ? 'flex items-center p-4 gap-4' : 'flex flex-col'} ${
@@ -375,12 +406,6 @@ const MarketplaceSeller: React.FC = () => {
             alt={product.name} 
             className={`object-cover ${viewMode === 'list' ? 'w-16 h-16 sm:w-20 sm:h-20 rounded-lg flex-shrink-0' : 'w-full h-32 sm:h-40'}`}
             onError={(e) => {
-              console.error('❌ Image failed to load:', {
-                imageUrl,
-                originalPath: product.image,
-                productName: product.name,
-                productId: product._id
-              });
               e.currentTarget.style.display = 'none';
             }}
           />
@@ -408,11 +433,14 @@ const MarketplaceSeller: React.FC = () => {
             }`}>
               <Eye className="w-4 h-4" />
             </button>
-            <button className={`p-1.5 rounded transition-colors duration-200 ${
-              isDarkMode 
-                ? 'text-gray-400 hover:text-green-400 hover:bg-green-900' 
-                : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-            }`}>
+            <button 
+              onClick={() => handleEdit(product)}
+              className={`p-1.5 rounded transition-colors duration-200 ${
+                isDarkMode 
+                  ? 'text-gray-400 hover:text-green-400 hover:bg-green-900' 
+                  : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+              }`}
+            >
               <Edit className="w-4 h-4" />
             </button>
             <button 
@@ -444,11 +472,14 @@ const MarketplaceSeller: React.FC = () => {
               }`}>
                 <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
-              <button className={`p-1.5 rounded transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-green-400 hover:bg-green-900' 
-                  : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-              }`}>
+              <button 
+                onClick={() => handleEdit(product)}
+                className={`p-1.5 rounded transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'text-gray-400 hover:text-green-400 hover:bg-green-900' 
+                    : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+                }`}
+              >
                 <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
               <button 
@@ -504,51 +535,6 @@ const MarketplaceSeller: React.FC = () => {
               <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{products.length} product{products.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100'
-              }`}>
-                <Search className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-              </button>
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100'
-              }`}>
-                <Filter className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-              </button>
-              {/* View Mode Toggle */}
-              <div className={`hidden sm:flex rounded-lg p-1 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded transition-colors duration-200 ${
-                    viewMode === 'grid' 
-                      ? isDarkMode 
-                        ? 'bg-gray-600 shadow-sm' 
-                        : 'bg-white shadow-sm'
-                      : isDarkMode 
-                        ? 'hover:bg-gray-600' 
-                        : 'hover:bg-gray-200'
-                  }`}
-                >
-                  <Package className={`w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded transition-colors duration-200 ${
-                    viewMode === 'list' 
-                      ? isDarkMode 
-                        ? 'bg-gray-600 shadow-sm' 
-                        : 'bg-white shadow-sm'
-                      : isDarkMode 
-                        ? 'hover:bg-gray-600' 
-                        : 'hover:bg-gray-200'
-                  }`}
-                >
-                  <Menu className={`w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-                </button>
-              </div>
               {/* Sell new product button always visible */}
               <button
                 onClick={() => setShowSellModal(true)}
@@ -618,7 +604,7 @@ const MarketplaceSeller: React.FC = () => {
     <div className={`w-full relative transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
       <header className={`shadow-sm border-b z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-        <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className="px-1 sm:px-3 lg:px-5 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button className={`lg:hidden p-2 rounded-full transition-colors duration-200 ${
@@ -632,21 +618,6 @@ const MarketplaceSeller: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-2 sm:gap-3">
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100'
-              }`}>
-                <Camera className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-              </button>
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
-                  : 'hover:bg-gray-100'
-              }`}>
-                <Users className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
-              </button>
-              
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setShowMobileMenu(true)}
@@ -735,46 +706,69 @@ const MarketplaceSeller: React.FC = () => {
         {renderContent()}
       </main>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] pointer-events-none">
-        <button 
-          onClick={() => setShowSellModal(true)}
-          className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 hover:shadow-xl transition-all flex items-center justify-center group pointer-events-auto"
-          style={{ 
-            position: 'relative',
-            width: '3rem',
-            height: '3rem',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease-in-out'
-          }}
-        >
-          <Plus className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform" />
-        </button>
-      </div>
-
       {/* Sell New Product Modal */}
       {showSellModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`rounded-lg shadow-xl w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 pt-20 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCancel();
+            }
+          }}
+        >
+          <div 
+            className={`rounded-lg shadow-xl w-full max-w-md sm:max-w-lg max-h-[calc(90vh-5rem)] overflow-y-auto scrollbar-hide transition-all duration-300 transform mt-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isMinimized ? 'h-16' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
             {/* Modal Header */}
             <div className={`flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-              <h2 className={`text-lg sm:text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Sell new product</h2>
-              <button
-                onClick={handleCancel}
-                className={`p-2 rounded-full transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gradient-to-r from-blue-500 to-purple-500' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
+                  <Package className="w-4 h-4 text-white" />
+                </div>
+                <h2 className={`text-lg sm:text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Sell new product</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setIsMinimized(!isMinimized);
+                    // On mobile, also scroll to top when minimizing
+                    if (isMobile && !isMinimized) {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title={isMinimized ? "Restore" : "Minimize"}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMinimized ? "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" : "M20 12H4"} />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+            {!isMinimized && (
+              <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
               {/* Name */}
               <div>
                 <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Product Name *</label>
@@ -959,8 +953,10 @@ const MarketplaceSeller: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* Modal Footer */}
+            {!isMinimized && (
             <div className={`flex flex-col sm:flex-row justify-end gap-3 p-4 sm:p-6 border-t sticky bottom-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
               <button
                 onClick={handleCancel}
@@ -974,9 +970,261 @@ const MarketplaceSeller: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmit}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm sm:text-base"
+                disabled={loading}
+                className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 ${
+                  loading 
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600 shadow-lg hover:shadow-xl'
+                }`}
               >
-                Publish Product
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Package className="w-4 h-4" />
+                    Publish Product
+                  </>
+                )}
+              </button>
+            </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {showEditModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 pt-20 z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleEditCancel();
+            }
+          }}
+        >
+          <div 
+            className={`rounded-lg shadow-xl w-full max-w-md sm:max-w-lg max-h-[calc(90vh-5rem)] overflow-y-auto scrollbar-hide transition-all duration-300 transform mt-4 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gradient-to-r from-green-500 to-blue-500' : 'bg-gradient-to-r from-green-600 to-blue-600'}`}>
+                  <Edit className="w-4 h-4 text-white" />
+                </div>
+                <h2 className={`text-lg sm:text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Edit Product</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleEditCancel}
+                  className={`p-2 rounded-full transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+              {/* Name */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Product Name *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Enter product name"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  rows={3}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Enter product description"
+                />
+              </div>
+
+              {/* Price and Currency */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Price *</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                    }`}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Currency</label>
+                  <select
+                    value={formData.currency}
+                    onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    {currencies.map((currency) => (
+                      <option key={currency} value={currency}>{currency}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Category and Type */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Category</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    <option value="Electronics">Electronics</option>
+                    <option value="Clothing">Clothing</option>
+                    <option value="Books">Books</option>
+                    <option value="Home & Garden">Home & Garden</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Type</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    <option value="Physical">Physical</option>
+                    <option value="Digital">Digital</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Location</label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                  placeholder="Enter location"
+                />
+              </div>
+
+              {/* Product Photos */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Product Photos</label>
+                <div className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'border-gray-600 hover:border-gray-500' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageChange} 
+                    className="hidden" 
+                    id="edit-photo-upload"
+                  />
+                  <label htmlFor="edit-photo-upload" className="cursor-pointer">
+                    {imagePreview ? (
+                      <div className="space-y-3">
+                        <img src={imagePreview} alt="Preview" className="mx-auto h-20 w-20 sm:h-24 sm:w-24 object-cover rounded-lg" />
+                        <p className="text-sm text-blue-600">Click to change photo</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Upload className={`w-8 h-8 sm:w-10 sm:h-10 mx-auto transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+                        <div>
+                          <p className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Click to upload photos</p>
+                          <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>PNG, JPG up to 10MB</p>
+                        </div>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`flex flex-col sm:flex-row justify-end gap-3 p-4 sm:p-6 border-t sticky bottom-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <button
+                onClick={handleEditCancel}
+                className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-colors duration-200 font-medium text-sm sm:text-base ${
+                  isDarkMode 
+                    ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600' 
+                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateProduct}
+                disabled={loading}
+                className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base flex items-center justify-center gap-2 ${
+                  loading
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600 shadow-lg hover:shadow-xl'
+                }`}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4" />
+                    Update Product
+                  </>
+                )}
               </button>
             </div>
           </div>

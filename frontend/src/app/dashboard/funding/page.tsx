@@ -1,8 +1,12 @@
 "use client";
 import React, { useState } from 'react';
 import { Plus, DollarSign, ArrowLeft, Upload, Search, Users, Menu, X } from 'lucide-react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 const FundingsPage = () => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const [activeTab, setActiveTab] = useState('My Funding Requests');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

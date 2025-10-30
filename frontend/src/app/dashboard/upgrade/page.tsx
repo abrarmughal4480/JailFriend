@@ -1,8 +1,12 @@
 "use client";
 import React, { useState } from 'react';
 import { ArrowLeft, Crown, Check, Star, Zap, Rocket, Users, Shield, ChevronDown, Menu, X } from 'lucide-react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 const PricingPage = () => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const [selectedPlan, setSelectedPlan] = useState('Hot');
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [showMobileMenu, setShowMobileMenu] = useState(false);

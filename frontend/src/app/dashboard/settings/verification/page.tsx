@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
 import Popup from '@/components/Popup';
+import { useDarkMode } from '@/contexts/DarkModeContext';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface VerificationData {
   username: string;
@@ -17,6 +19,10 @@ interface PopupState {
 }
 
 const ProfileVerificationPage = () => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
   const [loading, setLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(true);
   const [verificationStatus, setVerificationStatus] = useState<{
@@ -210,18 +216,30 @@ const ProfileVerificationPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-8">Verification of the profile!</h1>
+      <div className={`rounded-lg shadow-sm border p-8 transition-colors duration-200 ${
+        isDarkMode 
+          ? 'bg-gray-800 border-gray-700' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <h1 className={`text-2xl font-semibold mb-8 transition-colors duration-200 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>Verification of the profile!</h1>
         
         {/* Verification Status */}
         {statusLoading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-300">Loading verification status...</p>
+            <p className={`transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>Loading verification status...</p>
           </div>
         ) : verificationStatus && verificationStatus.status !== 'none' ? (
-          <div className="mb-8 p-6 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Verification Status</h3>
+          <div className={`mb-8 p-6 rounded-lg transition-colors duration-200 ${
+            isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+          }`}>
+            <h3 className={`text-lg font-semibold mb-4 transition-colors duration-200 ${
+              isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Verification Status</h3>
             
             {verificationStatus.status === 'pending' && (
               <div className="flex items-center gap-3 text-orange-600">
@@ -249,7 +267,9 @@ const ProfileVerificationPage = () => {
             )}
             
             {verificationStatus.verification && (
-              <div className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+              <div className={`mt-4 text-sm transition-colors duration-200 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
                 <p><strong>Submitted:</strong> {new Date(verificationStatus.verification.createdAt).toLocaleDateString()}</p>
                 {verificationStatus.verification.adminNotes && (
                   <p className="mt-2"><strong>Notes:</strong> {verificationStatus.verification.adminNotes}</p>
@@ -262,7 +282,11 @@ const ProfileVerificationPage = () => {
         <div className="space-y-6">
           {/* Show message if already verified or pending */}
           {verificationStatus?.status === 'approved' && (
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className={`p-4 border rounded-lg transition-colors duration-200 ${
+              isDarkMode 
+                ? 'bg-green-900/20 border-green-800' 
+                : 'bg-green-50 border-green-200'
+            }`}>
               <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -273,7 +297,11 @@ const ProfileVerificationPage = () => {
           )}
           
           {verificationStatus?.status === 'pending' && (
-            <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+            <div className={`p-4 border rounded-lg transition-colors duration-200 ${
+              isDarkMode 
+                ? 'bg-orange-900/20 border-orange-800' 
+                : 'bg-orange-50 border-orange-200'
+            }`}>
               <div className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 dark:border-orange-400"></div>
                 <span className="font-medium">Your verification request is pending review.</span>
@@ -291,7 +319,11 @@ const ProfileVerificationPage = () => {
                   value={verificationData.username}
                   onChange={(e) => handleInputChange('username', e.target.value)}
                   placeholder="Username"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-700"
+                  className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'border-gray-600 text-white placeholder-gray-400 bg-gray-700' 
+                      : 'border-gray-300 text-gray-900 placeholder-gray-500 bg-white'
+                  }`}
                 />
               </div>
 
@@ -302,14 +334,22 @@ const ProfileVerificationPage = () => {
                   onChange={(e) => handleInputChange('message', e.target.value)}
                   placeholder="Message"
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-700 resize-vertical"
+                  className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                    isDarkMode 
+                      ? 'border-gray-600 text-white placeholder-gray-400 bg-gray-700' 
+                      : 'border-gray-300 text-gray-900 placeholder-gray-500 bg-white'
+                  }`}
                 />
               </div>
 
               {/* Upload Documents Section */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Upload documents</h3>
-                <p className="text-blue-600 dark:text-blue-400 text-sm mb-4">
+                <h3 className={`text-lg font-semibold mb-2 transition-colors duration-200 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Upload documents</h3>
+                <p className={`text-sm mb-4 transition-colors duration-200 ${
+                  isDarkMode ? 'text-blue-400' : 'text-blue-600'
+                }`}>
                   Please upload a photo with your passport / ID & your distinct photo
                 </p>
 
@@ -317,7 +357,11 @@ const ProfileVerificationPage = () => {
                   {/* Passport/ID Upload */}
                   <div
                     onClick={handlePassportUpload}
-                    className="flex items-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'border-gray-600 hover:bg-gray-700' 
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-4">
                       <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,14 +369,18 @@ const ProfileVerificationPage = () => {
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <p className="text-gray-900 dark:text-white font-medium">
+                      <p className={`font-medium transition-colors duration-200 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {verificationData.passportDocument 
                           ? verificationData.passportDocument.name 
                           : 'Copy of your passport or ID card'
                         }
                       </p>
                       {verificationData.passportDocument && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className={`text-sm transition-colors duration-200 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
                           {(verificationData.passportDocument.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       )}
@@ -349,7 +397,11 @@ const ProfileVerificationPage = () => {
                   {/* Personal Picture Upload */}
                   <div
                     onClick={handlePictureUpload}
-                    className="flex items-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'border-gray-600 hover:bg-gray-700' 
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-4">
                       <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,14 +409,18 @@ const ProfileVerificationPage = () => {
                       </svg>
                     </div>
                     <div className="flex-1">
-                      <p className="text-gray-900 dark:text-white font-medium">
+                      <p className={`font-medium transition-colors duration-200 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                         {verificationData.personalPicture 
                           ? verificationData.personalPicture.name 
                           : 'Your personal picture'
                         }
                       </p>
                       {verificationData.personalPicture && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className={`text-sm transition-colors duration-200 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
                           {(verificationData.personalPicture.size / 1024 / 1024).toFixed(2)} MB
                         </p>
                       )}
@@ -385,7 +441,7 @@ const ProfileVerificationPage = () => {
                 <button
                   onClick={handleSend}
                   disabled={loading}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-blue-500 text-white px-8 py-3 rounded-md font-medium transition-colors duration-200 disabled:cursor-not-allowed"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-8 py-3 rounded-md font-medium transition-colors duration-200 disabled:cursor-not-allowed"
                 >
                   {loading ? 'Submitting...' : 'Submit Verification Request'}
                 </button>
@@ -411,9 +467,17 @@ const ProfileVerificationPage = () => {
         />
 
         {/* Guidelines */}
-        <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 mt-6">
-          <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-200 mb-2">Verification Guidelines:</h4>
-          <ul className="text-sm text-yellow-800 dark:text-yellow-300 space-y-1">
+        <div className={`p-4 border rounded-lg mt-6 transition-colors duration-200 ${
+          isDarkMode 
+            ? 'bg-yellow-900/20 border-yellow-800' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <h4 className={`text-sm font-medium mb-2 transition-colors duration-200 ${
+            isDarkMode ? 'text-yellow-200' : 'text-yellow-900'
+          }`}>Verification Guidelines:</h4>
+          <ul className={`text-sm space-y-1 transition-colors duration-200 ${
+            isDarkMode ? 'text-yellow-300' : 'text-yellow-800'
+          }`}>
             <li>• Upload clear, high-quality photos</li>
             <li>• Ensure all text in documents is readable</li>
             <li>• Personal picture should clearly show your face</li>

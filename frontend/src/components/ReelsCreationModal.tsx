@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createReel, CreateReelData } from '@/utils/reelsApi';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface ReelsCreationModalProps {
   isOpen: boolean;
@@ -24,6 +25,9 @@ interface ReelData {
 }
 
 export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: ReelsCreationModalProps) {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const [step, setStep] = useState<'media-select' | 'create'>('media-select');
   const [selectedMedia, setSelectedMedia] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');

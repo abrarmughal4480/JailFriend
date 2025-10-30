@@ -4,6 +4,7 @@ import { Calendar, Users, Plus, Search, Upload, ArrowLeft, Menu, X } from 'lucid
 import Popup, { PopupState } from '../../../components/Popup';
 import { useRouter } from 'next/navigation';
 import { isAuthenticated, getToken } from '../../../utils/auth';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
 
 interface FormData {
@@ -26,6 +27,9 @@ interface OtherEventsPageProps {
 }
 
 const EventManagement: React.FC = () => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const router = useRouter();
   const [currentRoute, setCurrentRoute] = useState<string>('/events');
   const [routeHistory, setRouteHistory] = useState<string[]>(['/events']);

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Eye, Trash2, Menu, ChevronDown } from 'lucide-react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface Story {
   _id: string;
@@ -40,6 +42,11 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
   onReply,
   onView
 }) => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
+  
   const [currentIndex, setCurrentIndex] = useState(initialStoryIndex);
   const [currentStory, setCurrentStory] = useState<Story>(stories[initialStoryIndex]);
   const [showReplies, setShowReplies] = useState(false);
@@ -63,37 +70,6 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Function to get proper media URL
-  const getMediaUrl = (url: string) => {
-    if (!url) return '/default-avatar.svg';
-    
-    // console.log('🔍 StoryViewer - NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
-    // console.log('🔍 StoryViewer - Original URL:', url);
-    
-    // Handle localhost URLs that might be stored incorrectly
-    if (url.includes('localhost:3000') || url.includes('localhost:3001')) {
-      if (!process.env.NEXT_PUBLIC_API_URL) {
-        console.error('❌ NEXT_PUBLIC_API_URL is not set!');
-        return url;
-      }
-      const correctedUrl = url.replace(/localhost:\d+/, process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, '')).replace('http://', 'http://');
-      // console.log('🔗 StoryViewer - Fixed localhost URL:', { original: url, corrected: correctedUrl });
-      return correctedUrl;
-    }
-    
-    if (url.startsWith('http')) return url;
-    
-    // Remove leading slash to avoid double slashes
-    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    if (!process.env.NEXT_PUBLIC_API_URL) {
-      console.error('❌ NEXT_PUBLIC_API_URL is not set!');
-      return url;
-    }
-    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
-    // console.log('📸 StoryViewer - Original:', url, 'Full:', fullUrl);
-    return fullUrl;
-  };
 
   useEffect(() => {
     setCurrentStory(stories[currentIndex]);
@@ -419,15 +395,15 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
         <div className="relative w-full h-full flex items-center justify-center pb-16 sm:pb-20">
          {currentStory.mediaType === 'image' ? (
            <img
-             src={getMediaUrl(currentStory.media)}
+             src={currentStory.media}
              alt="Story"
              className="w-full h-full object-cover sm:object-contain"
            />
          ) : (
            <video
              ref={videoRef}
-             src={getMediaUrl(currentStory.media)}
-             poster={currentStory.thumbnail ? getMediaUrl(currentStory.thumbnail) : undefined}
+             src={currentStory.media}
+             poster={currentStory.thumbnail}
              className="w-full h-full object-cover sm:object-contain"
              controls
              autoPlay
@@ -624,7 +600,19 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
                     onClick={() => handleReaction(reaction)}
                     className={`p-1 rounded-full hover:bg-opacity-70 transition-all duration-200 hover:scale-110 flex-shrink-0 ${
                       isCurrentReaction || isLocalReaction
-                        ? 'bg-blue-500 text-white' 
+                        ? reaction === 'like' 
+                          ? 'bg-blue-500 text-white'
+                          : reaction === 'love'
+                          ? 'bg-red-500 text-white'
+                          : reaction === 'haha'
+                          ? 'bg-yellow-500 text-white'
+                          : reaction === 'wow'
+                          ? 'bg-purple-500 text-white'
+                          : reaction === 'sad'
+                          ? 'bg-blue-400 text-white'
+                          : reaction === 'angry'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-blue-500 text-white'
                         : 'bg-black bg-opacity-50 text-white'
                     }`}
                     title={reaction}

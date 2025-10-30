@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Play, ThumbsUp, MessageCircle, Share2, MoreHorizontal, Plus, Settings, Users, User, FileText, Heart, Bookmark } from 'lucide-react';
 import axios from 'axios';
 import ReactionPopup, { ReactionType } from '@/components/ReactionPopup';
+import MobileReactionPopup from '@/components/MobileReactionPopup';
 import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
 
@@ -64,13 +66,14 @@ interface VideoPostProps {
 }
 
 function extractYoutubeId(url: string) {
+  if (!url || url.trim() === '') return '';
   const regExp = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([\w-]{11})/;
   const match = url.match(regExp);
   return match ? match[1] : '';
 }
 
 function getMediaUrl(url: string) {
-  if (!url) return '';
+  if (!url || url.trim() === '') return null;
   if (url.startsWith('http')) return url;
   
   // Always use HTTPS to avoid mixed content errors
@@ -83,6 +86,9 @@ function getMediaUrl(url: string) {
 }
 
 const WatchPage: React.FC = () => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
   const { isDarkMode } = useDarkMode();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,6 +101,19 @@ const WatchPage: React.FC = () => {
   const [reactionButtonHovered, setReactionButtonHovered] = useState<string | null>(null);
   const [showReactionsTemporarily, setShowReactionsTemporarily] = useState<string | null>(null);
   const [isReacting, setIsReacting] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Get current user ID from localStorage
   useEffect(() => {
@@ -542,12 +561,12 @@ const WatchPage: React.FC = () => {
     };
 
     return (
-      <div className={`rounded-lg shadow-sm border mb-6 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+      <div className={`rounded-xl shadow-lg border mb-8 transition-all duration-300 hover:shadow-xl ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`}>
         {/* Post Header */}
-        <div className="p-4 pb-2">
+        <div className="p-6 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
+              <div className="w-12 h-12 rounded-full overflow-hidden mr-4 ring-2 ring-blue-500/20">
                   <img 
                     src={video.user.avatar ? (video.user.avatar.startsWith('http') ? video.user.avatar : `${API_URL}/${video.user.avatar}`) : '/avatars/1.png.png'} 
                   alt={video.user.name}
@@ -559,21 +578,21 @@ const WatchPage: React.FC = () => {
                 />
               </div>
               <div className="flex-1">
-                <div className="flex items-center">
-                  <span className="font-medium text-gray-900 mr-2">{video.user.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{video.user.name}</span>
                   {video.user.verified && (
-                    <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center mr-2">
-                      <span className="text-white text-xs">✓</span>
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">✓</span>
                     </div>
                   )}
                   {video.user.isPro && (
-                    <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded font-medium mr-2">
+                    <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                       PRO
                     </span>
                   )}
                   {getSourceBadge()}
                 </div>
-                <div className="text-sm text-gray-500">{formatTimeAgo(video.createdAt)}</div>
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{formatTimeAgo(video.createdAt)}</div>
               </div>
             </div>
             <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
@@ -583,22 +602,22 @@ const WatchPage: React.FC = () => {
         </div>
 
         {/* Post Content */}
-        <div className="px-4 pb-2">
+        <div className="px-6 pb-4">
           {video.hashtag && (
-            <p className="text-blue-600 text-sm mb-3">{video.hashtag}</p>
+            <p className="text-blue-500 text-sm mb-3 font-medium">{video.hashtag}</p>
           )}
           {video.title && (
-            <p className="font-medium text-gray-900 mb-1">{video.title}</p>
+            <p className={`font-bold text-xl mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{video.title}</p>
           )}
           {video.description && (
-            <p className="text-gray-600 text-sm mb-3">{video.description}</p>
+            <p className={`text-base mb-4 leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{video.description}</p>
           )}
         </div>
 
         {/* Video Container */}
-        <div className="relative bg-black mx-4 mb-4 rounded-lg overflow-hidden" style={{aspectRatio: '16/9'}}>
+        <div className="relative bg-black mx-6 mb-6 rounded-xl overflow-hidden shadow-2xl" style={{aspectRatio: '16/9'}}>
           {playingVideoId === video._id ? (
-            video.isYoutube ? (
+            video.isYoutube && extractYoutubeId(video.videoUrl) ? (
               <iframe
                 width="100%"
                 height="100%"
@@ -608,9 +627,9 @@ const WatchPage: React.FC = () => {
                 allowFullScreen
                 className="w-full h-full"
               />
-            ) : (
+            ) : getMediaUrl(video.videoUrl) ? (
               <video
-                src={getMediaUrl(video.videoUrl)}
+                src={getMediaUrl(video.videoUrl)!}
                 controls
                 autoPlay
                 className="w-full h-full object-cover"
@@ -625,6 +644,13 @@ const WatchPage: React.FC = () => {
                   }
                 }}
               />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                <div className="text-white text-center">
+                  <div className="text-lg font-medium mb-2">Video Not Available</div>
+                  <div className="text-sm text-gray-400">Invalid video URL</div>
+                </div>
+              </div>
             )
           ) : (
             <>
@@ -649,7 +675,7 @@ const WatchPage: React.FC = () => {
           {/* Play Button */}
           <div className="absolute inset-0 flex items-center justify-center">
                 <button
-                  className="w-16 h-16 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center shadow-lg transition-colors"
+                  className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-blue-500/25"
                   onClick={async () => {
                     setPlayingVideoId(video._id);
                     
@@ -675,7 +701,7 @@ const WatchPage: React.FC = () => {
                     }
                   }}
                 >
-              <Play className="w-8 h-8 text-white ml-1" />
+              <Play className="w-10 h-10 text-white ml-1 drop-shadow-lg" />
             </button>
           </div>
           {/* YouTube Badge */}
@@ -697,34 +723,46 @@ const WatchPage: React.FC = () => {
           )}
         </div>
 
-                {/* Post Actions - Same as Feed Posts */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center justify-center space-x-8">
+                {/* Post Actions - Enhanced */}
+        <div className="px-6 pb-6">
+          <div className="flex items-center justify-center space-x-12">
             {/* React Button */}
             <div className="relative flex flex-col items-center">
               <button 
                 onMouseEnter={() => handleReactionButtonMouseEnter(video._id)}
                 onMouseLeave={() => handleReactionButtonMouseLeave(video._id)}
                 onClick={() => onLike(video._id, video.category || 'video')}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                  getCurrentReaction(video) ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 ${
+                  getCurrentReaction(video) ? 'bg-gradient-to-r from-red-100 to-pink-100 text-red-500 shadow-lg' : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-600 hover:from-gray-200 hover:to-gray-300 hover:shadow-md'
                 }`}
               >
-                <span className="text-xl">{getMostCommonReactionEmoji(video)}</span>
+                <span className="text-2xl">{getMostCommonReactionEmoji(video)}</span>
               </button>
-              <span className="text-xs text-gray-600 mt-1">React</span>
+              <span className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>React</span>
               
               {/* Reaction Popup */}
               <div
                 onMouseEnter={handleReactionPopupMouseEnter}
                 onMouseLeave={handleReactionPopupMouseLeave}
               >
-                <ReactionPopup
+                {/* Desktop Reaction Popup */}
+                <div className="hidden sm:block">
+                  <ReactionPopup
+                    isOpen={showReactionPopup === video._id}
+                    onClose={() => setShowReactionPopup(null)}
+                    onReaction={(reactionType) => handleReaction(video._id, reactionType, video.category || 'video')}
+                    currentReaction={getCurrentReaction(video)}
+                    position="top"
+                  />
+                </div>
+                
+                {/* Mobile Reaction Popup */}
+                <MobileReactionPopup
                   isOpen={showReactionPopup === video._id}
                   onClose={() => setShowReactionPopup(null)}
                   onReaction={(reactionType) => handleReaction(video._id, reactionType, video.category || 'video')}
                   currentReaction={getCurrentReaction(video)}
-                  position="top"
+                  isReacting={isReacting}
                 />
               </div>
             </div>
@@ -732,7 +770,7 @@ const WatchPage: React.FC = () => {
             {/* Comment Button */}
             <div className="flex flex-col items-center">
               <button 
-                className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors"
+                className="w-14 h-14 bg-gradient-to-r from-blue-100 to-blue-200 rounded-full flex items-center justify-center text-blue-600 hover:from-blue-200 hover:to-blue-300 transition-all duration-300 hover:scale-110 hover:shadow-md"
                 onClick={() => {
                   const commentInput = document.querySelector(`input[placeholder="Add a comment..."]`) as HTMLInputElement;
                   if (commentInput) {
@@ -740,22 +778,39 @@ const WatchPage: React.FC = () => {
                   }
                 }}
               >
-                <MessageCircle className="w-5 h-5" />
+                <MessageCircle className="w-6 h-6" />
               </button>
-              <span className="text-xs text-gray-600 mt-1">Comment</span>
+              <span className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Comment</span>
             </div>
             
             {/* Share Button */}
             <div className="flex flex-col items-center">
                 <button 
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                  isShared ? 'bg-green-100 text-green-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 ${
+                  isShared ? 'bg-gradient-to-r from-green-100 to-green-200 text-green-600 shadow-lg' : 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-600 hover:from-purple-200 hover:to-purple-300 hover:shadow-md'
                 }`}
-                  onClick={() => onShare(video._id, video.category || 'video')}
+                  onClick={() => {
+                    // Enhanced share functionality
+                    if (navigator.share) {
+                      navigator.share({
+                        title: video.title || 'Check out this video',
+                        text: video.description || 'Amazing video content',
+                        url: window.location.href
+                      }).catch(console.error);
+                    } else {
+                      // Fallback to copy link
+                      navigator.clipboard.writeText(window.location.href).then(() => {
+                        alert('Link copied to clipboard!');
+                      }).catch(() => {
+                        alert('Unable to copy link. Please try again.');
+                      });
+                    }
+                    onShare(video._id, video.category || 'video');
+                  }}
                 >
-                  <Share2 className="w-5 h-5" />
+                  <Share2 className="w-6 h-6" />
                 </button>
-              <span className="text-xs text-gray-600 mt-1">Share</span>
+              <span className={`text-xs mt-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Share</span>
             </div>
             
             {/* Review Button */}
@@ -1091,7 +1146,7 @@ const WatchPage: React.FC = () => {
   return (
     <div className={`w-full h-full overflow-y-auto scrollbar-hide transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className={`border-b px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+      <div className={`border-b px-4 sm:px-6 py-2 sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} ml-1 mr-5`}>
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div>
             <h1 className={`text-2xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Watch</h1>
@@ -1100,29 +1155,6 @@ const WatchPage: React.FC = () => {
                 {videos.length} video{videos.length !== 1 ? 's' : ''} from feed
               </p>
             )}
-          </div>
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={() => fetchAllVideos(true)}
-              disabled={refreshing}
-              className={`p-2 rounded-full transition-colors disabled:opacity-50 ${isDarkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-              title="Refresh videos"
-            >
-              <div className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </div>
-            </button>
-            <button className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
-              <Settings className="w-5 h-5" />
-            </button>
-            <button className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
-              <Users className="w-5 h-5" />
-            </button>
-            <button className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}>
-              <User className="w-6 h-6" />
-            </button>
           </div>
         </div>
       </div>
@@ -1160,15 +1192,6 @@ const WatchPage: React.FC = () => {
         <Plus className="w-6 h-6" />
       </button>
 
-      {/* Side Icons */}
-      <div className="fixed right-6 top-1/2 transform -translate-y-1/2 space-y-4">
-        <button className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
-          <User className="w-5 h-5" />
-        </button>
-        <button className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
-          <Settings className="w-5 h-5" />
-        </button>
-      </div>
     </div>
   );
 };

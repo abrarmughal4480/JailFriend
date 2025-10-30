@@ -1,8 +1,12 @@
 "use client";
 import React, { useState } from 'react';
 import { Plus, Search, Users, Settings, Menu, X, MapPin } from 'lucide-react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 const FindFriendsPage = () => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [mapZoom, setMapZoom] = useState(4);
   const [showPanel, setShowPanel] = useState(false);

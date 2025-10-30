@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Video, FileText, Globe, Lock, Users, Eye } from 'lucide-react';
 import { getCurrentUser } from '@/utils/auth';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface StoryCreationModalProps {
   isOpen: boolean;
@@ -13,6 +15,11 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
   onClose,
   onSuccess
 }) => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
+  
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -35,36 +42,16 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
       return '/default-avatar.svg';
     }
     
-  return `${process.env.NEXT_PUBLIC_API_URL}/${avatarUrl}`;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/${avatarUrl}`;
   };
 
   useEffect(() => {
-    if (isOpen) {
-      // Disable scrolling
-      document.body.style.overflow = 'hidden';
-      // Prevent scroll on mobile
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-      
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-      // Get current user info when modal opens
-      const user = getCurrentUser();
-      setCurrentUser(user);
-    } else {
-      // Re-enable scrolling
-      document.body.style.overflow = 'unset';
-      document.body.style.position = 'unset';
-      document.body.style.width = 'unset';
+    if (isOpen && textareaRef.current) {
+      textareaRef.current.focus();
     }
-
-    // Cleanup function to restore scrolling when component unmounts
-    return () => {
-      document.body.style.overflow = 'unset';
-      document.body.style.position = 'unset';
-      document.body.style.width = 'unset';
-    };
+    // Get current user info when modal opens
+    const user = getCurrentUser();
+    setCurrentUser(user);
   }, [isOpen]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,7 +117,7 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
       formData.append('content', content.trim());
       formData.append('privacy', privacy);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stories`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/stories`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -185,25 +172,24 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 bg-black/20 backdrop-blur-md">
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[80vh] overflow-y-auto scrollbar-hide">
-        <div className="p-4 sm:p-6 relative">
-          {/* Close Button */}
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
+      <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-white'} rounded-2xl w-full max-w-md max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide`}>
+        {/* Header */}
+        <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
           <button
             onClick={handleClose}
             disabled={isUploading}
-            className="absolute top-4 right-4 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+            className={`p-2 rounded-full transition-colors disabled:opacity-50 ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
           >
-            ×
+            <X className="w-5 h-5" />
           </button>
-          
-          
-          <div className="text-center">
-            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-900 dark:text-white break-words">
-              Create New Story
-            </h3>
+          <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Create New Story
+          </h2>
+          <div className="w-10" /> {/* Spacer for centering */}
+        </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        <form onSubmit={handleSubmit} className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Content Input */}
           <div>
                           <textarea
@@ -211,18 +197,22 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="What is going on..."
-                className="w-full min-h-[80px] sm:min-h-[100px] p-2 sm:p-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base"
+                className={`w-full min-h-[80px] sm:min-h-[100px] p-2 sm:p-3 border rounded-xl resize-none text-sm sm:text-base ${
+                  isDarkMode 
+                    ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:ring-blue-500 focus:border-transparent' 
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-transparent'
+                }`}
                 disabled={isUploading}
                 maxLength={500}
               />
-            <div className="text-right text-xs text-gray-500 mt-1">
+            <div className={`text-right text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               {content.length}/500
             </div>
           </div>
 
           {/* Media Upload */}
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className={`block text-xs sm:text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Media File
             </label>
             
@@ -231,7 +221,11 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="w-full p-3 sm:p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-blue-500 dark:hover:border-blue-400 transition-colors flex items-center justify-center gap-2 sm:gap-3 text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 text-xs sm:text-sm"
+                className={`w-full p-3 sm:p-4 border-2 border-dashed rounded-xl transition-colors flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm ${
+                  isDarkMode 
+                    ? 'border-gray-600 hover:border-blue-400 text-gray-400 hover:text-blue-400' 
+                    : 'border-gray-300 hover:border-blue-500 text-gray-600 hover:text-blue-500'
+                }`}
               >
                 {mediaType === 'video' ? (
                   <Video className="w-6 h-6" />
@@ -303,7 +297,7 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
                 >
                   <X className="w-4 h-4" />
                 </button>
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className={`mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(1)}MB)
                 </div>
               </div>
@@ -321,7 +315,7 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
 
           {/* Privacy Settings */}
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className={`block text-xs sm:text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Privacy
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -335,11 +329,11 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
                   type="button"
                   onClick={() => setPrivacy(option.value as any)}
                   disabled={isUploading}
-                                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
-                  privacy === option.value
-                    ? option.color + ' border-current'
-                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
-                }`}
+                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all ${
+                    privacy === option.value
+                      ? option.color + ' border-current'
+                      : `${isDarkMode ? 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500' : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'}`
+                  }`}
                 >
                   <option.icon className="w-5 h-5 mx-auto mb-1" />
                   <div className="text-xs font-medium leading-tight">{option.label}</div>
@@ -350,7 +344,7 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
 
           {/* Error Display */}
           {error && (
-            <div className="p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm flex items-center gap-2">
+            <div className={`p-3 border rounded-lg text-sm flex items-center gap-2 ${isDarkMode ? 'bg-red-900/20 border-red-700 text-red-400' : 'bg-red-100 border-red-300 text-red-700'}`}>
               <span>⚠️</span>
               {error}
             </div>
@@ -359,11 +353,11 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
           {/* Upload Progress */}
           {isUploading && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+              <div className={`flex items-center justify-between text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <span>Uploading story...</span>
                 <span>{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div className={`w-full rounded-full h-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                 <div
                   className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
@@ -372,28 +366,25 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
             </div>
           )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isUploading || !selectedFile}
-                className="w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 text-sm sm:text-base touch-manipulation bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style={{ touchAction: 'manipulation' }}
-              >
-                {isUploading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="w-5 h-5" />
-                    Create Story
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={isUploading || !selectedFile}
+            className="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-medium py-2 sm:py-3 px-4 sm:px-6 rounded-xl transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            {isUploading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <FileText className="w-5 h-5" />
+                Create
+              </>
+            )}
+          </button>
+        </form>
       </div>
       
       <style jsx>{`
@@ -402,14 +393,6 @@ const StoryCreationModal: React.FC<StoryCreationModalProps> = ({
           scrollbar-width: none;
         }
         .scrollbar-hide::-webkit-scrollbar { 
-          display: none;
-          width: 0;
-          height: 0;
-        }
-        .scrollbar-hide::-webkit-scrollbar-track {
-          display: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar-thumb {
           display: none;
         }
       `}</style>

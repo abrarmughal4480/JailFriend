@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, Users, Settings, MessageCircle, Calendar, MapPin, Globe, Lock, Eye, EyeOff, UserPlus, UserMinus, Crown, Shield, Trash2, Edit3, MoreHorizontal, ChevronDown, Check, X, Star, Heart, Share2, Bookmark, Flag, Bell, BellOff, Menu as MenuIcon, ArrowLeft, FileText, Upload, Smile } from 'lucide-react';
 import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
+import { useGroupTheme } from '@/contexts/GroupThemeContext';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface FormData {
   name: string;
@@ -60,8 +62,12 @@ interface Group {
 }
 
 const GroupsPage: React.FC = () => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
   const router = useRouter();
   const { isDarkMode } = useDarkMode();
+  const { currentGroupTheme } = useGroupTheme();
   const [activeTab, setActiveTab] = useState<string>('My Groups');
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -607,7 +613,14 @@ const GroupsPage: React.FC = () => {
     console.log(`Group ${group.name}: userId=${userId}, isMember=${isMember}, isAdmin=${isAdmin}, isCreator=${isCreator}`);
 
     return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer transform" onClick={() => router.push(`/dashboard/groups/${group._id}`)}>
+    <div 
+      className="rounded-lg border overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer transform" 
+      onClick={() => router.push(`/dashboard/groups/${group._id}`)}
+      style={{
+        backgroundColor: currentGroupTheme?.backgroundColor || '#ffffff',
+        borderColor: currentGroupTheme?.secondaryColor || '#e5e7eb'
+      }}
+    >
       <div className="relative">
         <img 
             src={group.avatar || group.coverPhoto || '/avatars/1.png.png'} onError={(e) => { console.log('❌ Avatar load failed for user:', group.avatar || group.coverPhoto || '/avatars/1.png.png'); e.currentTarget.src = '/default-avatar.svg'; }} 
@@ -658,10 +671,13 @@ const GroupsPage: React.FC = () => {
             {isMember || isAdmin || isCreator ? (
             <>
               <button 
-                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   // Handle chat functionality
+                }}
+                style={{
+                  backgroundColor: currentGroupTheme?.primaryColor || '#3b82f6'
                 }}
               >
                 <MessageCircle className="w-4 h-4" />
@@ -709,7 +725,10 @@ const GroupsPage: React.FC = () => {
                   e.stopPropagation();
                   handleJoinGroup(group._id);
                 }}
-              className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+              className="w-full text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: currentGroupTheme?.primaryColor || '#3b82f6'
+              }}
             >
               Join Group
             </button>
@@ -855,10 +874,22 @@ const GroupsPage: React.FC = () => {
   );
 
   return (
-    <div className="w-full">
+    <div 
+      className="w-full transition-colors duration-200"
+      style={{
+        backgroundColor: currentGroupTheme?.backgroundColor || '#f9fafb',
+        color: currentGroupTheme?.textColor || '#1f2937'
+      }}
+    >
       
       {/* Header */}
-      <div className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+      <div 
+        className="border-b sticky top-0 z-30 transition-colors duration-200"
+        style={{
+          backgroundColor: currentGroupTheme?.backgroundColor || (isDarkMode ? '#1f2937' : '#ffffff'),
+          borderColor: currentGroupTheme?.secondaryColor || (isDarkMode ? '#374151' : '#e5e7eb')
+        }}
+      >
         <div className="px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -932,11 +963,16 @@ const GroupsPage: React.FC = () => {
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
                   activeTab === tab
-                    ? 'bg-blue-100 text-blue-700'
+                    ? 'text-white'
                     : isDarkMode 
                       ? 'text-gray-300 hover:text-white hover:bg-gray-700' 
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
+                style={{
+                  backgroundColor: activeTab === tab 
+                    ? (currentGroupTheme?.primaryColor || '#3b82f6')
+                    : 'transparent'
+                }}
               >
                 {tab}
               </button>
@@ -1050,7 +1086,12 @@ const GroupsPage: React.FC = () => {
       {/* Floating Action Button */}
       <button
         onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors flex items-center justify-center z-30"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 text-white rounded-full shadow-lg transition-colors flex items-center justify-center z-30"
+        style={{
+          background: currentGroupTheme 
+            ? `linear-gradient(135deg, ${currentGroupTheme.primaryColor}, ${currentGroupTheme.secondaryColor})`
+            : '#2563eb'
+        }}
       >
         <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>

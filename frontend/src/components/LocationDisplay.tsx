@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface LocationData {
   name: string;
@@ -30,6 +31,9 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
   showCoordinates = false,
   className = ''
 }) => {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   if (!location) return null;
 
   // Function to open location in maps

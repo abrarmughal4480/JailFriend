@@ -119,7 +119,7 @@ const ChangePasswordPage = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/password/change`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/password/change`, { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ const ChangePasswordPage = () => {
       
       // Get current user ID and navigate to profile page
       try {
-        const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
+        const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/profile/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -409,7 +409,7 @@ const ChangePasswordPage = () => {
           <button
             onClick={handleSave}
             disabled={loading}
-            className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white px-8 py-3 rounded-md font-medium transition-all duration-200 disabled:cursor-not-allowed shadow-lg disabled:transform-none"
+            className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white px-8 py-3 rounded-md font-medium transition-all duration-200 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
           >
             {loading ? 'Saving...' : 'Save'}
           </button>

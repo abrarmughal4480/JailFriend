@@ -4,10 +4,13 @@ import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import PostOptionsDropdown from './PostOptionsDropdown';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
+import MobileReactionPopup from './MobileReactionPopup';
 import { toggleCommentsApi, pinPostApi, boostPostApi } from '@/utils/api';
 import SharePopup, { ShareOptions } from './SharePopup';
 import { getCurrentUserId } from '@/utils/auth';
 import LocationDisplay from './LocationDisplay';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface FeedPostProps {
   post: any;
@@ -36,7 +39,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
   isOwnPost,
   onWatch
 }) => {
+  // Ensure system dark mode has no effect - force light theme by default
+  useSystemThemeOverride();
   
+  const { isDarkMode } = useDarkMode();
 
   const router = useRouter();
   const [showCommentInput, setShowCommentInput] = useState(false);
@@ -57,12 +63,25 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const [isPinning, setIsPinning] = useState(false);
   const [isBoosting, setIsBoosting] = useState(false);
   const [expandedPosts, setExpandedPosts] = useState<{[key: string]: boolean}>({});
+  const [isMobile, setIsMobile] = useState(false);
 
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const mediaPickerRef = useRef<HTMLDivElement>(null);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
   const reactionPopupWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent | TouchEvent) => {
@@ -106,7 +125,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
     
     // Remove leading slash to avoid double slashes
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
+    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/${cleanUrl}`;
     return fullUrl;
   };
 
@@ -171,7 +190,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       setIsReacting(true);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/reaction`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/reaction`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -410,7 +429,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       if (rating && !isNaN(Number(rating)) && Number(rating) >= 1 && Number(rating) <= 5) {
         const reviewText = prompt('Write your review (optional):');
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/review`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/review`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -450,7 +469,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       // Check if user has already voted
       if (post.poll.userVote && post.poll.userVote.includes(optionIndex)) {
         // Remove vote
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/poll/vote`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/poll/vote`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -472,7 +491,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         }
       } else {
         // Add vote
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/poll/vote`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/poll/vote`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -589,7 +608,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       console.log('Editing comment:', { commentId, editCommentText, postId: post._id });
       
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/comment/${commentId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/comment/${commentId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -640,7 +659,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       console.log('Deleting comment:', { commentId, postId: post._id });
       
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/comment/${commentId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts/${post._id}/comment/${commentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -751,7 +770,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload/post-media`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/upload/post-media`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1016,7 +1035,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-3 sm:mb-4 transition-colors duration-200">
+    <div className={`${isDarkMode ? 'bg-gray-800 border-white' : 'bg-white border-white'} rounded-xl shadow-sm border mb-3 sm:mb-4 transition-colors duration-200`}>
       {/* Promoted Post Indicator - Show when post has reactions/likes */}
       {(() => {
         const hasReactions = post.reactions && post.reactions.length > 0;
@@ -1062,7 +1081,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       })()}
       
     
-      <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-700">
+      <div className="p-3 sm:p-4 border-b border-white dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-3">
           
@@ -1088,7 +1107,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <div 
-                  className="font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate"
+                  className="font-bold text-black dark:text-white cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate"
                   onClick={navigateToProfile}
                 >
                   {post.user?.name || 'User'}
@@ -1168,7 +1187,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Title for posts and reels - Display first */}
         {post.title && (
           <div className="mb-2 sm:mb-3">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white">
               {post.title}
             </h3>
           </div>
@@ -1177,7 +1196,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Fallback title for reels without titles */}
         {post.type === 'reel' && !post.title && (
           <div className="mb-2 sm:mb-3">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white text-gray-500">
+            <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white">
               Untitled Reel
             </h3>
           </div>
@@ -1187,7 +1206,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Content with word limit and Read More */}
         <div 
-          className="text-gray-900 dark:text-white text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-2 transition-colors"
+          className="text-black dark:text-white text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer transition-colors"
           onClick={() => onWatch && onWatch(post)}
         >
           {(() => {
@@ -1584,7 +1603,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
         {/* Single Reaction Display - Shows all reactions like Jaifriend */}
         {post.reactions && Array.isArray(post.reactions) && post.reactions.length > 0 && (
-          <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-600">
+          <div className="px-4 py-2 border-b border-white dark:border-gray-600">
             <div className="flex flex-wrap gap-2">
               {(() => {
                 const reactionCounts: { [key: string]: number } = {};
@@ -1639,17 +1658,64 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 style={{ touchAction: 'manipulation' }}
                 ref={reactionButtonRef}
               >
-                {/* Reaction Button - Same size as other buttons */}
-                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                {/* Reaction Button - Enhanced styling */}
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg ${
+                  getCurrentReaction() 
+                    ? getCurrentReaction() === 'like' 
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                      : getCurrentReaction() === 'love'
+                      ? 'bg-red-500 hover:bg-red-600 text-white'
+                      : getCurrentReaction() === 'haha'
+                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                      : getCurrentReaction() === 'wow'
+                      ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                      : getCurrentReaction() === 'sad'
+                      ? 'bg-blue-400 hover:bg-blue-500 text-white'
+                      : getCurrentReaction() === 'angry'
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                }`}>
                   {isReacting ? (
-                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-white"></div>
                   ) : (
-                    <span className="text-lg sm:text-xl md:text-2xl">
-                      👍
+                    <span className="text-lg sm:text-xl md:text-2xl drop-shadow-sm">
+                      {getCurrentReaction() 
+                        ? getCurrentReaction() === 'like' 
+                          ? '👍' 
+                          : getCurrentReaction() === 'love'
+                          ? '❤️'
+                          : getCurrentReaction() === 'haha'
+                          ? '😂'
+                          : getCurrentReaction() === 'wow'
+                          ? '😮'
+                          : getCurrentReaction() === 'sad'
+                          ? '😢'
+                          : getCurrentReaction() === 'angry'
+                          ? '😠'
+                          : '👍'
+                        : '👍'
+                      }
                     </span>
                   )}
                 </div>
-                <span className="text-xs sm:text-sm md:text-base font-medium text-gray-600 hover:text-pink-600 transition-colors">
+                <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${
+                  getCurrentReaction() 
+                    ? getCurrentReaction() === 'like' 
+                      ? 'text-blue-600 dark:text-blue-400' 
+                      : getCurrentReaction() === 'love'
+                      ? 'text-red-600 dark:text-red-400'
+                      : getCurrentReaction() === 'haha'
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : getCurrentReaction() === 'wow'
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : getCurrentReaction() === 'sad'
+                      ? 'text-blue-500 dark:text-blue-400'
+                      : getCurrentReaction() === 'angry'
+                      ? 'text-red-700 dark:text-red-500'
+                      : 'text-gray-600 dark:text-gray-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400'
+                }`}>
                   {isReacting ? 'Processing...' : (getCurrentReaction() ? getReactionText(getCurrentReaction()!) : 'Like')}
                 </span>
               </button>
@@ -1658,34 +1724,45 @@ const FeedPost: React.FC<FeedPostProps> = ({
               
               {/* Reaction Popup */}
               {showReactionPopup && (
-                <div 
-                  ref={reactionPopupWrapperRef} 
-                  className="absolute bottom-full left-0 mb-2 z-[99999] pointer-events-auto"
-                  style={{
-                    // Ensure visibility on mobile
-                    zIndex: 99999,
-                    position: 'absolute'
-                  }}
-                >
-                  <ReactionPopup
+                <>
+                  {/* Desktop Reaction Popup */}
+                  <div 
+                    ref={reactionPopupWrapperRef} 
+                    className="absolute bottom-full left-0 mb-2 z-[99999] pointer-events-auto hidden sm:block"
+                    style={{
+                      zIndex: 99999,
+                      position: 'absolute'
+                    }}
+                  >
+                    <ReactionPopup
+                      isOpen={showReactionPopup}
+                      onClose={() => setShowReactionPopup(false)}
+                      onReaction={handleReaction}
+                      currentReaction={getCurrentReaction()}
+                      position="top"
+                      isReacting={isReacting}
+                    />
+                  </div>
+                  
+                  {/* Mobile Reaction Popup */}
+                  <MobileReactionPopup
                     isOpen={showReactionPopup}
                     onClose={() => setShowReactionPopup(false)}
                     onReaction={handleReaction}
                     currentReaction={getCurrentReaction()}
-                    position="top"
                     isReacting={isReacting}
                   />
-                </div>
+                </>
               )}
             </div>
             
             {/* Comment Button */}
             <button
               onClick={() => setShowComments(!showComments)}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-blue-600 transition-colors touch-manipulation"
+              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors touch-manipulation"
               style={{ touchAction: 'manipulation' }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all duration-200 shadow-md hover:shadow-lg">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
                 </svg>
@@ -1696,10 +1773,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* Share Button */}
             <button
               onClick={handleShare}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-green-600 transition-colors touch-manipulation"
+              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors touch-manipulation"
               style={{ touchAction: 'manipulation' }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-green-100 dark:hover:bg-green-900/20 transition-all duration-200 shadow-md hover:shadow-lg">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
                 </svg>
@@ -1710,10 +1787,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* Review Button */}
             <button
               onClick={handleReview}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-yellow-600 transition-colors touch-manipulation px-1"
+              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-gray-300 hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors touch-manipulation px-1"
               style={{ touchAction: 'manipulation' }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-yellow-100 dark:hover:bg-yellow-900/20 transition-all duration-200 shadow-md hover:shadow-lg">
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                 </svg>
@@ -1724,19 +1801,23 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* Save Button */}
             <button
               onClick={handleSave}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-purple-600 transition-colors touch-manipulation"
+              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition-colors touch-manipulation"
               style={{ touchAction: 'manipulation' }}
             >
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-md hover:shadow-lg ${
                 isPostSaved() 
-                  ? 'bg-purple-100 dark:bg-gray-900/20 text-purple-600 dark:text-purple-400' 
-                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' 
+                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-purple-100 dark:hover:bg-purple-900/20'
               }`}>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill={isPostSaved() ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                 </svg>
               </div>
-              <span className="text-xs sm:text-sm md:text-base font-medium">{isPostSaved() ? 'Saved' : 'Save'}</span>
+              <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${
+                isPostSaved() 
+                  ? 'text-purple-600 dark:text-purple-400' 
+                  : 'text-gray-600 dark:text-gray-300'
+              }`}>{isPostSaved() ? 'Saved' : 'Save'}</span>
             </button>
           </div>
           

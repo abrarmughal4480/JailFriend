@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AuthGuard from '../../components/AuthGuard';
 import DasboardLayout from '../../components/DasboardLayout';
+import { GroupThemeProvider } from '../../contexts/GroupThemeContext';
+import { useSystemThemeOverride } from '../../hooks/useSystemThemeOverride';
 
 // Height context for auto-detecting remaining height
 interface HeightContextType {
@@ -27,6 +29,9 @@ export const useHeight = () => {
 
 // Height provider component
 const HeightProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
   const [headerHeight, setHeaderHeight] = useState(64); // Default navbar height
   const [remainingHeight, setRemainingHeight] = useState(0);
 
@@ -95,17 +100,19 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard requireAuth={true} redirectTo="/">
-      <HeightProvider>
-        <DasboardLayout>
-          <div className="w-full max-w-full overflow-x-hidden" style={{ 
-            width: '100%',
-            maxWidth: '100%',
-            boxSizing: 'border-box'
-          }}>
-            {children}
-          </div>
-        </DasboardLayout>
-      </HeightProvider>
+      <GroupThemeProvider>
+        <HeightProvider>
+          <DasboardLayout>
+            <div className="w-full max-w-full overflow-x-hidden" style={{ 
+              width: '100%',
+              maxWidth: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {children}
+            </div>
+          </DasboardLayout>
+        </HeightProvider>
+      </GroupThemeProvider>
     </AuthGuard>
   );
 }

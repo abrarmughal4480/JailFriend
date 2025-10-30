@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Popup from '@/components/Popup';
+import { useDarkMode } from '@/contexts/DarkModeContext';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface NotificationSettings {
   someonelikedMyPosts: boolean;
@@ -24,6 +26,10 @@ interface PopupState {
 }
 
 const NotificationSettingsPage = () => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
   const [activeTab, setActiveTab] = useState('notification');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -185,24 +191,36 @@ const NotificationSettingsPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Notification Settings</h1>
+      <div className={`rounded-lg shadow-sm border p-6 transition-colors duration-200 ${
+        isDarkMode 
+          ? 'bg-gray-800 border-gray-700' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <h1 className={`text-2xl font-semibold mb-6 transition-colors duration-200 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>Notification Settings</h1>
         
         {initialLoading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 dark:border-blue-400"></div>
-            <span className="ml-3 text-gray-600 dark:text-gray-300">Loading settings...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span className={`ml-3 transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>Loading settings...</span>
           </div>
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex mb-6 border-b border-gray-200 dark:border-gray-700">
+            <div className={`flex mb-6 border-b transition-colors duration-200 ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
               <button
                 onClick={() => setActiveTab('notification')}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'notification'
-                    ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    ? 'border-blue-500 text-blue-600'
+                    : isDarkMode 
+                      ? 'border-transparent text-gray-400 hover:text-gray-200'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
                 Notification Settings
@@ -211,8 +229,10 @@ const NotificationSettingsPage = () => {
                 onClick={() => setActiveTab('email')}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ml-6 ${
                   activeTab === 'email'
-                    ? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    ? 'border-blue-500 text-blue-600'
+                    : isDarkMode 
+                      ? 'border-transparent text-gray-400 hover:text-gray-200'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
                 Email notification
@@ -223,7 +243,9 @@ const NotificationSettingsPage = () => {
             {activeTab === 'notification' ? (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Notify me when</h3>
+                  <h3 className={`text-lg font-medium mb-4 transition-colors duration-200 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Notify me when</h3>
                   
                   <div className="space-y-4">
                     {notificationOptions.map((option) => (
@@ -234,7 +256,9 @@ const NotificationSettingsPage = () => {
                             id={option.key}
                             checked={settings?.[option.key as keyof NotificationSettings] || false}
                             onChange={(e) => handleSettingChange(option.key as keyof NotificationSettings, e.target.checked)}
-                            className="h-5 w-5 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                            className={`h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-colors duration-200 ${
+                              isDarkMode ? 'border-gray-600' : 'border-gray-300'
+                            }`}
                           />
                           {settings?.[option.key as keyof NotificationSettings] && (
                             <svg
@@ -252,7 +276,9 @@ const NotificationSettingsPage = () => {
                         </div>
                         <label 
                           htmlFor={option.key}
-                          className="ml-3 text-sm text-gray-700 dark:text-gray-200 cursor-pointer"
+                          className={`ml-3 text-sm cursor-pointer transition-colors duration-200 ${
+                            isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                          }`}
                         >
                           {option.label}
                         </label>
@@ -262,8 +288,12 @@ const NotificationSettingsPage = () => {
                 </div>
 
                 {/* Notification Sound Toggle */}
-                <div className="border-t pt-6 border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Notification Preferences</h3>
+                <div className={`border-t pt-6 transition-colors duration-200 ${
+                  isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                  <h3 className={`text-lg font-medium mb-4 transition-colors duration-200 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Notification Preferences</h3>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
@@ -273,7 +303,9 @@ const NotificationSettingsPage = () => {
                             id="notificationSound"
                             checked={settings?.notificationSound || false}
                             onChange={(e) => handleSettingChange('notificationSound', e.target.checked)}
-                            className="h-5 w-5 text-blue-600 dark:text-blue-400 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                            className={`h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 transition-colors duration-200 ${
+                              isDarkMode ? 'border-gray-600' : 'border-gray-300'
+                            }`}
                           />
                           {settings?.notificationSound && (
                             <svg
@@ -291,7 +323,9 @@ const NotificationSettingsPage = () => {
                         </div>
                         <label 
                           htmlFor="notificationSound"
-                          className="ml-3 text-sm text-gray-700 dark:text-gray-200 cursor-pointer"
+                          className={`ml-3 text-sm cursor-pointer transition-colors duration-200 ${
+                            isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                          }`}
                         >
                           Play notification sound
                         </label>
@@ -315,12 +349,18 @@ const NotificationSettingsPage = () => {
                           }
                         }}
                         disabled={!settings?.notificationSound}
-                        className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-400 dark:disabled:text-gray-600 text-gray-600 dark:text-gray-200 rounded-md transition-colors"
+                        className={`px-3 py-1 text-xs rounded-md transition-colors duration-200 ${
+                          isDarkMode 
+                            ? 'bg-gray-800 hover:bg-gray-700 disabled:bg-gray-900 disabled:text-gray-600 text-gray-200'
+                            : 'bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-600'
+                        }`}
                       >
                         Test
                       </button>
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
+                    <p className={`text-sm ml-8 transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                       Play a sound when you receive new notifications
                     </p>
                   </div>
@@ -331,7 +371,7 @@ const NotificationSettingsPage = () => {
                   <button
                     onClick={handleSave}
                     disabled={loading}
-                    className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-900 text-white px-8 py-3 rounded-md font-medium transition-colors duration-200 disabled:cursor-not-allowed"
+                    className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white px-8 py-3 rounded-md font-medium transition-colors duration-200 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Saving...' : 'Save'}
                   </button>
@@ -340,13 +380,21 @@ const NotificationSettingsPage = () => {
             ) : (
               <div className="space-y-6">
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-200 ${
+                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                    <svg className={`w-8 h-8 transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Email Notifications</h3>
-                  <p className="text-gray-600 dark:text-gray-300">Email notification settings will be implemented here.</p>
+                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
+                    isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Email Notifications</h3>
+                  <p className={`transition-colors duration-200 ${
+                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                  }`}>Email notification settings will be implemented here.</p>
                 </div>
               </div>
             )}

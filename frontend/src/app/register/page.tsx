@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDarkMode } from '../../contexts/DarkModeContext';
+import { useSystemThemeOverride } from '../../hooks/useSystemThemeOverride';
 
 
 interface RegisterForm {
@@ -31,6 +32,9 @@ interface PopupState {
 }
 
 export default function Register(): React.ReactElement {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
   const { isDarkMode } = useDarkMode();
   const [formData, setFormData] = useState<RegisterForm>({
     username: '',

@@ -1,5 +1,6 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 
@@ -12,13 +13,13 @@ interface ReactionPopupProps {
   isReacting?: boolean;
 }
 
-const reactions: { type: ReactionType; emoji: string; label: string; color: string }[] = [
-  { type: 'like', emoji: '👍', label: 'Like', color: 'bg-blue-500' },
-  { type: 'love', emoji: '❤️', label: 'Love', color: 'bg-red-500' },
-  { type: 'haha', emoji: '😂', label: 'Haha', color: 'bg-yellow-500' },
-  { type: 'wow', emoji: '😮', label: 'Wow', color: 'bg-yellow-500' },
-  { type: 'sad', emoji: '😢', label: 'Sad', color: 'bg-yellow-500' },
-  { type: 'angry', emoji: '😠', label: 'Angry', color: 'bg-orange-500' }
+const reactions: { type: ReactionType; emoji: string; label: string; lightColor: string; darkColor: string }[] = [
+  { type: 'like', emoji: '👍', label: 'Like', lightColor: 'bg-blue-500', darkColor: 'bg-blue-600' },
+  { type: 'love', emoji: '❤️', label: 'Love', lightColor: 'bg-red-500', darkColor: 'bg-red-600' },
+  { type: 'haha', emoji: '😂', label: 'Haha', lightColor: 'bg-yellow-500', darkColor: 'bg-yellow-600' },
+  { type: 'wow', emoji: '😮', label: 'Wow', lightColor: 'bg-purple-500', darkColor: 'bg-purple-600' },
+  { type: 'sad', emoji: '😢', label: 'Sad', lightColor: 'bg-gray-500', darkColor: 'bg-gray-600' },
+  { type: 'angry', emoji: '😠', label: 'Angry', lightColor: 'bg-orange-500', darkColor: 'bg-orange-600' }
 ];
 
 export default function ReactionPopup({ 
@@ -29,20 +30,9 @@ export default function ReactionPopup({
   position = 'top',
   isReacting
 }: ReactionPopupProps) {
+  const { isDarkMode } = useDarkMode();
+  
   const popupRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Check if device is mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -69,7 +59,7 @@ export default function ReactionPopup({
         // Prevent outside mousedown listener from closing before click handlers run
         e.stopPropagation();
       }}
-      className={`relative z-[99999] bg-white rounded-full shadow-xl border border-gray-200 p-3 pointer-events-auto max-w-sm mx-auto`}
+      className={`relative z-[99999] ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} rounded-full shadow-xl border p-3 pointer-events-auto max-w-sm mx-auto hidden sm:block`}
       style={{
         zIndex: 99999,
         position: 'relative',
@@ -87,31 +77,29 @@ export default function ReactionPopup({
               onReaction(reaction.type);
               onClose();
             }}
-            onTouchEnd={(e) => {
-              // Don't call preventDefault on passive events
-              e.stopPropagation();
-              onReaction(reaction.type);
-              onClose();
-            }}
             disabled={isReacting}
-            className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${
-              reaction.color
+            className={`w-10 h-10 rounded-full flex items-center justify-center text-lg hover:scale-110 transition-all duration-200 ${
+              isDarkMode 
+                ? `${reaction.darkColor} text-white` 
+                : `${reaction.lightColor} text-white`
             } ${
               currentReaction === reaction.type 
-                ? `ring-2 ring-blue-300 ring-offset-1` 
+                ? `${isDarkMode ? 'ring-2 ring-blue-400 ring-offset-1' : 'ring-2 ring-blue-300 ring-offset-1'}` 
                 : 'hover:shadow-md'
             } ${
               isReacting ? 'opacity-50 cursor-not-allowed' : ''
             }`}
+            style={{
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+            }}
             title={isReacting ? 'Processing...' : reaction.label}
-            style={{ touchAction: 'manipulation' }}
           >
             {isReacting ? (
-              <div className={`animate-spin rounded-full border-b-2 border-white ${
-                isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5'
-              }`}></div>
+              <div className={`animate-spin rounded-full border-b-2 h-4 w-4 ${isDarkMode ? 'border-white' : 'border-white'}`}></div>
             ) : (
-              reaction.emoji
+              <span className="text-xl" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                {reaction.emoji}
+              </span>
             )}
           </button>
         ))}

@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Settings, LogOut, Heart, Bookmark, Camera } from 'lucide-react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface ProfileNavigationProps {
   className?: string;
@@ -16,6 +18,11 @@ interface User {
 }
 
 export default function ProfileNavigation({ className = '' }: ProfileNavigationProps) {
+  // Ensure system dark mode has no effect
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
+  
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -94,7 +101,9 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
       {/* Profile Button */}
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700 transition-colors"
+        className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${
+          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+        }`}
       >
         <img
           src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/${user.avatar}`) : '/default-avatar.svg'}
@@ -105,10 +114,10 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
             e.currentTarget.src = '/default-avatar.svg';
           }}
         />
-        <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <span className={`hidden sm:block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
           {user.name}
         </span>
-        <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        <User className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
       </button>
 
       {/* Dropdown Menu */}
@@ -121,10 +130,14 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
           />
           
           {/* Menu */}
-          <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-dark-800 rounded-lg shadow-lg border border-gray-200 dark:border-dark-700 z-20">
+          <div className={`absolute right-0 top-full mt-2 w-56 rounded-lg shadow-lg border z-20 ${
+            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="p-2">
               {/* User Info */}
-              <div className="px-3 py-2 border-b border-gray-100 dark:border-dark-700">
+              <div className={`px-3 py-2 border-b ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-100'
+              }`}>
                 <div className="flex items-center gap-3">
                   <img
                       src={user.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${process.env.NEXT_PUBLIC_API_URL}/${user.avatar}`) : '/default-avatar.svg'}
@@ -136,8 +149,8 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
                     }}
                   />
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{user.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">@{user.username}</p>
+                    <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name}</p>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>@{user.username}</p>
                   </div>
                 </div>
               </div>
@@ -149,7 +162,11 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
                     navigateToProfile();
                     setShowDropdown(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-md transition-colors"
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left rounded-md transition-colors ${
+                    isDarkMode 
+                      ? 'text-gray-300 hover:bg-gray-700' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
                   <User className="w-4 h-4" />
                   <span>My Profile</span>
@@ -160,7 +177,11 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
                     navigateToAlbums();
                     setShowDropdown(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-md transition-colors"
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left rounded-md transition-colors ${
+                    isDarkMode 
+                      ? 'text-gray-300 hover:bg-gray-700' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
                   <Camera className="w-4 h-4" />
                   <span>My Albums</span>
@@ -171,7 +192,11 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
                     navigateToSaved();
                     setShowDropdown(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-md transition-colors"
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left rounded-md transition-colors ${
+                    isDarkMode 
+                      ? 'text-gray-300 hover:bg-gray-700' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
                   <Bookmark className="w-4 h-4" />
                   <span>Saved Posts</span>
@@ -182,7 +207,11 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
                     navigateToSettings();
                     setShowDropdown(false);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-md transition-colors"
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-left rounded-md transition-colors ${
+                    isDarkMode 
+                      ? 'text-gray-300 hover:bg-gray-700' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
                 >
                   <Settings className="w-4 h-4" />
                   <span>Settings</span>
@@ -190,7 +219,9 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
               </div>
 
               {/* Divider */}
-              <div className="border-t border-gray-100 dark:border-dark-700 my-1"></div>
+              <div className={`border-t my-1 ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-100'
+              }`}></div>
 
               {/* Logout */}
               <button
@@ -198,7 +229,11 @@ export default function ProfileNavigation({ className = '' }: ProfileNavigationP
                   handleLogout();
                   setShowDropdown(false);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                className={`w-full flex items-center gap-3 px-3 py-2 text-left rounded-md transition-colors ${
+                  isDarkMode 
+                    ? 'text-red-400 hover:bg-red-900/20' 
+                    : 'text-red-600 hover:bg-red-50'
+                }`}
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout</span>

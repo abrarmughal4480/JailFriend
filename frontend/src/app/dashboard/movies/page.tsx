@@ -1,5 +1,5 @@
 "use client";
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Play, Clock, Globe, Eye, Star } from 'lucide-react';
 import Popup from '@/components/Popup';
@@ -233,7 +233,7 @@ export default function MoviesPage() {
                   <img
                     src={movie.poster || '/placeholder-movie.jpg'}
                     alt={movie.title}
-                    className="w-full h-48 sm:h-56 object-cover transition-transform duration-300"
+                    className="w-full h-48 sm:h-56 object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
                     <Play className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

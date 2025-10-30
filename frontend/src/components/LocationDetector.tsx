@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface LocationData {
   name: string;
@@ -26,6 +27,9 @@ const LocationDetector: React.FC<LocationDetectorProps> = ({
   onLocationSelect, 
   disabled = false
 }) => {
+
+  useSystemThemeOverride();
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 

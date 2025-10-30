@@ -6,6 +6,7 @@ import Popup from '@/components/Popup';
 import { usePrivacy } from '@/contexts/PrivacyContext';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { PrivacySettings, calculatePrivacyLevel, getPrivacyLevelText } from '@/utils/privacyUtils';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface PopupState {
   isOpen: boolean;
@@ -15,6 +16,9 @@ interface PopupState {
 }
 
 const PrivacySettingsPage = () => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
   const router = useRouter();
   const { isDarkMode } = useDarkMode();
   const { privacySettings, updatePrivacySettings, loading: contextLoading } = usePrivacy();
@@ -166,26 +170,48 @@ const PrivacySettingsPage = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto p-6 min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-8">Privacy Setting</h1>
+    <div className={`max-w-4xl mx-auto p-6 min-h-screen transition-colors duration-200 ${
+      isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+    }`}>
+      <div className={`rounded-lg shadow-sm border p-8 transition-colors duration-200 ${
+        isDarkMode 
+          ? 'bg-gray-800 border-gray-700' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <h1 className={`text-2xl font-semibold mb-8 transition-colors duration-200 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>Privacy Setting</h1>
         
         {/* Privacy Level Indicator */}
         {localSettings && (
-          <div className="mb-6 p-4 bg-blue-50 dark:bg-gray-700 rounded-lg border border-blue-200 dark:border-gray-600">
+          <div className={`mb-6 p-4 rounded-lg border transition-colors duration-200 ${
+            isDarkMode 
+              ? 'bg-gray-700 border-gray-600' 
+              : 'bg-blue-50 border-blue-200'
+          }`}>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-medium text-blue-900 dark:text-blue-400">Privacy Level</h3>
-              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+              <h3 className={`text-lg font-medium transition-colors duration-200 ${
+                isDarkMode ? 'text-blue-400' : 'text-blue-900'
+              }`}>Privacy Level</h3>
+              <span className={`text-sm font-medium transition-colors duration-200 ${
+                isDarkMode ? 'text-blue-300' : 'text-blue-700'
+              }`}>
                 {getPrivacyLevelText(calculatePrivacyLevel(localSettings))}
               </span>
             </div>
-            <div className="w-full bg-blue-200 dark:bg-gray-600 rounded-full h-2 mb-2">
+            <div className={`w-full rounded-full h-2 mb-2 transition-colors duration-200 ${
+              isDarkMode ? 'bg-gray-600' : 'bg-blue-200'
+            }`}>
               <div 
-                className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300"
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  isDarkMode ? 'bg-blue-500' : 'bg-blue-600'
+                }`}
                 style={{ width: `${calculatePrivacyLevel(localSettings)}%` }}
               ></div>
             </div>
-            <p className="text-sm text-blue-700 dark:text-gray-300">
+            <p className={`text-sm transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-300' : 'text-blue-700'
+            }`}>
               {calculatePrivacyLevel(localSettings)}% - Your profile is {getPrivacyLevelText(calculatePrivacyLevel(localSettings)).toLowerCase()}
             </p>
           </div>
@@ -193,16 +219,24 @@ const PrivacySettingsPage = () => {
         
         <div className="space-y-6">
           {privacyOptions.map((option, index) => (
-            <div key={option.key} className="border-b border-gray-200 dark:border-gray-600 pb-4">
+            <div key={option.key} className={`border-b pb-4 transition-colors duration-200 ${
+              isDarkMode ? 'border-gray-600' : 'border-gray-200'
+            }`}>
               <div className="mb-2">
-                <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">
+                <label className={`block text-sm mb-1 transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}>
                   {option.question}
                 </label>
                 <div className="relative">
                   <select
                     value={localSettings[option.key as keyof PrivacySettings]}
                     onChange={(e) => handleSettingChange(option.key as keyof PrivacySettings, e.target.value)}
-                    className="w-full max-w-xs px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium text-base cursor-pointer rounded-md"
+                    className={`w-full max-w-xs px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium text-base cursor-pointer transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'text-white bg-gray-700 border-gray-600' 
+                        : 'text-gray-900 bg-white border-gray-300'
+                    }`}
                     style={{ 
                       colorScheme: isDarkMode ? 'dark' : 'light'
                     }}
@@ -211,14 +245,18 @@ const PrivacySettingsPage = () => {
                       <option 
                         key={optionValue} 
                         value={optionValue}
-                        className="bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        className={`transition-colors duration-200 ${
+                          isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'
+                        }`}
                       >
                         {optionValue}
                       </option>
                     ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-400'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>

@@ -77,7 +77,7 @@ const AdminPayments = () => {
             <Link key={index} href={item.href}>
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 cursor-pointer group">
             <div className="flex items-center gap-4 mb-4">
-                  <div className={`w-12 h-12 ${item.color} rounded-lg flex items-center justify-center text-white transition-transform duration-200`}>
+                  <div className={`w-12 h-12 ${item.color} rounded-lg flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-200`}>
                 {item.icon}
               </div>
                   <div className="flex-1">

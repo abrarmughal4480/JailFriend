@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import Popup from '@/components/Popup';
+import { useDarkMode } from '@/contexts/DarkModeContext';
+import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface SocialLinks {
   facebook: string;
@@ -19,6 +21,10 @@ interface PopupState {
 }
 
 const SocialLinksPage = () => {
+  // Ensure system dark mode has no effect - especially for mobile systems
+  useSystemThemeOverride();
+  
+  const { isDarkMode } = useDarkMode();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [popup, setPopup] = useState<PopupState>({
@@ -144,10 +150,16 @@ const SocialLinksPage = () => {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+        <div className={`rounded-lg shadow-sm border p-8 transition-colors duration-200 ${
+          isDarkMode 
+            ? 'bg-gray-800 border-gray-700' 
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-300">Loading social links...</p>
+            <p className={`transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>Loading social links...</p>
           </div>
         </div>
       </div>
@@ -156,10 +168,18 @@ const SocialLinksPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-8">Social Links</h1>
+      <div className={`rounded-lg shadow-sm border p-8 transition-colors duration-200 ${
+        isDarkMode 
+          ? 'bg-gray-800 border-gray-700' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <h1 className={`text-2xl font-semibold mb-8 transition-colors duration-200 ${
+          isDarkMode ? 'text-white' : 'text-gray-900'
+        }`}>Social Links</h1>
         
-        <p className="text-gray-600 dark:text-gray-300 mb-6">
+        <p className={`mb-6 transition-colors duration-200 ${
+          isDarkMode ? 'text-gray-300' : 'text-gray-600'
+        }`}>
           Add your social media usernames to connect with others and build your network.
         </p>
         
@@ -169,7 +189,9 @@ const SocialLinksPage = () => {
             <div key={platform.key} className="relative">
               <div className="flex items-center gap-3 mb-2">
                 <span className="text-xl">{platform.icon}</span>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
+                <label className={`text-sm font-medium capitalize transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   {platform.key}
                 </label>
               </div>
@@ -178,7 +200,11 @@ const SocialLinksPage = () => {
                 value={socialLinks[platform.key as keyof SocialLinks]}
                 onChange={(e) => handleInputChange(platform.key as keyof SocialLinks, e.target.value)}
                 placeholder={platform.placeholder}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-700"
+                className={`w-full px-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'border-gray-600 text-white placeholder-gray-400 bg-gray-700' 
+                    : 'border-gray-300 text-gray-900 placeholder-gray-500 bg-white'
+                }`}
               />
             </div>
           ))}
@@ -189,7 +215,7 @@ const SocialLinksPage = () => {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-blue-500 text-white px-8 py-3 rounded-md font-medium transition-colors duration-200 disabled:cursor-not-allowed"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-8 py-3 rounded-md font-medium transition-colors duration-200 disabled:cursor-not-allowed"
           >
             {saving ? 'Saving...' : 'Save Social Links'}
           </button>
