@@ -695,6 +695,7 @@ exports.addReaction = async (req, res) => {
       return res.status(400).json({ message: 'Invalid reaction type' });
     }
 
+    // First check if album exists and get current reactions
     const album = await Album.findById(albumId);
     if (!album) {
       return res.status(404).json({ message: 'Album not found' });
@@ -705,35 +706,58 @@ exports.addReaction = async (req, res) => {
       reaction => reaction.user.toString() === userId.toString()
     );
 
+    let updatedAlbum;
+
     if (existingReactionIndex !== -1) {
       const existingReaction = album.reactions[existingReactionIndex];
       
-      // If same reaction type, remove it (toggle off)
+      // If same reaction type, remove it (toggle off) using atomic operation
       if (existingReaction.type === reactionType) {
-        album.reactions.splice(existingReactionIndex, 1);
+        updatedAlbum = await Album.findByIdAndUpdate(
+          albumId,
+          { $pull: { reactions: { user: userId } } },
+          { new: true }
+        );
       } else {
-        // If different reaction type, update it
-        existingReaction.type = reactionType;
+        // If different reaction type, update it using atomic operation with user filter
+        updatedAlbum = await Album.findOneAndUpdate(
+          { 
+            _id: albumId,
+            'reactions.user': userId
+          },
+          { 
+            $set: { 
+              'reactions.$.type': reactionType 
+            } 
+          },
+          { new: true }
+        );
       }
     } else {
-      // Add new reaction
-      album.reactions.push({
-        user: userId,
-        type: reactionType,
-        createdAt: new Date()
-      });
+      // Add new reaction using atomic operation
+      updatedAlbum = await Album.findByIdAndUpdate(
+        albumId,
+        { 
+          $push: { 
+            reactions: {
+              user: userId,
+              type: reactionType,
+              createdAt: new Date()
+            }
+          } 
+        },
+        { new: true }
+      );
     }
-
-    await album.save();
     
     // Populate user info for response
-    await album.populate('user', 'name avatar');
-    await album.populate('reactions.user', 'name avatar');
+    await updatedAlbum.populate('user', 'name avatar');
+    await updatedAlbum.populate('reactions.user', 'name avatar');
 
     res.json({
       message: 'Reaction updated successfully',
-      album: album,
-      reactionCount: album.reactions.length
+      album: updatedAlbum,
+      reactionCount: updatedAlbum.reactions.length
     });
   } catch (err) {
     console.error('Error adding reaction:', err);

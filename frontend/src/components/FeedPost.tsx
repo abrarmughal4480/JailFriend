@@ -49,8 +49,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
-  const [showReactionPopup, setShowReactionPopup] = useState(false);
-  const [reactionButtonHovered, setReactionButtonHovered] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
   const [isTogglingComments, setIsTogglingComments] = useState(false);
@@ -61,7 +59,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const mediaPickerRef = useRef<HTMLDivElement>(null);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
-  const reactionPopupWrapperRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -71,17 +68,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
       }
       if (mediaPickerRef.current && !mediaPickerRef.current.contains(event.target as Node)) {
         setShowMediaPicker(false);
-      }
-      
-      if (showReactionPopup) {
-        const buttonEl = reactionButtonRef.current;
-        const popupEl = reactionPopupWrapperRef.current;
-        const targetNode = event.target as Node;
-        const clickInsideButton = !!(buttonEl && buttonEl.contains(targetNode));
-        const clickInsidePopup = !!(popupEl && popupEl.contains(targetNode));
-        if (!clickInsideButton && !clickInsidePopup) {
-          setShowReactionPopup(false);
-        }
       }
     };
 
@@ -93,7 +79,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [showReactionPopup]);
+  }, []);
 
   const getMediaUrl = (url: string) => {
     if (!url) return '/default-avatar.svg';
@@ -210,7 +196,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
       alert(errorMessage);
     } finally {
       setIsReacting(false);
-      setShowReactionPopup(false);
     }
   };
 
@@ -1621,68 +1606,33 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Bottom Section: Action Buttons */}
         <div className="flex items-center justify-start md:justify-between py-3 sm:py-4 md:py-6 px-2 sm:px-4 md:px-6">
           <div className="flex items-center space-x-4 sm:space-x-8 md:space-x-16">
-            {/* Reaction Button */}
+            {/* Reaction Button with ReactionPopup Component */}
             <div className="relative">
-              {/* Main Reaction Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Handle click on all devices
-                  setShowReactionPopup(!showReactionPopup);
-                }}
-                onTouchStart={(e) => {
-                  // Don't call preventDefault on passive events
-                  e.stopPropagation();
-                }}
-                onTouchEnd={(e) => {
-                  // Don't call preventDefault on passive events
-                  e.stopPropagation();
-                  // Handle touch on mobile devices
-                  setShowReactionPopup(!showReactionPopup);
-                }}
-                disabled={isReacting}
-                className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                style={{ touchAction: 'manipulation' }}
-                ref={reactionButtonRef}
+              <ReactionPopup
+                onReaction={handleReaction}
+                currentReaction={getCurrentReaction()}
               >
-                {/* Reaction Button - Same size as other buttons */}
-                <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                  {isReacting ? (
-                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
-                  ) : (
-                    <span className="text-lg sm:text-xl md:text-2xl">
-                      👍
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs sm:text-sm md:text-base font-medium text-gray-600 hover:text-pink-600 transition-colors">
-                  {isReacting ? 'Processing...' : (getCurrentReaction() ? getReactionText(getCurrentReaction()!) : 'Like')}
-                </span>
-              </button>
-              
-
-              
-              {/* Reaction Popup */}
-              {showReactionPopup && (
-                <div 
-                  ref={reactionPopupWrapperRef} 
-                  className="absolute bottom-full left-0 mb-2 z-[99999] pointer-events-auto"
-                  style={{
-                    // Ensure visibility on mobile
-                    zIndex: 99999,
-                    position: 'absolute'
-                  }}
+                <button
+                  disabled={isReacting}
+                  className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  style={{ touchAction: 'manipulation' }}
+                  ref={reactionButtonRef}
                 >
-                  <ReactionPopup
-                    isOpen={showReactionPopup}
-                    onClose={() => setShowReactionPopup(false)}
-                    onReaction={handleReaction}
-                    currentReaction={getCurrentReaction()}
-                    position="top"
-                    isReacting={isReacting}
-                  />
-                </div>
-              )}
+                  {/* Reaction Button - Same size as other buttons */}
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                    {isReacting ? (
+                      <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
+                    ) : (
+                      <span className="text-lg sm:text-xl md:text-2xl">
+                        👍
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs sm:text-sm md:text-base font-medium text-gray-600 hover:text-pink-600 transition-colors">
+                    {isReacting ? 'Processing...' : (getCurrentReaction() ? getReactionText(getCurrentReaction()!) : 'Like')}
+                  </span>
+                </button>
+              </ReactionPopup>
             </div>
             
             {/* Comment Button */}

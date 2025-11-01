@@ -1,11 +1,12 @@
 "use client";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import SharePopup, { ShareOptions } from './SharePopup';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
+
 
 interface AlbumDisplayProps {
   album: any;
@@ -39,14 +40,7 @@ export default function AlbumDisplay({
   const [commentText, setCommentText] = useState('');
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [showSharePopup, setShowSharePopup] = useState(false);
-  const [showReactionPopup, setShowReactionPopup] = useState(false);
-  const [reactionTimeout, setReactionTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [showReactionsTemporarily, setShowReactionsTemporarily] = useState(false);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
-  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; alignRight: boolean } | null>(null);
-  const justOpenedRef = useRef(false);
-  const backdropReadyRef = useRef(false);
-  const popupOpenTimeRef = useRef<number>(0);
 
   // Check video format support and diagnose album issues
   useEffect(() => {
@@ -75,67 +69,6 @@ export default function AlbumDisplay({
     trackView();
   }, [album._id]);
 
-  // Calculate popup position based on button position
-  const updatePopupPosition = useCallback(() => {
-    if (!reactionButtonRef.current) {
-      setPopupPosition(null);
-      return;
-    }
-    
-    const button = reactionButtonRef.current;
-    const rect = button.getBoundingClientRect();
-    const scrollY = window.scrollY || window.pageYOffset;
-    const scrollX = window.scrollX || window.pageXOffset;
-    
-    // Estimate popup width (approx 200px for reactions)
-    const popupWidth = 200;
-    const popupHeight = 60;
-    const spacing = 10;
-    
-    // Position at top-right of button (preferred position)
-    let top = rect.top + scrollY - popupHeight - spacing;
-    let left = rect.right + scrollX; // Popup left edge at button right edge
-    let alignRight = true; // Use translateX(-100%) to align right edges
-    
-    // Ensure popup doesn't go off screen
-    // Check right boundary - if popup would go off screen on the right
-    if (left + popupWidth > window.innerWidth + scrollX) {
-      // Position to the left of button instead
-      left = rect.left + scrollX; // Popup left edge at button left edge
-      alignRight = false; // No transform needed, already aligned
-    }
-    
-    // Check top boundary
-    if (top < scrollY) {
-      top = rect.bottom + scrollY + spacing; // Position below button instead
-    }
-    
-    // Check left boundary - if popup would go off screen on the left
-    if (left < scrollX) {
-      left = scrollX + 10; // Add some padding from left edge
-      alignRight = false; // No transform needed
-    }
-    
-    setPopupPosition({ top, left, alignRight });
-  }, []);
-
-  useEffect(() => {
-    if (showReactionPopup) {
-      // Calculate position immediately
-      updatePopupPosition();
-
-      // Update position on scroll and resize
-      window.addEventListener('scroll', updatePopupPosition, true);
-      window.addEventListener('resize', updatePopupPosition);
-      
-      return () => {
-        window.removeEventListener('scroll', updatePopupPosition, true);
-        window.removeEventListener('resize', updatePopupPosition);
-      };
-    } else {
-      setPopupPosition(null);
-    }
-  }, [showReactionPopup, updatePopupPosition]);
 
   const getMediaUrl = (url: string) => {
     try {
@@ -432,14 +365,45 @@ export default function AlbumDisplay({
   // Get current user's reaction
   const getCurrentReaction = (): ReactionType | null => {
     if (album.reactions && Array.isArray(album.reactions)) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        // In a real app, you'd decode the token to get userId
-        // For now, we'll check if any reaction exists
-        return album.reactions.length > 0 ? album.reactions[0].type : null;
-      }
+      const currentUserId = getCurrentUserId();
+      // Find user's specific reaction
+      const userReaction = album.reactions.find((r: any) => {
+        if (typeof r.user === 'string') {
+          return r.user === currentUserId;
+        } else if (r.user && typeof r.user === 'object') {
+          return r.user._id === currentUserId || r.user.userId === currentUserId;
+        }
+        return r.userId === currentUserId;
+      });
+      return userReaction ? userReaction.type : null;
     }
     return null;
+  };
+
+  // Get emoji for specific reaction type
+  const getReactionEmoji = (reactionType: ReactionType | null): string => {
+    const reactionEmojis: { [key: string]: string } = {
+      'like': '👍',
+      'love': '❤️',
+      'haha': '😂',
+      'wow': '😮',
+      'sad': '😢',
+      'angry': '😠'
+    };
+    return reactionType ? reactionEmojis[reactionType] || '👍' : '👍';
+  };
+
+  // Get text for specific reaction type
+  const getReactionText = (reactionType: ReactionType | null): string => {
+    const reactionTexts: { [key: string]: string } = {
+      'like': 'Like',
+      'love': 'Love',
+      'haha': 'Haha',
+      'wow': 'Wow',
+      'sad': 'Sad',
+      'angry': 'Angry'
+    };
+    return reactionType ? reactionTexts[reactionType] || 'Like' : 'Like';
   };
 
   // Get reaction count
@@ -477,35 +441,10 @@ export default function AlbumDisplay({
     return '👍';
   };
 
-  const handleReactionButtonMouseEnter = () => {
-    if (reactionTimeout) {
-      clearTimeout(reactionTimeout);
-    }
-    setShowReactionPopup(true);
-  };
-
-  const handleReactionButtonMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setShowReactionPopup(false);
-    }, 300);
-    setReactionTimeout(timeout);
-  };
-
-  const handleReactionPopupMouseEnter = () => {
-    if (reactionTimeout) {
-      clearTimeout(reactionTimeout);
-    }
-  };
-
-  const handleReactionPopupMouseLeave = () => {
-    setShowReactionPopup(false);
-  };
-
   const handleReaction = (reactionType: ReactionType) => {
     if (onReaction) {
       onReaction(album._id, reactionType);
     }
-    setShowReactionPopup(false);
   };
 
   // Get current user ID for save checking
@@ -701,127 +640,35 @@ export default function AlbumDisplay({
       {/* Social Actions */}
       <div className="flex items-center justify-between py-3 sm:py-4 md:py-6 px-2 sm:px-4 md:px-6">
         <div className="flex items-center space-x-4 sm:space-x-8 md:space-x-16">
-          {/* Reaction Button */}
+          {/* Reaction Button with ReactionPopup Component */}
           <div className="relative">
-            {/* Main Reaction Button */}
-            <button 
-              ref={reactionButtonRef}
-              onClick={(e) => {
-                // Prevent event from bubbling to backdrop
-                e.stopPropagation();
-                e.preventDefault();
-                // Mark that we just opened the popup
-                justOpenedRef.current = true;
-                backdropReadyRef.current = false;
-                popupOpenTimeRef.current = Date.now();
-                // Toggle reaction popup on click
-                setShowReactionPopup(!showReactionPopup);
-                // Enable backdrop after a delay
-                setTimeout(() => {
-                  backdropReadyRef.current = true;
-                }, 600);
-                // Reset flag after a longer delay
-                setTimeout(() => {
-                  justOpenedRef.current = false;
-                }, 1000);
-              }}
-              onTouchEnd={(e) => {
-                // Prevent event from bubbling to backdrop
-                e.stopPropagation();
-              }}
-              disabled={false}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative z-50"
-              style={{ touchAction: 'manipulation' }}
+            <ReactionPopup
+              onReaction={handleReaction}
+              currentReaction={getCurrentReaction()}
+              isDarkMode={isDarkMode}
             >
-              {/* Reaction Button - Same size as other buttons */}
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                <span className="text-lg sm:text-xl md:text-2xl">👍</span>
-              </div>
-              <span className="text-xs sm:text-sm md:text-base font-medium transition-colors text-gray-600 dark:text-white hover:text-pink-600 dark:hover:text-pink-400">
-                Like
-              </span>
-            </button>
-            
-            {/* Mobile Backdrop Overlay - Transparent */}
-            {showReactionPopup && (
-              <div 
-                className="sm:hidden fixed inset-0 bg-transparent z-[99998]"
-                style={{
-                  pointerEvents: backdropReadyRef.current ? 'auto' : 'none'
-                }}
-                onClick={(e) => {
-                  // Only close if clicking directly on backdrop and backdrop is ready
-                  const timeSinceOpen = Date.now() - popupOpenTimeRef.current;
-                  if (e.target === e.currentTarget && backdropReadyRef.current && timeSinceOpen > 500) {
-                    setShowReactionPopup(false);
-                  }
-                }}
-                onTouchStart={(e) => {
-                  // Prevent touchstart from closing immediately
-                  const timeSinceOpen = Date.now() - popupOpenTimeRef.current;
-                  if (e.target === e.currentTarget && backdropReadyRef.current && timeSinceOpen > 500) {
-                    e.stopPropagation();
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  // Only close on touchend after delay
-                  const timeSinceOpen = Date.now() - popupOpenTimeRef.current;
-                  if (e.target === e.currentTarget && backdropReadyRef.current && timeSinceOpen > 500) {
-                    setShowReactionPopup(false);
-                  }
-                }}
-              />
-            )}
-            
-            {/* Reaction Popup */}
-            {showReactionPopup && (
-              <>
-                {/* Mobile: Fixed positioning at top-right of button */}
-                <div 
-                  className="sm:hidden fixed z-[99999]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                  }}
-                  onTouchEnd={(e) => {
-                    e.stopPropagation();
-                  }}
-                  style={{
-                    ...(popupPosition ? {
-                      top: `${popupPosition.top}px`,
-                      left: `${popupPosition.left}px`,
-                      transform: popupPosition.alignRight ? 'translateX(-100%)' : 'none',
-                    } : {
-                      // Fallback position if calculation hasn't happened yet
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                    }),
-                  }}
-                >
-                  <ReactionPopup
-                    isOpen={showReactionPopup}
-                    onClose={() => setShowReactionPopup(false)}
-                    onReaction={handleReaction}
-                    currentReaction={getCurrentReaction()}
-                    position="top"
-                  />
+              <button 
+                ref={reactionButtonRef}
+                className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative z-50"
+                style={{ touchAction: 'manipulation' }}
+              >
+                {/* Reaction Button - Same size as other buttons */}
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
+                  getCurrentReaction() 
+                    ? 'bg-pink-100 dark:bg-pink-900/30' 
+                    : 'bg-gray-100 dark:bg-gray-700'
+                }`}>
+                  <span className="text-lg sm:text-xl md:text-2xl">{getReactionEmoji(getCurrentReaction())}</span>
                 </div>
-                {/* Desktop: Absolute positioning at top-right of button */}
-                <div className="hidden sm:block absolute bottom-full right-0 mb-2 sm:mb-3 z-50">
-                  <ReactionPopup
-                    isOpen={showReactionPopup}
-                    onClose={() => setShowReactionPopup(false)}
-                    onReaction={handleReaction}
-                    currentReaction={getCurrentReaction()}
-                    position="top"
-                  />
-                </div>
-              </>
-            )}
+                <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${
+                  getCurrentReaction()
+                    ? 'text-pink-600 dark:text-pink-400'
+                    : 'text-gray-600 dark:text-white hover:text-pink-600 dark:hover:text-pink-400'
+                }`}>
+                  {getReactionText(getCurrentReaction())}
+                </span>
+              </button>
+            </ReactionPopup>
           </div>
           
           {/* Comment Button */}

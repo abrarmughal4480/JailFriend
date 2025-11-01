@@ -41,8 +41,6 @@ export default function PostDisplay({
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showSharePopup, setShowSharePopup] = useState(false);
-  const [showReactionPopup, setShowReactionPopup] = useState(false);
-  const [reactionTimeout, setReactionTimeout] = useState<NodeJS.Timeout | null>(null);
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
   const [showReactionsTemporarily, setShowReactionsTemporarily] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -201,29 +199,6 @@ export default function PostDisplay({
     return '👍';
   };
 
-  const handleReactionButtonMouseEnter = () => {
-    if (reactionTimeout) {
-      clearTimeout(reactionTimeout);
-    }
-    setShowReactionPopup(true);
-  };
-
-  const handleReactionButtonMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setShowReactionPopup(false);
-    }, 300);
-    setReactionTimeout(timeout);
-  };
-
-  const handleReactionPopupMouseEnter = () => {
-    if (reactionTimeout) {
-      clearTimeout(reactionTimeout);
-    }
-  };
-
-  const handleReactionPopupMouseLeave = () => {
-    setShowReactionPopup(false);
-  };
 
   const handleReaction = (reactionType: ReactionType) => {
     if (onReaction) {
@@ -827,43 +802,33 @@ export default function PostDisplay({
           <div className="flex items-center justify-center sm:justify-start space-x-3 sm:space-x-3 md:space-x-6">
             {/* React Button */}
           <div className="relative">
-            <button 
-              onMouseEnter={handleReactionButtonMouseEnter}
-              onMouseLeave={handleReactionButtonMouseLeave}
-              onClick={() => {
-                if (onLike) {
-                  onLike(post._id);
-                }
-                // Toggle liked users display
-                console.log('🔍 React button clicked!');
-                console.log('🔍 Current showLikedUsers:', showLikedUsers);
-                console.log('🔍 Post likes:', post.likes);
-                setShowLikedUsers(!showLikedUsers);
-              }}
+            <ReactionPopup
+              onReaction={handleReaction}
+              currentReaction={getCurrentReaction()}
+              isDarkMode={isDarkMode}
+            >
+              <button 
+                onClick={() => {
+                  if (onLike) {
+                    onLike(post._id);
+                  }
+                  // Toggle liked users display
+                  console.log('🔍 React button clicked!');
+                  console.log('🔍 Current showLikedUsers:', showLikedUsers);
+                  console.log('🔍 Post likes:', post.likes);
+                  setShowLikedUsers(!showLikedUsers);
+                }}
                 className={`flex flex-col items-center justify-center transition-colors touch-manipulation min-h-[60px] ${
                   getCurrentReaction() ? 'text-red-500' : 'hover:text-red-500'
-              }`}
-              style={{ touchAction: 'manipulation' }}
-            >
+                }`}
+                style={{ touchAction: 'manipulation' }}
+              >
                 <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">React</span>
-              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                <span className="text-sm">😊</span>
+                <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                  <span className="text-sm">😊</span>
                 </div>
-            </button>
-            
-            {/* Reaction Popup */}
-            <div
-              onMouseEnter={handleReactionPopupMouseEnter}
-              onMouseLeave={handleReactionPopupMouseLeave}
-            >
-              <ReactionPopup
-                isOpen={showReactionPopup}
-                onClose={() => setShowReactionPopup(false)}
-                onReaction={handleReaction}
-                currentReaction={getCurrentReaction()}
-                position="top"
-              />
-            </div>
+              </button>
+            </ReactionPopup>
           </div>
           
             {/* Comment Button */}

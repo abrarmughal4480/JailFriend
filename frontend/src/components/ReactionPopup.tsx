@@ -1,15 +1,15 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import Tippy from '@tippyjs/react';
+import 'tippy.js/dist/tippy.css';
+import { useRef } from 'react';
 
 export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 
 interface ReactionPopupProps {
-  isOpen: boolean;
-  onClose: () => void;
+  children: React.ReactElement;
   onReaction: (reactionType: ReactionType) => void;
   currentReaction?: ReactionType | null;
-  position?: 'top' | 'bottom';
-  isReacting?: boolean;
+  isDarkMode?: boolean;
 }
 
 const reactions: { type: ReactionType; emoji: string; label: string; color: string }[] = [
@@ -22,130 +22,92 @@ const reactions: { type: ReactionType; emoji: string; label: string; color: stri
 ];
 
 export default function ReactionPopup({ 
-  isOpen, 
-  onClose, 
-  onReaction, 
+  children,
+  onReaction,
   currentReaction,
-  position = 'top',
-  isReacting
+  isDarkMode = false
 }: ReactionPopupProps) {
-  const popupRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const tippyInstanceRef = useRef<any>(null);
 
-  // Check if device is mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
+  const handleReaction = (reactionType: ReactionType, e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
+    // Call the onReaction callback first
+    onReaction(reactionType);
     
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    // Add a delay before enabling click outside detection
-    // This prevents immediate closure when opening the popup
-    let timeoutId: NodeJS.Timeout | null = null;
-    
-    const handleClickOutside = (event: MouseEvent) => {
-      // Check if click is outside the popup
-      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
-        const target = event.target as HTMLElement;
-        
-        // Don't close if clicking on a button (reaction button)
-        const clickedButton = target.closest('button');
-        if (clickedButton) {
-          // Check if it's a reaction button by looking at its parent structure
-          const buttonParent = clickedButton.closest('.relative');
-          if (buttonParent) {
-            // Likely the reaction button container, don't close
-            return;
-          }
-        }
-        
-        // Otherwise, close the popup
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      // Longer delay to prevent immediate closure when opening
-      timeoutId = setTimeout(() => {
-        // Only use mousedown - not touchstart to avoid conflicts
-        document.addEventListener('mousedown', handleClickOutside);
-      }, 500); // 500ms delay - enough time for the popup to fully appear
+    // Hide the popup after a small delay to ensure the reaction is processed
+    if (tippyInstanceRef.current) {
+      setTimeout(() => {
+        tippyInstanceRef.current?.hide();
+      }, 100);
     }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
+  };
 
   return (
-    <div 
-      ref={popupRef}
-      onMouseDown={(e) => {
-        // Prevent outside mousedown listener from closing before click handlers run
-        e.stopPropagation();
+    <Tippy
+      onCreate={(instance) => {
+        tippyInstanceRef.current = instance;
       }}
-      onTouchStart={(e) => {
-        // Prevent outside touchstart listener from closing before touch handlers run
-        e.stopPropagation();
+      content={
+        <div 
+          className="flex items-center gap-2 p-2 bg-slate-700 dark:bg-slate-700 rounded-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {reactions.map((reaction) => {
+            const isCurrentReaction = currentReaction === reaction.type;
+            return (
+              <button
+                key={reaction.type}
+                onClick={(e) => handleReaction(reaction.type, e)}
+                onTouchEnd={(e) => handleReaction(reaction.type, e)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${
+                  reaction.color
+                } ${
+                  isCurrentReaction 
+                    ? `ring-2 ring-blue-300 ring-offset-1` 
+                    : 'hover:shadow-md'
+                }`}
+                title={reaction.label}
+                style={{ touchAction: 'manipulation' }}
+              >
+                {reaction.emoji}
+              </button>
+            );
+          })}
+        </div>
+      }
+      interactive={true}
+      trigger="click"
+      placement="top-start"
+      arrow={false}
+      zIndex={99999}
+      offset={[0, 10]}
+      hideOnClick={false}
+      touch={true}
+      appendTo={() => document.body}
+      className="!bg-transparent !shadow-none !border-none !p-0"
+      onClickOutside={(instance, event) => {
+        instance.hide();
       }}
-      className={`relative z-[99999] bg-white dark:bg-gray-800 rounded-full shadow-xl border border-gray-200 dark:border-gray-600 p-3 pointer-events-auto max-w-sm mx-auto`}
-      style={{
-        zIndex: 99999,
-        position: 'relative',
-        display: 'block',
-        visibility: 'visible',
-        opacity: 1
+      popperOptions={{
+        modifiers: [
+          {
+            name: 'offset',
+            options: {
+              offset: [0, 10],
+            },
+          },
+          {
+            name: 'flip',
+            options: {
+              fallbackPlacements: ['top-start', 'top', 'bottom-start', 'top-end'],
+            },
+          },
+        ],
       }}
     >
-      <div className="flex items-center gap-2">
-        {reactions.map((reaction) => (
-          <button
-            key={reaction.type}
-            onClick={(e) => {
-              e.stopPropagation();
-              onReaction(reaction.type);
-              onClose();
-            }}
-            onTouchEnd={(e) => {
-              // Don't call preventDefault on passive events
-              e.stopPropagation();
-              onReaction(reaction.type);
-              onClose();
-            }}
-            disabled={isReacting}
-            className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${
-              reaction.color
-            } ${
-              currentReaction === reaction.type 
-                ? `ring-2 ring-blue-300 ring-offset-1` 
-                : 'hover:shadow-md'
-            } ${
-              isReacting ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            title={isReacting ? 'Processing...' : reaction.label}
-            style={{ touchAction: 'manipulation' }}
-          >
-            {isReacting ? (
-              <div className={`animate-spin rounded-full border-b-2 border-white ${
-                isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5'
-              }`}></div>
-            ) : (
-              reaction.emoji
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
+      {children}
+    </Tippy>
   );
-} 
+}
