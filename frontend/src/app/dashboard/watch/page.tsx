@@ -702,31 +702,20 @@ const WatchPage: React.FC = () => {
           <div className="flex items-center justify-center space-x-8">
             {/* React Button */}
             <div className="relative flex flex-col items-center">
-              <button 
-                onMouseEnter={() => handleReactionButtonMouseEnter(video._id)}
-                onMouseLeave={() => handleReactionButtonMouseLeave(video._id)}
-                onClick={() => onLike(video._id, video.category || 'video')}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                  getCurrentReaction(video) ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+              <ReactionPopup
+                onReaction={(reactionType) => handleReaction(video._id, reactionType, video.category || 'video')}
+                currentReaction={getCurrentReaction(video)}
               >
-                <span className="text-xl">{getMostCommonReactionEmoji(video)}</span>
-              </button>
+                <button 
+                  onClick={() => onLike(video._id, video.category || 'video')}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                    getCurrentReaction(video) ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span className="text-xl">{getMostCommonReactionEmoji(video)}</span>
+                </button>
+              </ReactionPopup>
               <span className="text-xs text-gray-600 mt-1">React</span>
-              
-              {/* Reaction Popup */}
-              <div
-                onMouseEnter={handleReactionPopupMouseEnter}
-                onMouseLeave={handleReactionPopupMouseLeave}
-              >
-                <ReactionPopup
-                  isOpen={showReactionPopup === video._id}
-                  onClose={() => setShowReactionPopup(null)}
-                  onReaction={(reactionType) => handleReaction(video._id, reactionType, video.category || 'video')}
-                  currentReaction={getCurrentReaction(video)}
-                  position="top"
-                />
-              </div>
             </div>
             
             {/* Comment Button */}

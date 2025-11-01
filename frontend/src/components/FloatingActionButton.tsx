@@ -74,7 +74,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ isAdminPage
       <button
         ref={buttonRef}
         onClick={handleButtonClick}
-        className={`hidden md:flex fixed bottom-24 right-20 w-14 h-14 rounded-full shadow-lg transition-all duration-300 z-50 items-center justify-center md:bottom-6 md:right-24 ${
+        className={`flex fixed bottom-24 right-4 md:bottom-24 md:right-24 lg:bottom-6 lg:right-24 w-14 h-14 rounded-full shadow-lg transition-all duration-300 z-[70] lg:z-50 items-center justify-center touch-manipulation ${
           isOpen 
             ? 'bg-red-500 hover:bg-red-600 rotate-45' 
             : 'bg-gray-700 hover:bg-gray-800'
@@ -94,13 +94,13 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ isAdminPage
       {showPopup && (
         <div
           ref={popupRef}
-          className="fixed bottom-40 right-16 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 min-w-[220px] md:bottom-24 md:right-20"
+          className="fixed bottom-36 right-4 md:bottom-36 md:right-24 lg:bottom-24 lg:right-24 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-[70] lg:z-50 min-w-[220px]"
           style={{
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
           }}
         >
           {/* Popup Arrow */}
-          <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45 md:right-6"></div>
+          <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45"></div>
           
           {/* Menu Items */}
           <div className="p-2">

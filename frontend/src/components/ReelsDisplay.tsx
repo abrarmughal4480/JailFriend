@@ -850,35 +850,24 @@ export default function ReelsDisplay({
 
               {/* Reaction Button with Popup */}
               <div className="relative">
-                <button 
-                  onMouseEnter={() => handleReactionButtonMouseEnter(reel._id || `reel-${index}`)}
-                  onMouseLeave={() => handleReactionButtonMouseLeave(reel._id || `reel-${index}`)}
-                  onClick={() => handleLike(reel._id || `reel-${index}`)}
-                  className={`flex flex-col items-center gap-1 text-white ${
-                    getCurrentReaction(reel) ? 'text-red-500' : ''
-                  }`}
+                <ReactionPopup
+                  onReaction={(reactionType) => handleReaction(reel._id || `reel-${index}`, reactionType)}
+                  currentReaction={getCurrentReaction(reel)}
                 >
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors ${
-                    getCurrentReaction(reel) ? 'bg-red-500' : 'bg-black/30 hover:bg-black/50'
-                  }`}>
-                    <span className="text-lg sm:text-xl">{getMostCommonReactionEmoji(reel)}</span>
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium">{getReactionCount(reel)}</span>
-                </button>
-                
-                {/* Reaction Popup */}
-                <div
-                  onMouseEnter={handleReactionPopupMouseEnter}
-                  onMouseLeave={handleReactionPopupMouseLeave}
-                >
-                  <ReactionPopup
-                    isOpen={showReactionPopup === (reel._id || `reel-${index}`)}
-                    onClose={() => setShowReactionPopup(null)}
-                    onReaction={(reactionType) => handleReaction(reel._id || `reel-${index}`, reactionType)}
-                    currentReaction={getCurrentReaction(reel)}
-                    position="top"
-                  />
-                </div>
+                  <button 
+                    onClick={() => handleLike(reel._id || `reel-${index}`)}
+                    className={`flex flex-col items-center gap-1 text-white ${
+                      getCurrentReaction(reel) ? 'text-red-500' : ''
+                    }`}
+                  >
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-colors ${
+                      getCurrentReaction(reel) ? 'bg-red-500' : 'bg-black/30 hover:bg-black/50'
+                    }`}>
+                      <span className="text-lg sm:text-xl">{getMostCommonReactionEmoji(reel)}</span>
+                    </div>
+                    <span className="text-xs sm:text-sm font-medium">{getReactionCount(reel)}</span>
+                  </button>
+                </ReactionPopup>
               </div>
 
               {/* Comment Button */}
