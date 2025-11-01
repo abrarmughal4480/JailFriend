@@ -1562,6 +1562,74 @@ export default function Dashboard() {
     window.location.href = `/dashboard/profile/${userId}`;
   };
 
+  // Filters array with all filter options
+  const filters = [
+    {
+      id: 'all',
+      label: 'All',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'text',
+      label: 'Text',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      )
+    },
+    {
+      id: 'photos',
+      label: 'Photos',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    },
+    {
+      id: 'videos',
+      label: 'Videos',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'sounds',
+      label: 'Sounds',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        </svg>
+      )
+    },
+    {
+      id: 'files',
+      label: 'Files',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    {
+      id: 'maps',
+      label: 'Maps',
+      icon: (
+        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
+        </svg>
+      )
+    }
+  ];
+
 
 
 
@@ -2353,99 +2421,25 @@ export default function Dashboard() {
         </div>
 
         {/* Content Filter Bar */}
-        <div className="mb-3 sm:mb-4 transition-colors duration-200">
-          <div className="flex items-center justify-center gap-1 xs:gap-2 sm:gap-3 overflow-x-auto scrollbar-hide touch-pan-x pb-2">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'all'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
+        <div className="mb-3 sm:mb-4 transition-colors duration-200 w-full">
+          <div 
+            className="flex items-center justify-center gap-x-1 xs:gap-x-2 sm:gap-x-3 gap-y-2 xs:gap-y-3 sm:gap-y-4 flex-wrap py-2 sm:py-3"
+          >
+            {filters.map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id as 'all' | 'text' | 'photos' | 'videos' | 'sounds' | 'files' | 'maps')}
+                className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors whitespace-nowrap ${
+                  activeFilter === filter.id
+                    ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
+                    : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
                 }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="text-xs xs:text-xs xs:text-sm font-medium">All</span>
-            </button>
-
-            <button
-              onClick={() => setActiveFilter('text')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'text'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
-                }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              <span className="text-xs xs:text-sm font-medium">Text</span>
-            </button>
-
-            <button
-              onClick={() => setActiveFilter('photos')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'photos'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
-                }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className="text-xs xs:text-sm font-medium">Photos</span>
-            </button>
-
-            <button
-              onClick={() => setActiveFilter('videos')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'videos'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
-                }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <span className="text-xs xs:text-sm font-medium">Videos</span>
-            </button>
-
-            <button
-              onClick={() => setActiveFilter('sounds')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'sounds'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
-                }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-              <span className="text-xs xs:text-sm font-medium">Sounds</span>
-            </button>
-
-            <button
-              onClick={() => setActiveFilter('files')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'files'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
-                }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="text-xs xs:text-sm font-medium">Files</span>
-            </button>
-
-            <button
-              onClick={() => setActiveFilter('maps')}
-              className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors min-w-fit ${activeFilter === 'maps'
-                  ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700'
-                  : 'bg-custom-secondary text-custom-primary border-custom-primary hover:bg-custom-hover'
-                }`}
-            >
-              <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              <span className="text-xs xs:text-sm font-medium">Maps</span>
-            </button>
+                style={{ touchAction: 'manipulation' }}
+              >
+                {filter.icon}
+                <span className="text-xs xs:text-sm font-medium">{filter.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 

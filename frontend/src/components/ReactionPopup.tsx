@@ -45,17 +45,43 @@ export default function ReactionPopup({
   }, []);
 
   useEffect(() => {
+    // Add a delay before enabling click outside detection
+    // This prevents immediate closure when opening the popup
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     const handleClickOutside = (event: MouseEvent) => {
+      // Check if click is outside the popup
       if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        const target = event.target as HTMLElement;
+        
+        // Don't close if clicking on a button (reaction button)
+        const clickedButton = target.closest('button');
+        if (clickedButton) {
+          // Check if it's a reaction button by looking at its parent structure
+          const buttonParent = clickedButton.closest('.relative');
+          if (buttonParent) {
+            // Likely the reaction button container, don't close
+            return;
+          }
+        }
+        
+        // Otherwise, close the popup
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Longer delay to prevent immediate closure when opening
+      timeoutId = setTimeout(() => {
+        // Only use mousedown - not touchstart to avoid conflicts
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 500); // 500ms delay - enough time for the popup to fully appear
     }
 
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
@@ -69,7 +95,11 @@ export default function ReactionPopup({
         // Prevent outside mousedown listener from closing before click handlers run
         e.stopPropagation();
       }}
-      className={`relative z-[99999] bg-white rounded-full shadow-xl border border-gray-200 p-3 pointer-events-auto max-w-sm mx-auto`}
+      onTouchStart={(e) => {
+        // Prevent outside touchstart listener from closing before touch handlers run
+        e.stopPropagation();
+      }}
+      className={`relative z-[99999] bg-white dark:bg-gray-800 rounded-full shadow-xl border border-gray-200 dark:border-gray-600 p-3 pointer-events-auto max-w-sm mx-auto`}
       style={{
         zIndex: 99999,
         position: 'relative',

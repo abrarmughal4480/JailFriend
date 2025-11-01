@@ -306,10 +306,46 @@ export default function Home(): React.ReactElement {
 
   return (
     <AuthGuard requireAuth={false} redirectTo="/dashboard">
-      <div className="w-full min-h-screen bg-custom-primary transition-all duration-500 overflow-x-hidden overflow-y-auto">
+      {/* Header - Outside main body */}
+      <header className="fixed top-0 left-0 right-0 z-[100] backdrop-blur-sm sm:backdrop-blur-md border-b w-full transition-colors duration-200 bg-custom-tertiary dark:bg-custom-tertiary border-custom-primary shadow-lg" style={{ backgroundColor: 'var(--custom-tertiary)' }}>
+        <div className="flex justify-between items-center px-4 sm:px-6 lg:px-8 py-3 sm:py-3 w-full max-w-7xl mx-auto min-h-[64px] sm:min-h-auto">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-sm sm:text-base">J</span>
+            </div>
+            <span className="text-xl sm:text-2xl font-bold transition-colors duration-200 text-gray-800 dark:text-white">jaifriend</span>
+          </div>
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <button
+              onClick={() => {
+                const welcomeBackSection = document.getElementById('welcome-back-section');
+                if (welcomeBackSection) {
+                  const elementPosition = welcomeBackSection.getBoundingClientRect().top;
+                  const offsetPosition = elementPosition + window.pageYOffset - 100;
+                  window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                  });
+                }
+              }}
+              className="px-3 py-2 rounded-lg font-medium transition-all duration-300 text-sm sm:text-base text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => router.push('/register')}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 shadow-lg text-sm sm:text-base"
+            >
+              Register
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="w-full min-h-screen bg-custom-primary transition-all duration-500 overflow-x-hidden overflow-y-auto relative">
         {/* Standalone Popup Modal */}
         {popup.isOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 bg-black/20 backdrop-blur-md">
+          <div className="fixed inset-0 flex items-center justify-center z-[110] p-2 sm:p-4 bg-black/20 backdrop-blur-md">
             <div className="bg-custom-tertiary rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[95vh] overflow-y-auto">
               <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-center mb-3 sm:mb-4">
@@ -352,32 +388,6 @@ export default function Home(): React.ReactElement {
             </div>
           </div>
         )}
-
-        {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b w-full transition-colors duration-200 bg-custom-tertiary/90 border-custom-primary shadow-lg">
-          <div className="flex justify-between items-center px-4 sm:px-6 lg:px-8 py-3 w-full max-w-7xl mx-auto">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-sm sm:text-base">J</span>
-              </div>
-              <span className="text-xl sm:text-2xl font-bold transition-colors duration-200 text-gray-800 dark:text-white">jaifriend</span>
-            </div>
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <button
-                onClick={() => { setAuthType('login'); setAuthModalOpen(true); setModalMessage(undefined); }}
-                className="px-3 py-2 rounded-lg font-medium transition-all duration-300 text-sm sm:text-base text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
-              >
-                Login
-              </button>
-              <button
-                onClick={() => router.push('/register')}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 shadow-lg text-sm sm:text-base"
-              >
-                Register
-              </button>
-            </div>
-          </div>
-        </header>
 
         {/* Avatar Upload Modal */}
         {avatarModal.isOpen && (
@@ -468,14 +478,14 @@ export default function Home(): React.ReactElement {
         )}
 
         {/* Main Content */}
-        <main className="w-full px-4 pt-20 pb-8 lg:pt-24 lg:pb-12 box-border">
+        <main className="w-full px-4 pt-20 pb-6 sm:pt-24 lg:pt-20 lg:pb-10 box-border relative z-0">
           {/* Hero Section */}
-          <div className="text-center mb-16 lg:mb-20 mt-8 sm:mt-12 lg:mt-16">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-full border border-blue-100 dark:border-gray-600 mb-6">
+          <div className="text-center mb-12 lg:mb-16 mt-16 sm:mt-2 lg:mt-4">
+            <div className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 rounded-full border border-blue-100 dark:border-gray-600 mt-6 mb-6 sm:mt-0 sm:mb-4">
               <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
-              <p className="text-blue-600 dark:text-blue-400 font-semibold tracking-wide text-sm">WELCOME TO JAIFRIEND</p>
+              <p className="text-blue-600 dark:text-blue-400 font-semibold tracking-wide text-xs">WELCOME TO JAIFRIEND</p>
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold mb-8 lg:mb-12 leading-tight px-2">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 lg:mb-10 leading-tight px-2">
               <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Connect with your family and friends
               </span>
@@ -483,19 +493,19 @@ export default function Home(): React.ReactElement {
               <span className="sm:hidden"> </span>
               <span className="text-gray-700 dark:text-gray-300">and share your moments.</span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-12 leading-relaxed">
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto mb-10 leading-relaxed">
               Join millions of people sharing their stories, connecting with loved ones, and discovering new friendships in a safe, private environment.
             </p>
           </div>
 
           {/* Login Form */}
-          <div className="w-full max-w-lg mx-auto bg-[rgba(32,32,33,0.8)] backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 lg:p-10 mb-12 sm:mb-16 lg:mb-20 border border-white/20 transition-all duration-300 hover:shadow-3xl">
-            <div className="text-center mb-8 sm:mb-10">
-              <h2 className="text-xl sm:text-2xl font-bold text-custom-primary mb-3">Welcome Back</h2>
-              <p className="text-sm sm:text-base text-custom-secondary">Sign in to your account to continue</p>
+          <div id="welcome-back-section" className="w-full max-w-lg mx-auto bg-[rgba(32,32,33,0.8)] backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 lg:p-7 mb-9 sm:mb-11 lg:mb-14 border border-white/20 transition-all duration-300 hover:shadow-3xl">
+            <div className="text-center mb-5 sm:mb-7">
+              <h2 className="text-base sm:text-lg font-bold text-custom-primary mb-2">Welcome Back</h2>
+              <p className="text-xs sm:text-sm text-custom-secondary">Sign in to your account to continue</p>
             </div>
             
-            <div className="flex mb-8 sm:mb-10 w-full bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+            <div className="flex mb-5 sm:mb-7 w-full bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
               <button
                 className={`flex-1 py-2.5 sm:py-3 px-3 sm:px-4 text-center font-semibold transition-all duration-300 relative rounded-lg ${
                   loginType === 'username'
@@ -519,10 +529,10 @@ export default function Home(): React.ReactElement {
             </div>
 
             {loginType === 'username' ? (
-              <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-                <div className="space-y-4 sm:space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                <div className="space-y-3 sm:space-y-3">
                   <div className="relative">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Email Address
                     </label>
                     <input
@@ -531,13 +541,13 @@ export default function Home(): React.ReactElement {
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 sm:px-5 py-3 sm:py-3.5 bg-custom-primary/20 border border-custom-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-custom-primary/30 transition-all duration-300 text-custom-primary placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base backdrop-blur-sm"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-custom-primary/20 border border-custom-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-custom-primary/30 transition-all duration-300 text-custom-primary placeholder-gray-400 dark:placeholder-gray-500 text-xs sm:text-sm backdrop-blur-sm"
                       required
                     />
                   </div>
                   
                   <div className="relative">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    <label className="block text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Password
                     </label>
                     <input
@@ -546,13 +556,13 @@ export default function Home(): React.ReactElement {
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full px-4 sm:px-5 py-3 sm:py-3.5 bg-custom-primary/20 border border-custom-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-custom-primary/30 transition-all duration-300 text-custom-primary placeholder-gray-400 dark:placeholder-gray-500 text-sm sm:text-base backdrop-blur-sm"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-custom-primary/20 border border-custom-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-custom-primary/30 transition-all duration-300 text-custom-primary placeholder-gray-400 dark:placeholder-gray-500 text-xs sm:text-sm backdrop-blur-sm"
                       required
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 space-y-3 sm:space-y-0 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2 space-y-3 sm:space-y-0 mb-4">
                   <label className="flex items-center">
                     <input
                       type="checkbox"
@@ -577,12 +587,12 @@ export default function Home(): React.ReactElement {
                 <button
                   type="submit"
                   disabled={isLoading || !formData.email.trim() || !formData.password.trim()}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 sm:px-6 py-3.5 sm:py-4 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none shadow-lg hover:shadow-xl text-sm sm:text-base mb-6"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-3 sm:px-5 py-2.5 sm:py-3 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none shadow-lg hover:shadow-xl text-xs sm:text-sm mb-4"
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white mr-2"></div>
-                      <span className="text-sm sm:text-base">Signing In...</span>
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+                      <span className="text-xs sm:text-sm">Signing In...</span>
                     </div>
                   ) : (
                     'Sign In'
@@ -603,14 +613,14 @@ export default function Home(): React.ReactElement {
                 </div>
               </form>
             ) : (
-              <div className="space-y-4 sm:space-y-5">
-                <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-sm sm:text-lg flex items-center justify-center">
+              <div className="space-y-3 sm:space-y-3">
+                <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-xs sm:text-base flex items-center justify-center">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
                   Continue with Facebook
                 </button>
-                <button className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-sm sm:text-lg flex items-center justify-center">
+                <button className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-xs sm:text-base flex items-center justify-center">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -619,7 +629,7 @@ export default function Home(): React.ReactElement {
                   </svg>
                   Continue with Google
                 </button>
-                <button className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white py-3.5 sm:py-4 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-sm sm:text-lg flex items-center justify-center">
+                <button className="w-full bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-900 hover:to-black text-white py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-xs sm:text-base flex items-center justify-center">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.02-1.53-.88-3.11-.88-1.59 0-1.83.86-3.11.88-1.28.02-2.22-1.18-3.05-2.47C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                   </svg>

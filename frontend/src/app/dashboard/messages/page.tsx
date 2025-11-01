@@ -26,7 +26,8 @@ import {
   X,
   MessageCircle,
   History,
-  Video
+  Video,
+  Plus
 } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { getToken, getCurrentUserId } from '@/utils/auth';
@@ -1536,22 +1537,8 @@ export default function MessagesPage() {
               }`}>
                 Messages
               </h1>
-              <div className="lg:hidden text-sm text-gray-500 dark:text-gray-400">
-                {conversations.length} conversations
-              </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setShowFollowedUsers(true);
-                  setShowFollowerUsers(false);
-                }}
-                className={`px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors duration-200 ${
-                  showFollowedUsers ? 'bg-blue-600' : ''
-                }`}
-              >
-                New Message
-              </button>
               <button
                 onClick={() => setShowSearch(!showSearch)}
                 className={`p-2 rounded-lg transition-colors duration-200 ${
@@ -1594,11 +1581,14 @@ export default function MessagesPage() {
             </div>
           )}
           
-          {/* Followed Users List */}
-          {(showFollowedUsers || showFollowerUsers) && (
-            <div className="mt-4">
+        </div>
+
+     
+        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar flex flex-col">
+          {(showFollowedUsers || showFollowerUsers) ? (
+            <div className="flex flex-col h-full">
               {/* Tabs */}
-              <div className="flex mb-3 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex border-b border-gray-200 dark:border-gray-700 px-4 pt-2 flex-shrink-0">
                 <button
                   onClick={() => {
                     setShowFollowedUsers(true);
@@ -1625,18 +1615,12 @@ export default function MessagesPage() {
                 >
                   Followers ({followerUsers.length})
                 </button>
-              </div>
-
-              <div className="flex items-center justify-between mb-3">
-                <h3 className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {showFollowedUsers ? 'Start New Conversation' : 'Your Followers'}
-                </h3>
                 <button
                   onClick={() => {
                     setShowFollowedUsers(false);
                     setShowFollowerUsers(false);
                   }}
-                  className={`p-1 rounded-lg transition-colors duration-200 ${
+                  className={`ml-auto p-1 rounded-lg transition-colors duration-200 ${
                     isDarkMode 
                       ? 'hover:bg-gray-700 text-gray-400' 
                       : 'hover:bg-gray-100 text-gray-500'
@@ -1645,144 +1629,142 @@ export default function MessagesPage() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              
-              {followedUsersLoading || followerUsersLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className={`ml-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Loading...
-                  </span>
-                </div>
-              ) : showFollowedUsers && followedUsers.length > 0 ? (
-                <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
-                  {followedUsers.map((user) => (
-                    <div
-                      key={user._id}
-                      onClick={() => startConversation(user)}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-700' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="relative">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                        }`}>
-                          {user.avatar && user.avatar !== '/default-avatar.svg' ? (
-                            <img
-                              src={user.avatar}
-                              alt={user.name}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-lg">👤</span>
-                          )}
-                        </div>
-                        {user.isOnline && (
-                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={`font-medium text-sm truncate ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
-                          {user.name}
-                        </div>
-                        <div className={`text-xs truncate ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          @{user.username}
-                        </div>
-                        {user.bio && (
-                          <div className={`text-xs truncate mt-1 ${
-                            isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                          }`}>
-                            {user.bio}
-                          </div>
-                        )}
-                      </div>
-                      <MessageCircle className={`w-4 h-4 ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`} />
-                    </div>
-                  ))}
-                </div>
-              ) : showFollowerUsers && followerUsers.length > 0 ? (
-                <div className="max-h-60 overflow-y-auto space-y-2 custom-scrollbar">
-                  {followerUsers.map((user) => (
-                    <div
-                      key={user._id}
-                      onClick={() => startConversation(user)}
-                      className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-700' 
-                          : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="relative">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                        }`}>
-                          {user.avatar && user.avatar !== '/default-avatar.svg' ? (
-                            <img
-                              src={user.avatar}
-                              alt={user.name}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-lg">👤</span>
-                          )}
-                        </div>
-                        {user.isOnline && (
-                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className={`font-medium text-sm truncate ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
-                          {user.name}
-                        </div>
-                        <div className={`text-xs truncate ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          @{user.username}
-                        </div>
-                        {user.bio && (
-                          <div className={`text-xs truncate mt-1 ${
-                            isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                          }`}>
-                            {user.bio}
-                          </div>
-                        )}
-                      </div>
-                      <MessageCircle className={`w-4 h-4 ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <MessageCircle className={`w-8 h-8 mx-auto mb-2 ${
-                    isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                  }`} />
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {showFollowedUsers ? 'No followed users found' : 'No followers found'}
-                  </p>
-                  <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {showFollowedUsers ? 'Follow some users to start conversations' : 'You don\'t have any followers yet'}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
-     
-        <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-          {filteredConversations.length > 0 ? (
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar px-4 py-2">
+                {followedUsersLoading || followerUsersLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className={`ml-2 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Loading...
+                    </span>
+                  </div>
+                ) : showFollowedUsers && followedUsers.length > 0 ? (
+                  <div className="space-y-2">
+                    {followedUsers.map((user) => (
+                      <div
+                        key={user._id}
+                        onClick={() => startConversation(user)}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                          isDarkMode 
+                            ? 'hover:bg-gray-700' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="relative">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                          }`}>
+                            {user.avatar && user.avatar !== '/default-avatar.svg' ? (
+                              <img
+                                src={user.avatar}
+                                alt={user.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-lg">👤</span>
+                            )}
+                          </div>
+                          {user.isOnline && (
+                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium text-sm truncate ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {user.name}
+                          </div>
+                          <div className={`text-xs truncate ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            @{user.username}
+                          </div>
+                          {user.bio && (
+                            <div className={`text-xs truncate mt-1 ${
+                              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                            }`}>
+                              {user.bio}
+                            </div>
+                          )}
+                        </div>
+                        <MessageCircle className={`w-4 h-4 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
+                      </div>
+                    ))}
+                  </div>
+                ) : showFollowerUsers && followerUsers.length > 0 ? (
+                  <div className="space-y-2">
+                    {followerUsers.map((user) => (
+                      <div
+                        key={user._id}
+                        onClick={() => startConversation(user)}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                          isDarkMode 
+                            ? 'hover:bg-gray-700' 
+                            : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="relative">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                          }`}>
+                            {user.avatar && user.avatar !== '/default-avatar.svg' ? (
+                              <img
+                                src={user.avatar}
+                                alt={user.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-lg">👤</span>
+                            )}
+                          </div>
+                          {user.isOnline && (
+                            <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium text-sm truncate ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {user.name}
+                          </div>
+                          <div className={`text-xs truncate ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            @{user.username}
+                          </div>
+                          {user.bio && (
+                            <div className={`text-xs truncate mt-1 ${
+                              isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                            }`}>
+                              {user.bio}
+                            </div>
+                          )}
+                        </div>
+                        <MessageCircle className={`w-4 h-4 ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 flex flex-col items-center justify-center h-full">
+                    <MessageCircle className={`w-8 h-8 mb-2 ${
+                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                    }`} />
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {showFollowedUsers ? 'No followed users found' : 'No followers found'}
+                    </p>
+                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {showFollowedUsers ? 'Follow some users to start conversations' : 'You don\'t have any followers yet'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : filteredConversations.length > 0 ? (
             <div className="py-1">
               {filteredConversations.map((conversation) => {
                 const otherParticipant = getOtherParticipant(conversation);
@@ -1889,7 +1871,7 @@ export default function MessagesPage() {
                 );
               })}
             </div>
-          ) : (
+          ) : !(showFollowedUsers || showFollowerUsers) ? (
             <div className="text-center py-8">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
                 isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
@@ -1920,7 +1902,7 @@ export default function MessagesPage() {
                 </button>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -2306,6 +2288,18 @@ export default function MessagesPage() {
         isVisible={showCallHistory}
         onClose={() => setShowCallHistory(false)}
       />
+
+      {/* Floating New Message Button */}
+      <button
+        onClick={() => {
+          setShowFollowedUsers(true);
+          setShowFollowerUsers(false);
+        }}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 z-50"
+        aria-label="New Message"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </div>
   );
 }
