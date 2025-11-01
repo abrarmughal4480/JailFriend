@@ -633,9 +633,9 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 suggestion-panel">
                         <div className="text-xs font-medium text-gray-700 mb-2">Popular Emojis</div>
                         <div className="grid grid-cols-8 gap-1">
-                          {['😊', '😂', '❤️', '🔥', '👍', '🎉', '✨', '🌟', '💯', '😍', '🤔', '😎', '🥳', '😭', '🤣', '😱', '😴', '🤩', '😇', '😋', '🤗', '😌', '😉', '😘', '😍', '😎', '🤠', '👻', '🤖', '👽', '👾', '🎃', '🎄', '🎁', '🎈', '🎉', '🎊', '🎋', '🎍', '🎎', '🎏'].map(emoji => (
+                          {['😊', '😂', '❤️', '🔥', '👍', '🎉', '✨', '🌟', '💯', '😍', '🤔', '😎', '🥳', '😭', '🤣', '😱', '😴', '🤩', '😇', '😋', '🤗', '😌', '😉', '😘', '🤠', '👻', '🤖', '👽', '👾', '🎃', '🎄', '🎁', '🎈', '🎊', '🎋', '🎍', '🎎', '🎏'].map((emoji, index) => (
                             <button
-                              key={emoji}
+                              key={`emoji-${index}-${emoji}`}
                               onClick={() => insertEmoji(emoji)}
                               className="w-8 h-8 text-lg hover:bg-gray-100 rounded transition-colors flex items-center justify-center"
                             >

@@ -21,6 +21,12 @@ router.get('/:id/posts', pageController.getPagePosts);
 // Like/Unlike page (requires authentication)
 router.post('/:id/like', auth, pageController.likePage);
 
+// Join/Unjoin page (requires authentication)
+router.post('/:id/join', auth, pageController.joinPage);
+
+// Update page (requires authentication)
+router.put('/:id', auth, pageController.updatePage);
+
 // Update page images (requires authentication)
 router.put('/:id/images', auth, pageController.updatePageImages);
 

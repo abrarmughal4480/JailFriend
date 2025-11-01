@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { Plus, Camera, ArrowLeft, Settings, Users, User, X } from 'lucide-react';
+import { Plus, Camera, ArrowLeft, Settings, Users, User, X, Heart } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import Popup, { PopupState } from '../../../components/Popup';
 
@@ -27,6 +27,83 @@ const PhotoAlbumManager: React.FC = () => {
     title: '',
     message: ''
   });
+  
+  // Auth-aware media URL resolver: fetches protected media with Authorization and returns blob URL
+  const useAuthMediaUrl = (inputUrl: string) => {
+    const [resolvedUrl, setResolvedUrl] = useState<string>(inputUrl);
+    useEffect(() => {
+      let objectUrlToRevoke: string | null = null;
+      const resolve = async () => {
+        const url = inputUrl;
+        if (!url) return;
+        try {
+          const token = localStorage.getItem('token');
+          const apiBase = (API_URL || '').replace(/\/$/, '');
+          const isSameOrigin = url.startsWith(apiBase);
+          if (token && isSameOrigin) {
+            const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            if (resp.ok) {
+              const blob = await resp.blob();
+              const obj = URL.createObjectURL(blob);
+              objectUrlToRevoke = obj;
+              setResolvedUrl(obj);
+              return;
+            }
+          }
+          setResolvedUrl(url);
+        } catch {
+          setResolvedUrl(url);
+        }
+      };
+      resolve();
+      return () => {
+        if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
+      };
+    }, [inputUrl]);
+    return resolvedUrl;
+  };
+  
+  const AuthImage: React.FC<{ src: string; rawSrc?: string; alt: string; className?: string }> = ({ src, rawSrc, alt, className }) => {
+    const url = useAuthMediaUrl(src);
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={className}
+        loading="lazy"
+        onError={(e) => {
+          const target = e.currentTarget as HTMLImageElement;
+          if (rawSrc && target.src !== rawSrc) {
+            // Fallback to the raw URL (e.g., Cloudinary secure_url)
+            target.src = rawSrc;
+          }
+        }}
+      />
+    );
+  };
+  
+  const AuthVideo: React.FC<{ src: string; className?: string }> = ({ src, className }) => {
+    const url = useAuthMediaUrl(src);
+    return (
+      <video src={url} className={className} muted preload="metadata" controls />
+    );
+  };
+  
+  // Follow system dark mode preference to align background with OS theme
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = () => {
+      if (mediaQuery.matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    applyTheme();
+    mediaQuery.addEventListener('change', applyTheme);
+    return () => mediaQuery.removeEventListener('change', applyTheme);
+  }, []);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
   // Fetch real albums from API
   useEffect(() => {
@@ -121,6 +198,77 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
 
   const closePopup = () => {
     setPopup(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleAlbumLike = async (albumId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      showPopup('error', 'Authentication Error', 'Please login to like albums');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/albums/${albumId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Album like response:', data);
+        // Handle different response structures
+        const updatedAlbum = data.album || data;
+        
+        // Update albums state with the new album data, ensuring likes array is properly set
+        setAlbums(prev => prev.map(a => {
+          if (a._id === albumId || a._id?.toString() === albumId.toString()) {
+            // Ensure likes is always an array
+            const likesArray = Array.isArray(updatedAlbum.likes) 
+              ? updatedAlbum.likes 
+              : (updatedAlbum.likes && typeof updatedAlbum.likes === 'object' 
+                ? Object.values(updatedAlbum.likes) 
+                : []);
+            
+            return {
+              ...a,
+              ...updatedAlbum,
+              likes: likesArray,
+              liked: data.isLiked !== undefined ? data.isLiked : data.liked
+            };
+          }
+          return a;
+        }));
+        
+        // Don't show popup for like/unlike to avoid interruption
+        // showPopup('success', 'Success', data.liked ? 'Album liked!' : 'Album unliked!');
+      } else {
+        showPopup('error', 'Error', 'Failed to like album. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error liking album:', error);
+      showPopup('error', 'Network Error', 'Failed to connect to server. Please check your internet connection.');
+    }
+  };
+
+  // Helper function to check if album is liked
+  const isAlbumLiked = (album: any): boolean => {
+    if (album.liked === true) return true;
+    if (!album.likes || !Array.isArray(album.likes)) return false;
+    const currentUserId = localStorage.getItem('userId') || JSON.parse(localStorage.getItem('user') || '{}')._id;
+    if (!currentUserId) return false;
+    return album.likes.some((like: any) => {
+      if (typeof like === 'string') return like === currentUserId;
+      return like?._id === currentUserId || like?.userId === currentUserId;
+    });
+  };
+
+  // Helper function to get like count
+  const getAlbumLikeCount = (album: any): number => {
+    if (Array.isArray(album.likes)) return album.likes.length;
+    if (typeof album.likes === 'number') return album.likes;
+    if (album.likeCount !== undefined) return album.likeCount;
+    return 0;
   };
 
   const handlePublish = async (): Promise<void> => {
@@ -226,8 +374,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
 
   const getMediaUrl = (url: string) => {
     if (!url) return '';
-  if (url.startsWith('http')) return url;
-  return `${API_URL}/${url}`;
+    // Allow absolute and safe URL schemes (Cloudinary, protocol-relative, data, blob)
+    if (/^(https?:)?\/\//i.test(url) || /^(data:|blob:)/i.test(url)) return url;
+    const apiBase = (API_URL || '').replace(/\/$/, '');
+    const normalized = url
+      .replace(/\\/g, '/')      // backslashes -> slashes
+      .replace(/^\/+/, '');      // remove leading slashes
+    const joined = `${apiBase}/${normalized}`;
+    // Encode spaces and unsafe characters minimally
+    return joined.replace(/\s/g, '%20');
   };
 
   // Edit album handlers
@@ -398,15 +553,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
       {/* Album Creation Popup */}
       {showCreatePopup && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+          className="fixed inset-0 flex items-center justify-center z-[9999] p-4 overflow-y-auto scrollbar-hide bg-white/20 dark:bg-black/30 backdrop-blur-md"
           onClick={handleCloseCreatePopup}
         >
           <div 
-            className="rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transition-colors duration-200 bg-white dark:bg-gray-800"
+            className="rounded-2xl w-full max-w-sm sm:max-w-md md:max-w-2xl max-h-[90vh] overflow-hidden transition-colors duration-200 bg-white dark:bg-gray-800"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b transition-colors duration-200 border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b transition-colors duration-200 border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                   <Plus className="w-4 h-4 text-white" />
@@ -422,7 +577,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
             </div>
 
             {/* Form Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-140px)] scrollbar-hide">
               {/* Album Name Field */}
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-3 transition-colors duration-200 text-gray-700 dark:text-gray-300">Album Name</label>
@@ -545,7 +700,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t transition-colors duration-200 border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-end gap-3 p-4 sm:p-6 border-t transition-colors duration-200 border-gray-200 dark:border-gray-700">
               <button
                 onClick={handleCloseCreatePopup}
                 className="px-6 py-2 font-medium transition-colors duration-200 border rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -582,7 +737,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-12">
-              {/* Create New Album Card */}
+              {/* Create New Album Card (hidden when no albums exist) */}
+              {albums.length > 0 && (
               <div 
                 onClick={handleCreateAlbum}
                 className="border-2 border-dashed rounded-lg p-6 text-center transition-colors duration-200 cursor-pointer group bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -592,6 +748,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
                 </div>
                 <p className="font-medium text-sm transition-colors duration-200 text-gray-600 dark:text-gray-300">Create New Album</p>
               </div>
+              )}
               
               {/* Existing Albums */}
               {albums.map((album, idx) => (
@@ -677,28 +834,32 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
                   <div className="grid grid-cols-3 gap-1 sm:gap-2 mb-2">
                     {album.media && album.media.length > 0 ? (
                       album.media.slice(0, 6).map((media: any, pidx: number) => {
-                        const mediaUrl = getMediaUrl(media.url);
-                        
-                        if (media.type === 'video' || media.url.match(/\.(mp4|webm|ogg|mov|avi)$/i)) {
+                        // Handle various backend shapes: string URL or object with url/path/secure_url/type
+                        const rawUrl: string = typeof media === 'string' 
+                          ? media 
+                          : (media?.url || media?.secure_url || media?.path || '');
+                        const normalizedUrl = getMediaUrl(rawUrl);
+                        const isVideo: boolean = (typeof media === 'object' && media?.type === 'video') 
+                          || /\.(mp4|webm|ogg|mov|avi)$/i.test(rawUrl || '');
+
+                        if (isVideo) {
                           return (
-                            <video
+                            <AuthVideo
                               key={pidx}
-                              src={mediaUrl}
-                              className="w-full aspect-square object-cover rounded"
-                              muted
-                              preload="metadata"
-                            />
-                          );
-                        } else {
-                          return (
-                            <img
-                              key={pidx}
-                              src={mediaUrl}
-                              alt="album media"
+                              src={normalizedUrl}
                               className="w-full aspect-square object-cover rounded"
                             />
                           );
                         }
+                          return (
+                          <AuthImage
+                              key={pidx}
+                            src={normalizedUrl}
+                            rawSrc={rawUrl}
+                              alt="album media"
+                              className="w-full aspect-square object-cover rounded"
+                            />
+                          );
                       })
                     ) : (
                       <div className="col-span-3 text-xs py-4 text-center transition-colors duration-200 text-gray-400 dark:text-gray-500">No media</div>
@@ -708,6 +869,31 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
                         +{album.media.length - 6}
                       </div>
                     )}
+                  </div>
+                  {/* Actions: Like */}
+                  <div className="flex items-center justify-between mt-2">
+                    <button
+                      onClick={() => handleAlbumLike(album._id)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded transition-colors duration-200 ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-700' 
+                          : 'hover:bg-gray-100'
+                      }`}
+                      aria-label="Like album"
+                    >
+                      <Heart className={`w-4 h-4 transition-colors duration-200 ${
+                        isAlbumLiked(album) 
+                          ? 'text-red-500 fill-red-500' 
+                          : isDarkMode 
+                            ? 'text-gray-400' 
+                            : 'text-gray-500'
+                      }`} />
+                      <span className={`text-xs transition-colors duration-200 ${
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
+                        {getAlbumLikeCount(album)}
+                      </span>
+                    </button>
                   </div>
                   <div className="text-xs transition-colors duration-200 text-gray-500 dark:text-gray-400">
                     Created: {album.createdAt ? new Date(album.createdAt).toLocaleDateString() : ''}

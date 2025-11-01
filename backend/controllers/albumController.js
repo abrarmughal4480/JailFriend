@@ -228,7 +228,8 @@ exports.getUserAlbums = async (req, res) => {
       .sort({ createdAt: -1 })
       .populate('user', 'name avatar')
       .populate('comments.user', 'name avatar')
-      .populate('savedBy', 'name avatar');
+      .populate('savedBy', 'name avatar')
+      .populate('likes', 'name avatar');
     res.json(albums);
   } catch (err) {
     res.status(500).json({ message: 'Error fetching user albums' });
@@ -243,6 +244,7 @@ exports.getAllAlbums = async (req, res) => {
       .populate('user', 'name avatar')
       .populate('comments.user', 'name avatar')
       .populate('savedBy', 'name avatar')
+      .populate('likes', 'name avatar')
       .limit(50); // Limit to prevent overwhelming response
     res.json(albums);
   } catch (err) {
@@ -254,27 +256,47 @@ exports.getAllAlbums = async (req, res) => {
 // Like/Unlike album
 exports.toggleLike = async (req, res) => {
   try {
+    const userId = req.userId;
+    
+    // Use atomic operation to toggle like
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: 'Album not found' });
-    const userId = req.userId;
-    const likeIndex = album.likes.indexOf(userId);
-    if (likeIndex > -1) {
-      album.likes.splice(likeIndex, 1);
-    } else {
-      album.likes.push(userId);
-    }
-    await album.save();
     
-    // Populate user info for response
-    await album.populate('user', 'name avatar');
-    await album.populate('comments.user', 'name avatar');
-    await album.populate('savedBy', 'name avatar');
-    await album.populate('reactions.user', 'name avatar');
+    // Check if user already liked
+    const isLiked = album.likes.some(likeId => 
+      likeId.toString() === userId.toString()
+    );
+    
+    // Use atomic update to add or remove like
+    if (isLiked) {
+      // Remove like using atomic operation
+      await Album.findByIdAndUpdate(
+        req.params.id,
+        { $pull: { likes: userId } },
+        { new: true }
+      );
+    } else {
+      // Add like using atomic operation
+      await Album.findByIdAndUpdate(
+        req.params.id,
+        { $addToSet: { likes: userId } },
+        { new: true }
+      );
+    }
+    
+    // Fetch updated album with populated fields
+    const updatedAlbum = await Album.findById(req.params.id)
+      .populate('user', 'name avatar')
+      .populate('comments.user', 'name avatar')
+      .populate('savedBy', 'name avatar')
+      .populate('reactions.user', 'name avatar')
+      .populate('likes', 'name avatar');
     
     res.json({ 
-      album: album,
-      likes: album.likes, 
-      liked: likeIndex === -1 
+      album: updatedAlbum,
+      likes: updatedAlbum.likes, 
+      liked: !isLiked,
+      isLiked: !isLiked
     });
   } catch (err) {
     res.status(500).json({ message: 'Error toggling like', error: err.message });

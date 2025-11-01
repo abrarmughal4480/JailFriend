@@ -170,6 +170,8 @@ const PageView: React.FC = () => {
 
   useEffect(() => {
     if (pageId) {
+      // Handle both ID and URL slug
+      const actualPageId = Array.isArray(pageId) ? pageId[0] : pageId;
       fetchPage();
       fetchPagePosts();
       fetchJobs();
@@ -428,8 +430,15 @@ const PageView: React.FC = () => {
 
   const fetchPage = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-  const response = await fetch(`${API_URL}/api/pages/${pageId}`, {
+      
+      // Handle both ID and URL slug - get actual pageId
+      const actualPageId = Array.isArray(pageId) ? pageId[0] : pageId;
+      
+      console.log('Fetching page with:', actualPageId);
+      
+      const response = await fetch(`${API_URL}/api/pages/${actualPageId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -437,9 +446,12 @@ const PageView: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Page fetched successfully:', data);
         setPage(data);
       } else {
-        console.error('Failed to fetch page');
+        console.error('Failed to fetch page:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Error data:', errorData);
       }
     } catch (error) {
       console.error('Error fetching page:', error);
@@ -451,7 +463,12 @@ const PageView: React.FC = () => {
   const fetchPagePosts = async () => {
     try {
       const token = localStorage.getItem('token');
-  const response = await fetch(`${API_URL}/api/pages/${pageId}/posts`, {
+      const actualPageId = Array.isArray(pageId) ? pageId[0] : pageId;
+      
+      // If we have page data with _id, use that, otherwise use pageId/URL
+      const pageIdentifier = page?._id || actualPageId;
+      
+      const response = await fetch(`${API_URL}/api/pages/${pageIdentifier}/posts`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2300,16 +2317,12 @@ const PageView: React.FC = () => {
 
                   {/* Selected Location */}
                   {selectedLocation && (
-                    <div className={`flex items-center gap-2 p-3 rounded-lg transition-colors duration-200 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
-                    }`}>
-                      <MapPin className={`w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                      <span className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{selectedLocation}</span>
+                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                      <span>{selectedLocation}</span>
                       <button
                         onClick={() => setSelectedLocation('')}
-                        className={`ml-auto transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
-                        }`}
+                        className="ml-auto text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         <X className="w-4 h-4" />
                       </button>

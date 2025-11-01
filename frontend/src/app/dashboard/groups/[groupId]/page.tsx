@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Camera, Edit, Search, Video, Image, Plus, Heart, MessageCircle, Share2, Users, FileText, X, ChevronDown, UserPlus, Globe2, Users2, Car, File, Smile, Hash, AtSign, Link, Upload, MapPin, Calendar, ThumbsUp, MoreHorizontal, Bookmark, Flag, Bell, BellOff } from 'lucide-react';
 import { getCurrentUserId, getCurrentUser } from '@/utils/auth';
+import FeedPost from '@/components/FeedPost';
+import SharePopup, { ShareOptions } from '@/components/SharePopup';
 
 interface Group {
   _id: string;
@@ -68,6 +70,8 @@ interface Post {
     type: string;
     url: string;
   }>;
+  savedBy?: string[];
+  saved?: boolean;
 }
 
 const GroupPage: React.FC = () => {
@@ -268,6 +272,140 @@ const GroupPage: React.FC = () => {
   // Remove media
   const removeMedia = (index: number) => {
     setSelectedMedia(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handler functions for FeedPost component
+  const handleLike = async (postId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(posts => posts.map(p => (p._id === postId) ? data.post : p));
+      }
+    } catch (error) {
+      console.error('Error liking post:', error);
+    }
+  };
+
+  const handleReaction = async (postId: string, reactionType: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/reaction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reactionType })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(posts => posts.map(p => (p._id === postId) ? data.post : p));
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  };
+
+  const handleAddComment = async (postId: string, commentText: string) => {
+    if (!commentText.trim()) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/comment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: commentText })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(posts => posts.map(p => (p._id === postId) ? {
+          ...p,
+          comments: [...(p.comments || []), data.comment]
+        } : p));
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
+  const handleShare = (postId: string, shareOptions: ShareOptions) => {
+    // Share functionality - can be enhanced later
+    console.log('Share post:', postId, shareOptions);
+  };
+
+  const handleSave = async (postId: string) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/save`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPosts(posts => posts.map(p => (p._id === postId) ? {
+          ...p,
+          savedBy: data.savedBy || p.savedBy,
+          saved: data.saved
+        } : p));
+      }
+    } catch (error) {
+      console.error('Error saving post:', error);
+    }
+  };
+
+  const handleDelete = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        setPosts(posts => posts.filter(p => p._id !== postId));
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
+    }
+  };
+
+  const handleEdit = (post: any) => {
+    // Edit functionality - can be enhanced later
+    console.log('Edit post:', post);
+  };
+
+  const handlePostUpdate = (updatedPost: any) => {
+    setPosts(posts => posts.map(p => (p._id === updatedPost._id) ? updatedPost : p));
   };
 
   // Handle profile image upload
@@ -759,105 +897,29 @@ const GroupPage: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {posts.map((post) => (
-                  <div key={post._id} className="bg-white rounded-xl border border-gray-200 p-4">
-                    {/* Post Header */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-indigo-100">
-                        {post.user?.avatar ? (
-                          <img
-                            src={post.user.avatar}
-                            alt={post.user.name || 'User avatar'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {post.user?.name ? post.user.name.charAt(0).toUpperCase() : 'U'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">{post.user?.name || 'Unknown User'}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(post.createdAt).toLocaleDateString()} • {new Date(post.createdAt).toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
+                {posts.map((post) => {
+                  const currentUser = getCurrentUser();
+                  const isOwnPost = post.user && (
+                    post.user.userId === currentUser?._id ||
+                    post.user.userId === currentUser?.id
+                  );
 
-                    {/* Post Content */}
-                    <div className="mb-3">
-                      <div 
-                        className="text-gray-900 text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{ __html: post.content }}
-                      />
-                    </div>
-
-                    {/* Post Media */}
-                    {post.media && post.media.length > 0 && (
-                      <div className="mb-3">
-                        {post.media.map((media, index) => (
-                          <div key={index} className="mb-2">
-                            {media.type === 'image' && (
-                              <img
-                                src={media.url}
-                                alt={`Media ${index + 1}`}
-                                className="w-full max-h-96 object-cover rounded-lg"
-                              />
-                            )}
-                            {media.type === 'video' && (
-                              <video
-                                src={media.url}
-                                controls
-                                className="w-full max-h-96 rounded-lg"
-                              />
-                            )}
-                            {media.type === 'audio' && (
-                              <audio
-                                src={media.url}
-                                controls
-                                className="w-full"
-                              />
-                            )}
-                            {media.type === 'file' && (
-                              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                                <FileText className="w-8 h-8 text-blue-600" />
-                                <div className="flex-1">
-                                  <p className="font-medium text-gray-900 text-sm">{media.originalName || 'File'}</p>
-                                  <p className="text-xs text-gray-500">{media.type}</p>
-                                </div>
-                                <a
-                                  href={media.url}
-                                  download
-                                  className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-blue-600 transition-colors"
-                                >
-                                  Download
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Post Actions */}
-                    <div className="flex items-center gap-4 pt-3 border-t border-gray-100">
-                      <button className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors">
-                        <Heart className="w-4 h-4" />
-                        <span className="text-sm">{post.likes?.length || 0}</span>
-                      </button>
-                      <button className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition-colors">
-                        <MessageCircle className="w-4 h-4" />
-                        <span className="text-sm">{post.comments?.length || 0}</span>
-                      </button>
-                      <button className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition-colors">
-                        <Share2 className="w-4 h-4" />
-                        <span className="text-sm">{post.shares?.length || 0}</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  return (
+                    <FeedPost
+                      key={post._id}
+                      post={post}
+                      onLike={handleLike}
+                      onReaction={handleReaction}
+                      onComment={handleAddComment}
+                      onShare={handleShare}
+                      onSave={handleSave}
+                      onDelete={handleDelete}
+                      onEdit={handleEdit}
+                      onPostUpdate={handlePostUpdate}
+                      isOwnPost={isOwnPost}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1235,12 +1297,12 @@ const GroupPage: React.FC = () => {
 
                 {/* Selected Location */}
                 {selectedLocation && (
-                  <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-lg">
-                    <MapPin className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm text-gray-700">{selectedLocation}</span>
+                  <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <span>{selectedLocation}</span>
                     <button
                       onClick={() => setSelectedLocation('')}
-                      className="ml-auto text-gray-400 hover:text-gray-600"
+                      className="ml-auto text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                       <X className="w-4 h-4" />
                     </button>

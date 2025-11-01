@@ -164,6 +164,13 @@ button:focus {
   display: none;
 }
 
+/* Glassmorphism background for modals */
+.modal-glassmorphism-bg {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 /* Prevent horizontal scrolling globally */
 html, body {
   overflow-x: hidden;

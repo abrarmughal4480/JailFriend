@@ -79,12 +79,12 @@ export default function PostDisplay({
 
   const getMediaUrl = (url: string) => {
     if (!url) return '/default-avatar.svg';
-    if (url.startsWith('http')) return url;
-    
-    
-    // Remove leading slash to avoid double slashes
-    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
+    // Accept absolute Cloudinary/protocol-relative/data/blob
+    if (/^(https?:)?\/\//i.test(url) || /^(data:|blob:)/i.test(url)) return url;
+    // Normalize local paths: backslashes -> slashes, trim leading slashes
+    const api = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    const normalized = (url.startsWith('/') ? url.slice(1) : url).replace(/\\/g, '/');
+    const fullUrl = `${api}/${normalized}`.replace(/\s/g, '%20');
     console.log('📸 getMediaUrl - Original:', url, 'Full:', fullUrl);
     return fullUrl;
   };
@@ -452,9 +452,9 @@ export default function PostDisplay({
 
       {/* Poll Display - Only show if poll was actually created */}
       {post.poll && post.poll.question && post.poll.options && post.poll.options.length > 0 && (
-        <div className="mb-2 sm:mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="mb-2 sm:mb-3">
           <div className="mb-2">
-            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
               📊 {post.poll.question}
             </h4>
             <div className="space-y-2">
@@ -506,14 +506,14 @@ export default function PostDisplay({
       
       {/* Feeling Display - Only show if feeling was actually selected */}
       {post.feeling && post.feeling.type && post.feeling.emoji && post.feeling.description && (
-        <div className="mb-2 sm:mb-3 p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+        <div className="mb-2 sm:mb-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">{post.feeling.emoji}</span>
             <div>
-              <h4 className="text-sm font-semibold text-pink-900 dark:text-pink-100">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
                 Feeling {post.feeling.description}
               </h4>
-              <p className="text-xs text-pink-700 dark:text-pink-300">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 Intensity: {post.feeling.intensity}/10
               </p>
             </div>
@@ -549,25 +549,25 @@ export default function PostDisplay({
       
       {/* Sell Info Display - Only show if sell info was actually added */}
       {post.sell && post.sell.productName && post.sell.price && (
-        <div className="mb-2 sm:mb-3 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+        <div className="mb-2 sm:mb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-2xl">🏪</span>
               <div>
-                <h4 className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
                   {post.sell.productName}
                 </h4>
-                <p className="text-xs text-orange-700 dark:text-orange-300">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Condition: {post.sell.condition}
                   {post.sell.negotiable && <span className="ml-2">• Price negotiable</span>}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
                 ${post.sell.price}
               </div>
-              <div className="text-xs text-orange-700 dark:text-orange-300">
+              <div className="text-xs text-gray-600 dark:text-gray-400">
                 {post.sell.currency || 'USD'}
               </div>
             </div>
@@ -588,18 +588,18 @@ export default function PostDisplay({
       
       {/* Voice Recording Display - Only show if voice was actually recorded */}
       {post.voice && post.voice.url && post.voice.duration && (
-        <div className="mb-2 sm:mb-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+        <div className="mb-2 sm:mb-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎤</span>
             <div className="flex-1">
-              <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-2">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
                 Voice Message
               </h4>
               <audio controls className="w-full">
                 <source src={post.voice.url} type="audio/wav" />
                 Your browser does not support the audio element.
               </audio>
-              <p className="text-xs text-purple-700 dark:text-purple-300 mt-1">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                 Duration: {post.voice.duration}s
                 {post.voice.transcription && (
                   <span className="ml-2">• Transcription: {post.voice.transcription}</span>
@@ -617,36 +617,41 @@ export default function PostDisplay({
             console.log('📸 PostDisplay media:', post.media);
             console.log('📸 Post ID:', post._id);
             console.log('📸 Media URLs:', post.media.map((m: any) => m.url));
-            return post.media.map((media: any, index: number) => (
+            return post.media.map((media: any, index: number) => {
+              const rawUrl = typeof media === 'string' 
+                ? media 
+                : (media?.secure_url || media?.url || media?.path || '');
+              const resolvedUrl = getMediaUrl(rawUrl);
+              return (
               <div key={index} className="mb-2">
                 {media.type === 'video' ? (
                   <video 
-                    src={getMediaUrl(media.url)} 
+                    src={resolvedUrl} 
                     controls 
                     className="w-full object-contain rounded-lg shadow-lg"
                     style={{ maxHeight: '80vh' }}
                   />
                 ) : media.type === 'audio' ? (
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="mb-2">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🎵</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {media.originalName || 'Audio File'}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {(media.size / 1024 / 1024).toFixed(1)}MB
                         </p>
                       </div>
                       <audio
-                        src={getMediaUrl(media.url)}
+                        src={resolvedUrl}
                         controls
                         className="w-full"
                       />
                     </div>
                   </div>
                 ) : media.type === 'file' ? (
-                  <div className="bg-blue-50 dark:bg-blue-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+                  <div className="mb-2">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">
                         {media.mimetype?.includes('pdf') ? '📕' : 
@@ -654,10 +659,10 @@ export default function PostDisplay({
                          media.mimetype?.includes('excel') ? '📗' : '📄'}
                       </span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {media.originalName || 'Document'}
                         </p>
-                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {(media.size / 1024 / 1024).toFixed(1)}MB • {media.extension?.toUpperCase()}
                         </p>
                       </div>
@@ -673,14 +678,19 @@ export default function PostDisplay({
                   </div>
                 ) : (
                   <img
-                    src={getMediaUrl(media.url)}
+                    src={resolvedUrl}
                     alt="media"
                     className="w-full object-contain rounded-lg shadow-lg"
                     style={{ maxHeight: '80vh' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
+                    }}
                   />
                 )}
               </div>
-            ));
+            );
+            });
           })()}
         </div>
       )}

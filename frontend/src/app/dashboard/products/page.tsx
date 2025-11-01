@@ -756,8 +756,19 @@ const MarketplaceSeller: React.FC = () => {
 
       {/* Sell New Product Modal */}
       {showSellModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`rounded-lg shadow-xl w-full max-w-md sm:max-w-lg max-h-[90vh] overflow-y-auto transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="fixed inset-0 modal-glassmorphism-bg flex items-center justify-center p-2 sm:p-4 z-50">
+          <div 
+            className={`rounded-2xl shadow-2xl w-full max-w-[90vw] sm:max-w-lg lg:max-w-xl max-h-[70vh] sm:max-h-[80vh] overflow-y-auto scrollbar-hide transition-all duration-300 transform border ${
+              isDarkMode 
+                ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl' 
+                : 'bg-white/80 border-gray-300/50 backdrop-blur-xl'
+            }`}
+            style={{
+              boxShadow: isDarkMode 
+                ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)' 
+                : '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+            }}
+          >
             {/* Modal Header */}
             <div className={`flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
               <h2 className={`text-lg sm:text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Sell new product</h2>
@@ -774,7 +785,7 @@ const MarketplaceSeller: React.FC = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+            <div className="p-4 sm:p-5 space-y-4 sm:space-y-4">
               {/* Name */}
               <div>
                 <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Product Name *</label>

@@ -16,6 +16,7 @@ import LocationDetector from '@/components/LocationDetector';
 import LocationDisplay from '@/components/LocationDisplay';
 
 import { isAuthenticated, clearAuth, getCurrentUserId } from '@/utils/auth';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import {
   searchGifsApi,
@@ -142,6 +143,7 @@ function getUserId(user: any): string {
 
 export default function Dashboard() {
   const router = useRouter();
+  const { isDarkMode } = useDarkMode();
   const [posts, setPosts] = useState<any[]>([]);
   const [albums, setAlbums] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -2462,26 +2464,46 @@ export default function Dashboard() {
             {/* Left Section - Feed */}
             <div
               id="left-section"
-              className="w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-gray-100 dark:scrollbar-track-gray-800 flex flex-col order-1 lg:order-1"
+              className={`w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin flex flex-col order-1 lg:order-1 transition-colors duration-200 ${
+                isDarkMode 
+                  ? 'scrollbar-thumb-gray-600 scrollbar-track-gray-800' 
+                  : 'scrollbar-thumb-gray-300 scrollbar-track-gray-100'
+              }`}
               style={{
                 boxSizing: 'border-box',
                 height: 'auto'
               }}
             >
-              <div className="bg-custom-secondary rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6">
+              <div className={`rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6 ${
+                isDarkMode 
+                  ? 'bg-gray-800' 
+                  : 'bg-white'
+              }`}>
                 {/* Top Section: Content Type Selection */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1 xs:gap-2 sm:gap-3">
                     <button
                       onClick={() => setShowReelsModal(true)}
-                      className="flex items-center gap-1 xs:gap-2 bg-pink-50 dark:bg-pink-900/20 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border border-pink-200 dark:border-pink-700 hover:bg-pink-100 dark:hover:bg-pink-900/30 transition-colors cursor-pointer"
+                      className={`flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors cursor-pointer ${
+                        isDarkMode 
+                          ? 'bg-pink-900/20 border-pink-700 hover:bg-pink-900/30' 
+                          : 'bg-pink-50 border-pink-200 hover:bg-pink-100'
+                      }`}
                     >
                       <span className="text-pink-500 text-lg">💎</span>
-                      <span className="text-xs xs:text-sm font-medium text-pink-700 dark:text-pink-300">Reels Video</span>
+                      <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${
+                        isDarkMode ? 'text-pink-300' : 'text-pink-700'
+                      }`}>Reels Video</span>
                     </button>
-                    <div className="flex items-center gap-1 xs:gap-2 bg-pink-50 dark:bg-pink-900/20 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border border-pink-200 dark:border-pink-700">
+                    <div className={`flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors duration-200 ${
+                      isDarkMode 
+                        ? 'bg-pink-900/20 border-pink-700' 
+                        : 'bg-pink-50 border-pink-200'
+                    }`}>
                       <span className="text-pink-500 text-lg">🕐</span>
-                      <span className="text-xs xs:text-sm font-medium text-pink-700 dark:text-pink-300">Free live streams</span>
+                      <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${
+                        isDarkMode ? 'text-pink-300' : 'text-pink-700'
+                      }`}>Free live streams</span>
                     </div>
                   </div>
                 </div>
@@ -2502,8 +2524,12 @@ export default function Dashboard() {
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full bg-gray-300 flex items-center justify-center">
-                            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className={`w-full h-full flex items-center justify-center transition-colors duration-200 ${
+                            isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                          }`}>
+                            <svg className={`w-6 h-6 transition-colors duration-200 ${
+                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                           </div>
@@ -2514,8 +2540,11 @@ export default function Dashboard() {
                       {/* Content Textarea */}
                       <textarea
                         placeholder="Click to create a new post..."
-                        className={`w-full border border-custom-primary rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm bg-custom-tertiary text-custom-primary placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'
-                          }`}
+                        className={`w-full border rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${
+                          isDarkMode 
+                            ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400 hover:border-gray-500' 
+                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 hover:border-gray-400'
+                        } ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'}`}
                         value=""
                         readOnly
                         onClick={() => setShowPostModal(true)}
@@ -2531,7 +2560,11 @@ export default function Dashboard() {
                     {/* Camera Icon - Positioned to the right of textarea */}
                     <div className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0">
                       <button
-                        className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 text-custom-secondary hover:text-blue-500 dark:hover:text-blue-400 transition-colors rounded-full hover:bg-custom-hover"
+                        className={`flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 transition-colors rounded-full ${
+                          isDarkMode 
+                            ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
+                            : 'text-gray-600 hover:text-blue-500 hover:bg-gray-100'
+                        }`}
                         onClick={() => fileInputRef.current && fileInputRef.current.click()}
                         disabled={posting}
                         title="Add photos or videos"
@@ -2544,7 +2577,9 @@ export default function Dashboard() {
 
                 {/* Character Count and Word Count */}
                 {newPost.trim() && (
-                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  <div className={`flex items-center justify-between text-xs mb-3 transition-colors duration-200 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
                     <span>Words: {newPost.split(/\s+/).filter(word => word && word.length > 0).length}/300</span>
                     <span>Characters: {newPost.length}/1800</span>
                   </div>
@@ -2588,14 +2623,22 @@ export default function Dashboard() {
                 />
                 {mediaFiles.length > 0 && (
                   <div className="mt-2">
-                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 transition-colors duration-200">Selected files ({mediaFiles.length}):</div>
+                    <div className={`text-xs mb-2 transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Selected files ({mediaFiles.length}):</div>
                     <div className="space-y-3">
                       {mediaFiles.map((file, index) => (
-                        <div key={index} className="bg-custom-tertiary rounded-lg p-3 border border-custom-primary">
+                        <div key={index} className={`rounded-lg p-3 border transition-colors duration-200 ${
+                          isDarkMode 
+                            ? 'bg-gray-800 border-gray-700' 
+                            : 'bg-gray-50 border-gray-200'
+                        }`}>
                           <div className="flex items-start gap-3">
                             {/* Image/Video Thumbnail Preview */}
                             {file.type.startsWith('image/') ? (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 transition-colors duration-200 ${
+                                isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                              }`}>
                                 <img
                                   src={URL.createObjectURL(file)}
                                   alt={file.name}
@@ -2626,7 +2669,9 @@ export default function Dashboard() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${
+                              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                            }`}>
                                 <span className="text-3xl sm:text-4xl">
                                   {file.type.startsWith('audio/') ? '🎵' : '📄'}
                                 </span>
@@ -2637,13 +2682,19 @@ export default function Dashboard() {
                             <div className="flex-1">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
+                                  <div className={`font-medium text-sm mb-1 transition-colors duration-200 ${
+                                    isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
                                     {file.name}
                                   </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  <div className={`text-xs transition-colors duration-200 ${
+                                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
                                     {(file.size / 1024 / 1024).toFixed(1)}MB
                                   </div>
-                                  <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                  <div className={`text-xs mt-1 transition-colors duration-200 ${
+                                    isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                                  }`}>
                                     {file.type.startsWith('image/') ? 'Image' :
                                       file.type.startsWith('video/') ? 'Video' :
                                         file.type.startsWith('audio/') ? 'Audio' : 'Document'}
@@ -2653,7 +2704,11 @@ export default function Dashboard() {
                                 {/* Remove Button */}
                                 <button
                                   onClick={() => removeMediaFile(index)}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors flex-shrink-0"
+                                  className={`text-red-500 p-1.5 rounded-full transition-colors flex-shrink-0 ${
+                                    isDarkMode 
+                                      ? 'hover:text-red-400 hover:bg-red-900/20' 
+                                      : 'hover:text-red-700 hover:bg-red-100'
+                                  }`}
                                   title="Remove file"
                                 >
                                   <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2668,12 +2723,16 @@ export default function Dashboard() {
                     </div>
 
                     {/* Clear All Button */}
-                    <button
-                      onClick={clearAllMediaFiles}
-                      className="mt-3 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-lg transition-colors font-medium"
-                    >
-                      Clear all files
-                    </button>
+                  <button
+                    onClick={clearAllMediaFiles}
+                    className={`mt-3 text-sm text-red-500 px-3 py-2 rounded-lg transition-colors font-medium ${
+                      isDarkMode 
+                        ? 'hover:text-red-400 hover:bg-red-900/20' 
+                        : 'hover:text-red-700 hover:bg-red-50'
+                    }`}
+                  >
+                    Clear all files
+                  </button>
                   </div>
                 )}
               </div>
@@ -3064,97 +3123,136 @@ export default function Dashboard() {
               {/* Modal Content - Fixed Layout */}
               <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                 {/* Left Side - Content */}
-                <div className="flex-1 overflow-y-auto">
-                  <div className="p-4 pb-8">
-                    {/* Post Content */}
-                    {selectedPostForWatch.content && (
-                      <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div
-                          className="text-gray-900 dark:text-white text-sm whitespace-pre-wrap break-words"
-                          dangerouslySetInnerHTML={{
-                            __html: selectedPostForWatch.content.replace(/<pre[^>]*>/g, '').replace(/<\/pre>/g, '').replace(/class="[^"]*"/g, '')
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Media Display */}
-                    {selectedPostForWatch.media && selectedPostForWatch.media.length > 0 ? (
-                      <div className="space-y-3 mb-6">
-                        {selectedPostForWatch.media.map((media: any, index: number) => (
-                          <div key={index} className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-                            {media.type === 'image' ? (
-                              <img
-                                src={getMediaUrl(media.url)}
-                                alt="Post media"
-                                className="w-full max-h-[40vh] object-contain"
-                                onError={(e) => {
-                                  e.currentTarget.src = '/default-avatar.svg';
-                                }}
-                              />
-                            ) : media.type === 'video' ? (
-                              <video
-                                src={getMediaUrl(media.url)}
-                                controls
-                                className="w-full max-h-[40vh] object-contain"
-                                poster={media.thumbnail ? getMediaUrl(media.thumbnail) : ''}
-                                onError={(e) => {
-                                  console.error('Album video loading error:', e.currentTarget.src);
-                                  e.currentTarget.style.display = 'none';
-                                  // Show fallback content
-                                  const fallback = document.createElement('div');
-                                  fallback.className = 'w-full h-64 sm:h-96 bg-gray-300 dark:bg-gray-700 rounded-lg shadow-lg flex items-center justify-center';
-                                  fallback.innerHTML = `
-                                    <div class="text-center text-gray-600 dark:text-gray-300">
-                                      <div class="text-4xl mb-2">🎥</div>
-                                      <div class="text-sm">Video could not be loaded</div>
-                                      <div class="text-xs mt-1 opacity-75">Check your connection</div>
-                                    </div>
-                                  `;
-                                  e.currentTarget.parentNode?.appendChild(fallback);
-                                }}
-                              />
-                            ) : (
-                              <div className="p-4 text-center">
-                                <div className="w-8 h-8 mx-auto mb-2 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                </div>
-                                <div className="text-sm text-gray-700 dark:text-gray-300">
-                                  {media.originalName || media.filename || media.name || 'File'}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      selectedPostForWatch.content && (
-                        <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
-                          Text only post
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                  <div className="p-4 pb-8 min-h-full">
+                    {/* Post Content - Simple Text */}
+                    {(() => {
+                      const content = selectedPostForWatch.content || selectedPostForWatch.text || '';
+                      const cleanContent = content ? content.replace(/<pre[^>]*>/g, '').replace(/<\/pre>/g, '').replace(/class="[^"]*"/g, '') : '';
+                      if (!cleanContent.trim()) return null;
+                      return (
+                        <div className="mb-3 text-gray-900 dark:text-white text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">
+                          {cleanContent}
                         </div>
-                      )
+                      );
+                    })()}
+
+                    {/* Media Display - Simple without containers */}
+                    {selectedPostForWatch.media && selectedPostForWatch.media.length > 0 && (
+                      <div className="space-y-3 mb-3">
+                        {selectedPostForWatch.media.map((media: any, index: number) => {
+                          const rawUrl = typeof media === 'string' 
+                            ? media 
+                            : (media?.secure_url || media?.url || media?.path || '');
+                          const resolvedUrl = getMediaUrl(rawUrl);
+                          
+                          // Detect media type from type property or mimetype
+                          const isVideo = media.type === 'video' || 
+                                         media.mimetype?.startsWith('video/') ||
+                                         /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(rawUrl);
+                          const isAudio = media.type === 'audio' || media.mimetype?.startsWith('audio/');
+                          const isFile = media.type === 'file' || media.type === 'document' || 
+                                        media.mimetype?.includes('pdf') || 
+                                        media.mimetype?.includes('word') ||
+                                        media.mimetype?.includes('excel') ||
+                                        media.mimetype?.includes('powerpoint') ||
+                                        media.mimetype?.includes('text');
+                          
+                          return (
+                            <div key={index}>
+                              {isVideo ? (
+                                <video
+                                  src={resolvedUrl}
+                                  controls
+                                  className="w-full max-h-[40vh] object-contain rounded-lg"
+                                  poster={media.thumbnail ? getMediaUrl(media.thumbnail) : ''}
+                                  onError={(e) => {
+                                    if (rawUrl && e.currentTarget.src !== rawUrl) {
+                                      e.currentTarget.src = rawUrl;
+                                    }
+                                  }}
+                                />
+                              ) : isAudio ? (
+                                <div className="flex items-center gap-3">
+                                  <span className="text-2xl">🎵</span>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {media.originalName || media.filename || media.name || 'Audio File'}
+                                    </p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                                    </p>
+                                  </div>
+                                  <audio src={resolvedUrl} controls className="w-full" />
+                                </div>
+                              ) : isFile ? (
+                                <div className="flex items-center gap-3">
+                                  <span className="text-2xl">
+                                    {media.mimetype?.includes('pdf') ? '📕' : 
+                                     media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' : 
+                                     media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' : 
+                                     media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
+                                     media.mimetype?.includes('text') ? '📝' : '📄'}
+                                  </span>
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {media.originalName || media.filename || media.name || 'Document'}
+                                    </p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                                      {media.extension && ` • ${media.extension.toUpperCase()}`}
+                                    </p>
+                                  </div>
+                                  <a
+                                    href={resolvedUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                                  >
+                                    Download
+                                  </a>
+                                </div>
+                              ) : (
+                                <img
+                                  src={resolvedUrl}
+                                  alt="Post media"
+                                  className="w-full max-h-[40vh] object-contain rounded-lg"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    if (rawUrl && e.currentTarget.src !== rawUrl) {
+                                      e.currentTarget.src = rawUrl;
+                                    }
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
 
-                    {/* Location Display */}
-                    {selectedPostForWatch.location && (
-                      <div className="mb-4">
-                        <LocationDisplay
-                          location={{
-                            name: selectedPostForWatch.location.name || 'Unknown Location',
-                            address: selectedPostForWatch.location.address || 'Location',
-                            coordinates: {
-                              latitude: selectedPostForWatch.location.coordinates?.lat || 0,
-                              longitude: selectedPostForWatch.location.coordinates?.lng || 0
-                            },
-                            country: selectedPostForWatch.location.country,
-                            state: selectedPostForWatch.location.state,
-                            city: selectedPostForWatch.location.city
-                          }}
-                          compact={true}
-                          showCoordinates={false}
-                        />
+                    {/* Location Display - Simple */}
+                    {selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address) && (
+                      <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-3">
+                        <span>📍</span>
+                        {selectedPostForWatch.location.name && (
+                          <span>{selectedPostForWatch.location.name}</span>
+                        )}
+                        {selectedPostForWatch.location.address && (
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {selectedPostForWatch.location.name ? '• ' : ''}
+                            {selectedPostForWatch.location.address}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Debug: Show if no content, media, or location */}
+                    {!(selectedPostForWatch.content || selectedPostForWatch.text) && 
+                     !(selectedPostForWatch.media && selectedPostForWatch.media.length > 0) && 
+                     !(selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address)) && (
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+                        No content available
                       </div>
                     )}
                   </div>
@@ -3311,12 +3409,22 @@ export default function Dashboard() {
       {/* Post Creation Modal */}
       {showPostModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black/20 backdrop-blur-md" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border border-white/20 dark:border-gray-700/30 rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden">
+          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${
+            isDarkMode 
+              ? 'bg-gray-800/90 border-gray-700/30' 
+              : 'bg-white/90 border-gray-200/20'
+          }`}>
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className={`flex items-center justify-between p-3 sm:p-4 border-b transition-colors duration-200 ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
               <button
                 onClick={() => setShowPostModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors p-1"
+                className={`transition-colors p-1 ${
+                  isDarkMode 
+                    ? 'text-gray-400 hover:text-gray-200' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3324,7 +3432,9 @@ export default function Dashboard() {
               </button>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">{1800 - (newPost.length)}</span>
+                <span className={`text-xs sm:text-sm transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>{1800 - (newPost.length)}</span>
                 <button
                   onClick={handleModalPost}
                   disabled={posting || (!newPost.trim() && modalMediaFiles.length === 0 && !selectedGif && !voiceRecording && !selectedFeeling && !sellData && !pollData && !locationData)}
@@ -3342,21 +3452,33 @@ export default function Dashboard() {
                 placeholder="What's happening?"
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
-                className="w-full border-none outline-none text-sm sm:text-base resize-none min-h-[60px] sm:min-h-[80px] bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                className={`w-full border-none outline-none text-sm sm:text-base resize-none min-h-[60px] sm:min-h-[80px] bg-transparent transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'text-white placeholder-gray-400' 
+                    : 'text-gray-900 placeholder-gray-500'
+                }`}
                 maxLength={1800}
               />
 
               {/* Media Preview */}
               {modalMediaFiles.length > 0 && (
                 <div className="mt-3 sm:mt-4">
-                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">Selected files ({modalMediaFiles.length}):</div>
+                  <div className={`text-xs sm:text-sm mb-2 transition-colors duration-200 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Selected files ({modalMediaFiles.length}):</div>
                   <div className="space-y-3">
                     {modalMediaFiles.map((file, index) => (
-                      <div key={index} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                      <div key={index} className={`rounded-lg p-3 border transition-colors duration-200 ${
+                        isDarkMode 
+                          ? 'bg-gray-700 border-gray-600' 
+                          : 'bg-gray-100 border-gray-200'
+                      }`}>
                         <div className="flex items-start gap-3">
                           {/* Image/Video Thumbnail Preview */}
                           {file.type.startsWith('image/') ? (
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 transition-colors duration-200 ${
+                              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                            }`}>
                               <img
                                 src={URL.createObjectURL(file)}
                                 alt={file.name}
@@ -3387,7 +3509,9 @@ export default function Dashboard() {
                               </div>
                             </div>
                           ) : (
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gray-200 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${
+                              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                            }`}>
                               <span className="text-3xl sm:text-4xl">
                                 {file.type.startsWith('audio/') ? '🎵' : '📄'}
                               </span>
@@ -3398,13 +3522,19 @@ export default function Dashboard() {
                                 <div className="flex-1">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <div className="font-medium text-gray-900 dark:text-white text-sm mb-1">
+                                <div className={`font-medium text-sm mb-1 transition-colors duration-200 ${
+                                  isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
                                   {file.name}
                                 </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                <div className={`text-xs transition-colors duration-200 ${
+                                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                }`}>
                                   {(file.size / 1024 / 1024).toFixed(1)}MB
                                 </div>
-                                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                <div className={`text-xs mt-1 transition-colors duration-200 ${
+                                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                                }`}>
                                   {file.type.startsWith('image/') ? 'Image' :
                                     file.type.startsWith('video/') ? 'Video' :
                                       file.type.startsWith('audio/') ? 'Audio' : 'Document'}
@@ -3431,7 +3561,11 @@ export default function Dashboard() {
                   {/* Clear All Button */}
                   <button
                     onClick={clearModalMedia}
-                    className="mt-3 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-2 rounded-lg transition-colors font-medium"
+                    className={`mt-3 text-sm text-red-500 px-3 py-2 rounded-lg transition-colors font-medium ${
+                      isDarkMode 
+                        ? 'hover:text-red-400 hover:bg-red-900/20' 
+                        : 'hover:text-red-700 hover:bg-red-50'
+                    }`}
                   >
                     Clear all files
                   </button>
@@ -3440,83 +3574,108 @@ export default function Dashboard() {
 
               {/* Selected Features Preview */}
               {(selectedGif || voiceRecording || selectedFeeling || sellData || pollData || locationData) && (
-                <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="text-xs sm:text-xs xs:text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Selected features:</div>
-                  <div className="space-y-2">
-                    {selectedGif && (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span>🎭 GIF: {selectedGif.source}</span>
-                        <button
-                          onClick={() => setSelectedGif(null)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    {voiceRecording && (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span>🎤 Voice recording</span>
-                        <button
-                          onClick={() => setVoiceRecording(null)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    {selectedFeeling && (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span>{selectedFeeling.emoji} Feeling: {selectedFeeling.description}</span>
-                        <button
-                          onClick={() => setSelectedFeeling(null)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    {sellData && (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span>🏪 Selling: {sellData.productName} - ${sellData.price}</span>
-                        <button
-                          onClick={() => setSellData(null)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    {pollData && (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span>📊 Poll: {pollData.question}</span>
-                        <button
-                          onClick={() => setPollData(null)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                    {locationData && (
-                      <div className="flex items-center gap-2 text-xs sm:text-sm">
-                        <span>📍 Location: {locationData.name}</span>
-                        <button
-                          onClick={() => setLocationData(null)}
-                          className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                <div className="mt-3 sm:mt-4 space-y-2">
+                  {selectedGif && (
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span>🎭 GIF: {selectedGif.source}</span>
+                      <button
+                        onClick={() => setSelectedGif(null)}
+                        className={`text-red-500 transition-colors p-1 ${
+                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {voiceRecording && (
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span>🎤 Voice recording</span>
+                      <button
+                        onClick={() => setVoiceRecording(null)}
+                        className={`text-red-500 transition-colors p-1 ${
+                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {selectedFeeling && (
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span>{selectedFeeling.emoji} Feeling: {selectedFeeling.description}</span>
+                      <button
+                        onClick={() => setSelectedFeeling(null)}
+                        className={`text-red-500 transition-colors p-1 ${
+                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {sellData && (
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span>🏪 Selling: {sellData.productName} - ${sellData.price}</span>
+                      <button
+                        onClick={() => setSellData(null)}
+                        className={`text-red-500 transition-colors p-1 ${
+                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {pollData && (
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span>📊 Poll: {pollData.question}</span>
+                      <button
+                        onClick={() => setPollData(null)}
+                        className={`text-red-500 transition-colors p-1 ${
+                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {locationData && (
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                      <span>📍 Location: {locationData.name}</span>
+                      <button
+                        onClick={() => setLocationData(null)}
+                        className={`text-red-500 transition-colors p-1 ${
+                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                        }`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Audience Selector */}
-              <div className="flex items-center gap-2 mt-3 sm:mt-4 p-2 sm:p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <div className={`flex items-center gap-2 mt-3 sm:mt-4 p-2 sm:p-3 rounded-lg transition-colors duration-200 ${
+                isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
                 <span className="text-sm sm:text-base">🌐</span>
-                <span className="text-xs sm:text-xs xs:text-sm font-medium text-gray-700 dark:text-gray-300">Everyone</span>
+                <span className={`text-xs sm:text-xs xs:text-sm font-medium transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Everyone</span>
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>

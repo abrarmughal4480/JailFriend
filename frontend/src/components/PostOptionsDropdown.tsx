@@ -111,9 +111,11 @@ const PostOptionsDropdown: React.FC<PostOptionsDropdownProps> = ({
       
       <div
         ref={dropdownRef}
-        className={`z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 min-w-[280px] sm:min-w-[320px] max-w-[90vw]
-        fixed sm:absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 sm:top-auto sm:left-auto sm:transform-none
-        ${position === 'top' ? 'sm:bottom-full sm:mb-2' : 'sm:top-full sm:mt-2'} sm:right-0 sm:transform sm:-translate-x-1/2`}
+        className={`z-50 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 min-w-[280px] sm:min-w-[320px] max-w-[90vw] scrollbar-hide
+        fixed sm:absolute 
+        top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+        sm:top-full sm:left-auto sm:right-0 sm:translate-x-0 sm:translate-y-0
+        ${position === 'top' ? 'sm:top-auto sm:bottom-full sm:mb-2' : 'sm:mt-2'}`}
         style={{
           maxWidth: 'calc(100vw - 2rem)',
           maxHeight: '80vh',

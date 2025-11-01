@@ -96,18 +96,11 @@ const FeedPost: React.FC<FeedPostProps> = ({
   }, [showReactionPopup]);
 
   const getMediaUrl = (url: string) => {
-    if (!url) {
-      return '/default-avatar.svg';
-    }
-    
-    if (url.startsWith('http')) {
-      return url;
-    }
-    
-    // Remove leading slash to avoid double slashes
-    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    const fullUrl = `${process.env.NEXT_PUBLIC_API_URL}/${cleanUrl}`;
-    return fullUrl;
+    if (!url) return '/default-avatar.svg';
+    if (/^(https?:)?\/\//i.test(url) || /^(data:|blob:)/i.test(url)) return url;
+    const api = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    const normalized = (url.startsWith('/') ? url.slice(1) : url).replace(/\\/g, '/');
+    return `${api}/${normalized}`.replace(/\s/g, '%20');
   };
 
   const getUserAvatar = () => {
@@ -1187,7 +1180,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Content with word limit and Read More */}
         <div 
-          className="text-gray-900 dark:text-white text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg p-2 transition-colors"
+          className="text-gray-900 dark:text-white text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer"
           onClick={() => onWatch && onWatch(post)}
         >
           {(() => {
@@ -1268,8 +1261,11 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     <span className="text-gray-500 dark:text-gray-400">...</span>
                   )}
                   <span 
-                    className="text-blue-600 cursor-pointer hover:underline ml-1 font-medium inline-flex items-center gap-1" 
-                    onClick={() => togglePostExpansion(postId)}
+                    className="text-blue-600 cursor-pointer ml-1 font-medium inline-flex items-center gap-1" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePostExpansion(postId);
+                    }}
                     title={isExpanded ? "Show less" : "Read more"}
                   >
                     {isExpanded ? (
@@ -1321,9 +1317,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Poll Display - Only show if poll was actually created */}
         {post.poll && post.poll.question && post.poll.options && post.poll.options.length > 0 && (
-          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="mb-3 sm:mb-4">
             <div className="mb-2">
-              <h4 className="text-sm sm:text-base font-semibold text-blue-900 dark:text-blue-100 mb-2">
+              <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2">
                 📊 {post.poll.question}
               </h4>
               <div className="space-y-2">
@@ -1375,14 +1371,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Feeling Display - Only show if feeling was actually selected */}
         {post.feeling && post.feeling.type && post.feeling.emoji && post.feeling.description && (
-          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-pink-50 dark:bg-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+          <div className="mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
               <span className="text-2xl">{post.feeling.emoji}</span>
               <div>
-                <h4 className="text-sm sm:text-base font-semibold text-pink-900 dark:text-pink-100">
+                <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                   Feeling {post.feeling.description}
                 </h4>
-                <p className="text-xs text-pink-700 dark:text-pink-300">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Intensity: {post.feeling.intensity}/10
                 </p>
               </div>
@@ -1394,25 +1390,25 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Sell Info Display - Only show if sell info was actually added */}
         {post.sell && post.sell.productName && post.sell.price && (
-          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+          <div className="mb-3 sm:mb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🏪</span>
                 <div>
-                  <h4 className="text-sm sm:text-base font-semibold text-orange-900 dark:text-orange-100">
+                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
                     {post.sell.productName}
                   </h4>
-                  <p className="text-xs text-orange-700 dark:text-orange-300">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     Condition: {post.sell.condition}
                     {post.sell.negotiable && <span className="ml-2">• Price negotiable</span>}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
                   ${post.sell.price}
                 </div>
-                <div className="text-xs text-orange-700 dark:text-orange-300">
+                <div className="text-xs text-gray-600 dark:text-gray-400">
                   {post.sell.currency || 'USD'}
                 </div>
               </div>
@@ -1433,18 +1429,18 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Voice Recording Display - Only show if voice was actually recorded */}
         {post.voice && post.voice.url && post.voice.duration && (
-          <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+          <div className="mb-3 sm:mb-4">
             <div className="flex items-center gap-2">
               <span className="text-2xl">🎤</span>
               <div className="flex-1">
-                <h4 className="text-sm sm:text-base font-semibold text-purple-900 dark:text-purple-100 mb-2">
+                <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2">
                   Voice Message
                 </h4>
                 <audio controls className="w-full">
                   <source src={post.voice.url} type="audio/wav" />
                   Your browser does not support the audio element.
                 </audio>
-                <p className="text-xs text-purple-700 dark:text-purple-300 mt-1">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                   Duration: {post.voice.duration}s
                   {post.voice.transcription && (
                     <span className="ml-2">• Transcription: {post.voice.transcription}</span>
@@ -1461,29 +1457,34 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Media */}
         {post.media && post.media.length > 0 && (
           <div className="mb-3 sm:mb-4">
-            {post.media.map((media: any, index: number) => (
+            {post.media.map((media: any, index: number) => {
+              const rawUrl = typeof media === 'string' 
+                ? media 
+                : (media?.secure_url || media?.url || media?.path || '');
+              const resolvedUrl = getMediaUrl(rawUrl);
+              return (
               <div key={index} className="mb-2 cursor-pointer" onClick={() => onWatch && onWatch(post)}>
                 {media.type === 'video' ? (
                   <video
-                    src={getMediaUrl(media.url)}
+                    src={resolvedUrl}
                     controls
                     className="w-full rounded-lg object-contain"
                     style={{ maxHeight: '80vh' }}
                   />
                 ) : media.type === 'audio' ? (
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <div className="mb-2">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🎵</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {media.originalName || media.filename || media.name || 'Audio File'}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
                         </p>
                       </div>
                       <audio
-                        src={getMediaUrl(media.url)}
+                        src={resolvedUrl}
                         controls
                         className="w-full"
                       />
@@ -1491,7 +1492,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   </div>
                 ) : media.type === 'file' || media.type === 'document' ? (
                   <div 
-                    className="bg-blue-50 dark:bg-blue-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-700 transition-colors"
+                    className="mb-2 cursor-pointer"
                     onClick={() => {
                       // For PDFs and other files, open in new tab with absolute URL
                       if (media.mimetype?.includes('pdf') || media.mimetype?.includes('text') || media.mimetype?.includes('image')) {
@@ -1524,10 +1525,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
                          media.mimetype?.includes('text') ? '📝' : '📄'}
                       </span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {media.originalName || media.filename || media.name || 'Document'}
                         </p>
-                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
                           {media.extension && ` • ${media.extension.toUpperCase()}`}
                           {media.mimetype && ` • ${media.mimetype.split('/')[1]?.toUpperCase()}`}
@@ -1538,14 +1539,19 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   </div>
                 ) : (
                   <img
-                    src={getMediaUrl(media.url)}
+                    src={resolvedUrl}
                     alt="Post media"
                     className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity"
                     style={{ maxHeight: '80vh' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
+                    }}
                   />
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

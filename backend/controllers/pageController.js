@@ -110,7 +110,7 @@ exports.getUserPages = async (req, res) => {
   }
 };
 
-// Get page by ID
+// Get page by ID or URL
 exports.getPageById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -128,8 +128,21 @@ exports.getPageById = async (req, res) => {
       return res.json(latestPage);
     }
     
-    const page = await Page.findById(id)
-      .populate('createdBy', 'name username avatar');
+    // Check if id is a valid MongoDB ObjectId (24 hex characters)
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+    
+    let page;
+    if (isValidObjectId) {
+      // Try to find by ID first
+      page = await Page.findById(id)
+        .populate('createdBy', 'name username avatar');
+    }
+    
+    // If not found by ID or not a valid ObjectId, try to find by URL
+    if (!page) {
+      page = await Page.findOne({ url: id })
+        .populate('createdBy', 'name username avatar');
+    }
     
     if (!page) {
       return res.status(404).json({ error: 'Page not found' });
@@ -175,33 +188,158 @@ exports.likePage = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    // Check if page exists and if user already liked it
     const page = await Page.findById(id);
     if (!page) {
       return res.status(404).json({ error: 'Page not found' });
     }
 
-    // Check if user already liked the page
-    const isLiked = page.likes && page.likes.includes(userId);
+    const isLiked = page.likes && page.likes.some(likeId => likeId.toString() === userId);
     
+    // Use atomic update to avoid version conflicts
+    let updatedPage;
     if (isLiked) {
-      // Unlike: remove user from likes array
-      page.likes = page.likes.filter(likeId => likeId.toString() !== userId);
+      // Unlike: remove user from likes array using $pull
+      updatedPage = await Page.findByIdAndUpdate(
+        id,
+        { $pull: { likes: userId } },
+        { new: true, runValidators: true }
+      );
     } else {
-      // Like: add user to likes array
-      if (!page.likes) page.likes = [];
-      page.likes.push(userId);
+      // Like: add user to likes array using $addToSet (prevents duplicates)
+      updatedPage = await Page.findByIdAndUpdate(
+        id,
+        { $addToSet: { likes: userId } },
+        { new: true, runValidators: true }
+      );
     }
 
-    await page.save();
+    if (!updatedPage) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
     
     res.json({
       success: true,
       isLiked: !isLiked,
-      likesCount: page.likes.length,
+      likesCount: updatedPage.likes ? updatedPage.likes.length : 0,
       message: isLiked ? 'Page unliked' : 'Page liked'
     });
   } catch (err) {
     console.error('Error liking/unliking page:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update page
+exports.updatePage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, url, description, category } = req.body;
+    const userId = req.userId;
+
+    console.log('📝 Update page request:', { id, name, url, description, category, userId });
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Validate required fields
+    if (!name || !url || !description || !category) {
+      return res.status(400).json({ error: 'Name, URL, description, and category are required' });
+    }
+
+    const page = await Page.findById(id);
+    if (!page) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    // Check if user is the creator of the page
+    if (page.createdBy.toString() !== userId) {
+      console.log('❌ User not authorized to edit page:', { pageCreatedBy: page.createdBy, userId });
+      return res.status(403).json({ error: 'You can only edit your own pages' });
+    }
+
+    // Check if URL is already taken by another page
+    if (url !== page.url) {
+      const existingPage = await Page.findOne({ url, _id: { $ne: id } });
+      if (existingPage) {
+        return res.status(400).json({ error: 'Page URL already exists' });
+      }
+    }
+
+    // Update page fields
+    page.name = name.trim();
+    page.url = url.trim().toLowerCase();
+    page.description = description.trim();
+    page.category = category;
+    page.updatedAt = new Date();
+
+    await page.save();
+    await page.populate('createdBy', 'name username avatar');
+
+    console.log('✅ Page updated successfully:', page._id);
+    res.json({
+      success: true,
+      message: 'Page updated successfully',
+      page
+    });
+  } catch (err) {
+    console.error('❌ Error updating page:', err);
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Page URL already exists' });
+    }
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Join/Unjoin page (Follow/Unfollow page)
+exports.joinPage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Check if page exists and if user is already following it
+    const page = await Page.findById(id);
+    if (!page) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    const isFollowing = page.followers && page.followers.some(followerId => followerId.toString() === userId);
+
+    // Use atomic update to avoid version conflicts
+    let updatedPage;
+    if (isFollowing) {
+      // Unfollow: remove user from followers array using $pull
+      updatedPage = await Page.findByIdAndUpdate(
+        id,
+        { $pull: { followers: userId } },
+        { new: true, runValidators: true }
+      );
+    } else {
+      // Follow: add user to followers array using $addToSet (prevents duplicates)
+      updatedPage = await Page.findByIdAndUpdate(
+        id,
+        { $addToSet: { followers: userId } },
+        { new: true, runValidators: true }
+      );
+    }
+
+    if (!updatedPage) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+    
+    res.json({
+      success: true,
+      isFollowing: !isFollowing,
+      followersCount: updatedPage.followers ? updatedPage.followers.length : 0,
+      message: isFollowing ? 'Unfollowed page successfully' : 'Followed page successfully'
+    });
+  } catch (err) {
+    console.error('Error joining/unjoining page:', err);
     res.status(500).json({ error: err.message });
   }
 };

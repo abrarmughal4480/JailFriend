@@ -103,8 +103,27 @@ const SharePopup: React.FC<SharePopupProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-lg mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[95vh] overflow-y-auto">
+    <>
+      <style>{`
+        .share-popup-overlay {
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+        .share-popup-content::-webkit-scrollbar {
+          display: none;
+        }
+        .share-popup-content {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+      <div 
+        className="fixed inset-0 flex items-center justify-center z-[100] p-2 sm:p-4 share-popup-overlay"
+      >
+        <div 
+          className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-2xl border border-white/20 dark:border-gray-700/30 w-full max-w-sm sm:max-w-lg mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[95vh] overflow-y-auto share-popup-content"
+        >
         <div className="p-4 sm:p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -361,6 +380,7 @@ const SharePopup: React.FC<SharePopupProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
 

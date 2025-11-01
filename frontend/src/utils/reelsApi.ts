@@ -4,6 +4,13 @@ import { config } from './config';
 // Use centralized configuration
 const API_URL = config.API_URL;
 
+// Create axios instance with increased timeout for file uploads
+const axiosInstance = axios.create({
+  timeout: 300000, // 5 minutes timeout for large file uploads
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
+});
+
 // Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
@@ -245,12 +252,17 @@ export const createReel = async (
       throw new Error(`Cannot reach API server at ${API_URL}. Please check if the server is running.`);
     }
     
-    const response = await axios.post(apiUrl, formData, {
+    const response = await axiosInstance.post(apiUrl, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         ...getAuthHeaders(),
       },
-      timeout: 60000, // 60 seconds timeout for file upload
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`📤 Upload progress: ${percentCompleted}%`);
+        }
+      },
     });
     
     console.log('✅ API response:', response.data);

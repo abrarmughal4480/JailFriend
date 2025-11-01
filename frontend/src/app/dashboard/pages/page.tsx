@@ -2,7 +2,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, FileText, ArrowLeft, ArrowRight, ThumbsUp, Camera, Users, Menu, X, Search, Heart, MessageCircle, Share2, Globe, Calendar, Users2, Star, Edit } from 'lucide-react';
+import { Plus, FileText, ArrowLeft, ArrowRight, ThumbsUp, Camera, Users, Menu, X, Search, Heart, MessageCircle, Share2, Globe, Calendar, Users2, Star, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
 // Helper function to get proper image URL
@@ -70,6 +70,10 @@ interface MyPagesComponentProps {
   userPages: Page[];
   onCreate: () => void;
   onOpenPage: (id: string) => void;
+  onEdit: (page: Page) => void;
+  onDelete: (pageId: string) => void;
+  onLike: (pageId: string) => void;
+  onJoin: (pageId: string) => void;
 }
 
 interface CreatePageFormProps {
@@ -88,8 +92,20 @@ interface SuggestedPagesComponentProps {
 }
 
 // Top-level components to prevent remount on each parent render
-const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCreate, onOpenPage }) => {
+const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCreate, onOpenPage, onEdit, onDelete, onLike, onJoin }) => {
   const { isDarkMode } = useDarkMode();
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  const isLiked = (page: Page) => {
+    return page.likes && Array.isArray(page.likes) && 
+           (page.likes.includes(currentUser._id) || page.likes.includes(currentUser.id));
+  };
+
+  const isJoined = (page: Page) => {
+    return page.followers && Array.isArray(page.followers) && 
+           (page.followers.includes(currentUser._id) || page.followers.includes(currentUser.id));
+  };
   
   if (loading) {
     return (
@@ -155,11 +171,14 @@ const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCr
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {userPages.map((page) => (
+        {userPages.map((page) => {
+          const isCreator = page.createdBy?._id === currentUser._id || page.createdBy?._id === currentUser.id;
+          
+          return (
           <div 
             key={page._id} 
             onClick={() => onOpenPage(page._id)}
-            className={`rounded-2xl border overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group cursor-pointer ${
+            className={`rounded-2xl border overflow-hidden transition-all duration-300 transform hover:-translate-y-1 group cursor-pointer relative ${
               isDarkMode 
                 ? 'bg-gray-800 border-gray-700 hover:shadow-xl hover:border-blue-500' 
                 : 'bg-white border-gray-100 hover:shadow-xl hover:border-blue-200'
@@ -230,17 +249,108 @@ const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCr
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {isCreator && (
+                    <div className="relative">
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
+                          setOpenDropdownId(openDropdownId === page._id ? null : page._id);
                     }}
                     className={`p-2 rounded-lg transition-all duration-200 ${
                       isDarkMode 
+                            ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                        } ${openDropdownId === page._id ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : ''}`}
+                        title="More options"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      
+                      {openDropdownId === page._id && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(null);
+                            }}
+                          />
+                          <div 
+                            className={`absolute right-0 bottom-full mb-2 w-40 rounded-lg shadow-lg border z-20 ${
+                              isDarkMode 
+                                ? 'bg-gray-800 border-gray-700' 
+                                : 'bg-white border-gray-200'
+                            }`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                onEdit(page);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-t-lg transition-colors duration-200 ${
+                                isDarkMode 
+                                  ? 'hover:bg-gray-700 text-gray-300' 
+                                  : 'hover:bg-gray-50 text-gray-700'
+                              }`}
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span className="text-sm font-medium">Edit</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                                if (confirm('Are you sure you want to delete this page?')) {
+                                  onDelete(page._id);
+                                }
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-b-lg transition-colors duration-200 ${
+                                isDarkMode 
+                                  ? 'hover:bg-gray-700 text-red-400' 
+                                  : 'hover:bg-gray-50 text-red-600'
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="text-sm font-medium">Delete</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onLike(page._id);
+                    }}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      isLiked(page)
+                        ? 'text-red-500 bg-red-50 dark:bg-red-900/20'
+                        : isDarkMode 
+                          ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                          : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                    title={isLiked(page) ? "Unlike Page" : "Like Page"}
+                  >
+                    <Heart className={`w-4 h-4 ${isLiked(page) ? 'fill-current' : ''}`} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onJoin(page._id);
+                    }}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      isJoined(page)
+                        ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : isDarkMode 
                         ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
                         : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                     }`}
+                    title={isJoined(page) ? "Unfollow Page" : "Follow Page"}
                   >
-                    <MessageCircle className="w-4 h-4" />
+                    <Users2 className={`w-4 h-4 ${isJoined(page) ? 'fill-current' : ''}`} />
                   </button>
                   <button 
                     onClick={(e) => {
@@ -251,6 +361,7 @@ const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCr
                         ? 'text-gray-400 hover:text-green-400 hover:bg-gray-700' 
                         : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
                     }`}
+                    title="Share Page"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
@@ -263,7 +374,8 @@ const MyPagesView: React.FC<MyPagesComponentProps> = ({ loading, userPages, onCr
               </div>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
     </div>
   );
@@ -803,6 +915,7 @@ const SuggestedPagesView: React.FC<{
   loading: boolean 
 }> = ({ promotedPages, otherPages, onLike, onJoin, loading }) => {
   const { isDarkMode } = useDarkMode();
+  const router = useRouter();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   
   const isLiked = (page: Page) => {
@@ -838,7 +951,7 @@ const SuggestedPagesView: React.FC<{
                 key={page._id}
                 onClick={() => {
                   // Navigate to page details or open page
-                  window.open(`https://jaifriend.com/${page.url}`, '_blank');
+                  router.push(`/dashboard/pages/${page._id}`);
                 }}
                 className={`rounded-2xl border p-6 hover:shadow-lg transition-all duration-200 cursor-pointer ${
                   isDarkMode 
@@ -987,7 +1100,7 @@ const SuggestedPagesView: React.FC<{
                 key={page._id}
                 onClick={() => {
                   // Navigate to page details or open page
-                  window.open(`https://jaifriend.com/${page.url}`, '_blank');
+                  router.push(`/dashboard/pages/${page._id}`);
                 }}
                 className={`rounded-2xl border p-6 hover:shadow-lg transition-all duration-200 cursor-pointer ${
                   isDarkMode 
@@ -1112,6 +1225,7 @@ const SuggestedPagesView: React.FC<{
 
 const LikedPagesView: React.FC<{ likedPages: Page[], loading: boolean }> = ({ likedPages, loading }) => {
   const { isDarkMode } = useDarkMode();
+  const router = useRouter();
   
   if (loading) {
     return (
@@ -1168,7 +1282,8 @@ const LikedPagesView: React.FC<{ likedPages: Page[], loading: boolean }> = ({ li
           <div 
             key={page._id}
             onClick={() => {
-              window.open(`https://jaifriend.com/${page.url}`, '_blank');
+                  // Navigate to page using page ID
+                  router.push(`/dashboard/pages/${page._id}`);
             }}
             className={`rounded-2xl border p-6 hover:shadow-lg transition-all duration-200 cursor-pointer ${
               isDarkMode 
@@ -1282,7 +1397,7 @@ const PagesInterface: React.FC = () => {
       console.log('Fetching pages...');
       
       const [allPagesResponse, userPagesResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`),
+        fetch(`${API_URL}/api/pages`),
         fetch(`${API_URL}/api/pages/user`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -1451,7 +1566,7 @@ const PagesInterface: React.FC = () => {
       setCreating(true);
       console.log('Creating page with data:', formData);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages`, { 
+      const response = await fetch(`${API_URL}/api/pages`, { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1531,6 +1646,42 @@ const PagesInterface: React.FC = () => {
     setShowEditForm(true);
   };
 
+  const handleDeletePage = async (pageId: string): Promise<void> => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token || token === 'null' || token === 'undefined') {
+        alert('Please log in to delete a page');
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/pages/${pageId}`, { 
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert('Error: ' + (errorData.error || 'Failed to delete page'));
+        return;
+      }
+
+      alert('Page deleted successfully!');
+      
+      // Refresh pages list
+      await fetchPages();
+    } catch (error: unknown) {
+      console.error('Network error:', error);
+      if (error instanceof Error) {
+        alert('Error: ' + error.message);
+      } else {
+        alert('Network error occurred. Please check your connection and try again.');
+      }
+    }
+  };
+
   const handleUpdatePage = async (): Promise<void> => {
     if (!editingPage) return;
 
@@ -1586,7 +1737,12 @@ const PagesInterface: React.FC = () => {
       setUpdating(true);
       console.log('Updating page with data:', formData);
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pages/${editingPage._id}`, { 
+      const apiUrl = `${API_URL}/api/pages/${editingPage._id}`;
+      console.log('Updating page at:', apiUrl);
+
+      let response;
+      try {
+        response = await fetch(apiUrl, { 
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1599,20 +1755,69 @@ const PagesInterface: React.FC = () => {
           category: formData.pageCategory,
         }),
       });
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        setUpdating(false);
+        alert('Network error: Failed to connect to server. Please check your internet connection and ensure the backend server is running.');
+        return;
+      }
 
       console.log('Update response status:', response.status);
 
       if (!response.ok) {
+        let errorMessage = `Failed to update page (Status: ${response.status})`;
+        try {
         const errorData = await response.json();
         console.error('Server error details:', errorData);
-        alert('Error: ' + (errorData.error || 'Failed to update page'));
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          const errorText = await response.text();
+          console.error('Raw error response:', errorText);
+          errorMessage = errorText || errorMessage;
+        }
+        alert('Error: ' + errorMessage);
+        setUpdating(false);
         return;
       }
 
-      const data = await response.json();
-      console.log('Page updated successfully:', data);
+      const responseData = await response.json();
+      console.log('Page updated successfully:', responseData);
       
-      alert('Page updated successfully!');
+      // Extract page data from response (backend returns { success, message, page })
+      const updatedPage = responseData.page || responseData;
+      
+      // Update the page in the state immediately
+      setUserPages(prev => 
+        prev.map(page => 
+          page._id === editingPage._id 
+            ? { 
+                ...page, 
+                ...updatedPage, 
+                name: updatedPage.name, 
+                url: updatedPage.url, 
+                description: updatedPage.description, 
+                category: updatedPage.category 
+              }
+            : page
+        )
+      );
+      
+      // Also update in otherPages if it exists there
+      setOtherPages(prev => 
+        prev.map(page => 
+          page._id === editingPage._id 
+            ? { 
+                ...page, 
+                ...updatedPage, 
+                name: updatedPage.name, 
+                url: updatedPage.url, 
+                description: updatedPage.description, 
+                category: updatedPage.category 
+              }
+            : page
+        )
+      );
       
       // Reset form data
       setFormData({
@@ -1626,8 +1831,10 @@ const PagesInterface: React.FC = () => {
       setShowEditForm(false);
       setEditingPage(null);
       
-      // Refresh pages list
+      // Refresh pages list to ensure consistency
       await fetchPages();
+      
+      alert('Page updated successfully!');
       
     } catch (error: unknown) {
       console.error('Network error:', error);
@@ -1644,7 +1851,10 @@ const PagesInterface: React.FC = () => {
   const handleLikePage = async (pageId: string) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        alert('Please log in to like pages');
+        return;
+      }
 
       const response = await fetch(`${API_URL}/api/pages/${pageId}/like`, {
         method: 'POST',
@@ -1655,40 +1865,103 @@ const PagesInterface: React.FC = () => {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = currentUser._id || currentUser.id;
+        const isLiked = data.isLiked;
+
+        // Update the page in userPages list
+        setUserPages(prev => 
+          prev.map(page => {
+            if (page._id === pageId) {
+              if (isLiked) {
+                // Add like
+                const updatedLikes = page.likes || [];
+                if (!updatedLikes.includes(userId)) {
+                  updatedLikes.push(userId);
+                }
+                return { ...page, likes: updatedLikes };
+              } else {
+                // Remove like
+                const updatedLikes = (page.likes || []).filter(id => 
+                  id.toString() !== userId && id !== userId
+                );
+                return { ...page, likes: updatedLikes };
+              }
+            }
+            return page;
+          })
+        );
+
         // Update the page in the otherPages list
         setOtherPages(prev => 
-          prev.map(page => 
-            page._id === pageId 
-              ? { ...page, likes: [...(page.likes || []), JSON.parse(localStorage.getItem('user') || '{}')._id] }
-              : page
-          )
+          prev.map(page => {
+            if (page._id === pageId) {
+              if (isLiked) {
+                const updatedLikes = page.likes || [];
+                if (!updatedLikes.includes(userId)) {
+                  updatedLikes.push(userId);
+                }
+                return { ...page, likes: updatedLikes };
+              } else {
+                const updatedLikes = (page.likes || []).filter(id => 
+                  id.toString() !== userId && id !== userId
+                );
+                return { ...page, likes: updatedLikes };
+              }
+            }
+            return page;
+          })
         );
         
         // Update promoted pages if this page is promoted
         setPromotedPages(prev => 
-          prev.map(page => 
-            page._id === pageId 
-              ? { ...page, likes: [...(page.likes || []), JSON.parse(localStorage.getItem('user') || '{}')._id] }
-              : page
-          )
+          prev.map(page => {
+            if (page._id === pageId) {
+              if (isLiked) {
+                const updatedLikes = page.likes || [];
+                if (!updatedLikes.includes(userId)) {
+                  updatedLikes.push(userId);
+                }
+                return { ...page, likes: updatedLikes };
+              } else {
+                const updatedLikes = (page.likes || []).filter(id => 
+                  id.toString() !== userId && id !== userId
+                );
+                return { ...page, likes: updatedLikes };
+              }
+            }
+            return page;
+          })
         );
         
-        // Add to liked pages if not already there
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const likedPage = otherPages.find(page => page._id === pageId);
+        // Update liked pages list
+        if (isLiked) {
+          const likedPage = userPages.find(page => page._id === pageId) || 
+                           otherPages.find(page => page._id === pageId);
         if (likedPage && !likedPages.some(page => page._id === pageId)) {
           setLikedPages(prev => [...prev, likedPage]);
         }
+        } else {
+          setLikedPages(prev => prev.filter(page => page._id !== pageId));
+        }
+      } else {
+        const errorData = await response.json();
+        alert('Error: ' + (errorData.error || 'Failed to like page'));
       }
     } catch (error) {
       console.error('Error liking page:', error);
+      alert('Network error occurred. Please try again.');
     }
   };
 
   const handleJoinPage = async (pageId: string) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        alert('Please log in to follow pages');
+        return;
+      }
 
       const response = await fetch(`${API_URL}/api/pages/${pageId}/join`, {
         method: 'POST',
@@ -1699,31 +1972,90 @@ const PagesInterface: React.FC = () => {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const userId = currentUser._id || currentUser.id;
+        const isFollowing = data.isFollowing;
+
+        // Update the page in userPages list
+        setUserPages(prev => 
+          prev.map(page => {
+            if (page._id === pageId) {
+              if (isFollowing) {
+                // Add follower
+                const updatedFollowers = page.followers || [];
+                if (!updatedFollowers.includes(userId)) {
+                  updatedFollowers.push(userId);
+                }
+                return { ...page, followers: updatedFollowers };
+              } else {
+                // Remove follower
+                const updatedFollowers = (page.followers || []).filter(id => 
+                  id.toString() !== userId && id !== userId
+                );
+                return { ...page, followers: updatedFollowers };
+              }
+            }
+            return page;
+          })
+        );
+
         // Update the page in the otherPages list
         setOtherPages(prev => 
-          prev.map(page => 
-            page._id === pageId 
-              ? { ...page, followers: [...(page.followers || []), JSON.parse(localStorage.getItem('user') || '{}')._id] }
-              : page
-          )
+          prev.map(page => {
+            if (page._id === pageId) {
+              if (isFollowing) {
+                const updatedFollowers = page.followers || [];
+                if (!updatedFollowers.includes(userId)) {
+                  updatedFollowers.push(userId);
+                }
+                return { ...page, followers: updatedFollowers };
+              } else {
+                const updatedFollowers = (page.followers || []).filter(id => 
+                  id.toString() !== userId && id !== userId
+                );
+                return { ...page, followers: updatedFollowers };
+              }
+            }
+            return page;
+          })
         );
         
         // Update promoted pages if this page is promoted
         setPromotedPages(prev => 
-          prev.map(page => 
-            page._id === pageId 
-              ? { ...page, followers: [...(page.followers || []), JSON.parse(localStorage.getItem('user') || '{}')._id] }
-              : page
-          )
+          prev.map(page => {
+            if (page._id === pageId) {
+              if (isFollowing) {
+                const updatedFollowers = page.followers || [];
+                if (!updatedFollowers.includes(userId)) {
+                  updatedFollowers.push(userId);
+                }
+                return { ...page, followers: updatedFollowers };
+              } else {
+                const updatedFollowers = (page.followers || []).filter(id => 
+                  id.toString() !== userId && id !== userId
+                );
+                return { ...page, followers: updatedFollowers };
+              }
+            }
+            return page;
+          })
         );
+      } else {
+        const errorData = await response.json();
+        alert('Error: ' + (errorData.error || 'Failed to follow page'));
       }
     } catch (error) {
       console.error('Error joining page:', error);
+      alert('Network error occurred. Please try again.');
     }
   };
 
   // My Pages Component
   const MyPagesComponent: React.FC = () => {
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    
     if (loading) {
       return (
         <div className="bg-white rounded-2xl border border-gray-100 min-h-80 flex flex-col items-center justify-center p-8">
@@ -1821,33 +2153,81 @@ const PagesInterface: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {(() => {
+                      const isCreator = page.createdBy?._id === currentUser._id || page.createdBy?._id === currentUser.id;
+                      
+                      return isCreator ? (
+                        <div className="relative">
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleEditPage(page);
+                              setOpenDropdownId(openDropdownId === page._id ? null : page._id);
                       }}
                       className={`p-2 rounded-lg transition-all duration-200 ${
                         isDarkMode 
-                          ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
-                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title="Edit Page"
+                                ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
+                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                            } ${openDropdownId === page._id ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : ''}`}
+                            title="More options"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                          
+                          {openDropdownId === page._id && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-10" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                }}
+                              />
+                              <div 
+                                className={`absolute right-0 bottom-full mb-2 w-40 rounded-lg shadow-lg border z-20 ${
+                                  isDarkMode 
+                                    ? 'bg-gray-800 border-gray-700' 
+                                    : 'bg-white border-gray-200'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDropdownId(null);
+                                    handleEditPage(page);
+                                  }}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-t-lg transition-colors duration-200 ${
+                                    isDarkMode 
+                                      ? 'hover:bg-gray-700 text-gray-300' 
+                                      : 'hover:bg-gray-50 text-gray-700'
+                                  }`}
                     >
                       <Edit className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Edit</span>
                     </button>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Handle message functionality
+                                    setOpenDropdownId(null);
+                                    if (confirm('Are you sure you want to delete this page?')) {
+                                      handleDeletePage(page._id);
+                                    }
                       }}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
+                                  className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-b-lg transition-colors duration-200 ${
                         isDarkMode 
-                          ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
-                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                                      ? 'hover:bg-gray-700 text-red-400' 
+                                      : 'hover:bg-gray-50 text-red-600'
                       }`}
                     >
-                      <MessageCircle className="w-4 h-4" />
+                                  <Trash2 className="w-4 h-4" />
+                                  <span className="text-sm font-medium">Delete</span>
                     </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1858,6 +2238,7 @@ const PagesInterface: React.FC = () => {
                           ? 'text-gray-400 hover:text-green-400 hover:bg-gray-700' 
                           : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
                       }`}
+                      title="Share Page"
                     >
                       <Share2 className="w-4 h-4" />
                     </button>
@@ -2115,7 +2496,14 @@ const PagesInterface: React.FC = () => {
             loading={loading}
             userPages={userPages}
             onCreate={() => setShowCreateForm(true)}
-            onOpenPage={(id) => router.push(`/dashboard/pages/${id}`)}
+            onOpenPage={(id) => {
+              // Use page ID if it's a valid ObjectId, otherwise use as-is (for URLs)
+              router.push(`/dashboard/pages/${id}`);
+            }}
+            onEdit={handleEditPage}
+            onDelete={handleDeletePage}
+            onLike={handleLikePage}
+            onJoin={handleJoinPage}
           />
         );
       case 'Suggested pages':
@@ -2136,7 +2524,14 @@ const PagesInterface: React.FC = () => {
             loading={loading}
             userPages={userPages}
             onCreate={() => setShowCreateForm(true)}
-            onOpenPage={(id) => router.push(`/dashboard/pages/${id}`)}
+            onOpenPage={(id) => {
+              // Use page ID if it's a valid ObjectId, otherwise use as-is (for URLs)
+              router.push(`/dashboard/pages/${id}`);
+            }}
+            onEdit={handleEditPage}
+            onDelete={handleDeletePage}
+            onLike={handleLikePage}
+            onJoin={handleJoinPage}
           />
         );
     }

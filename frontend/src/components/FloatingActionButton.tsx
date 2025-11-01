@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, Image, Megaphone, FileText, Calendar, Heart, Users, Flag } from 'lucide-react';
+import { Plus, X, Image, Megaphone, Users, Flag } from 'lucide-react';
 
 interface FloatingActionButtonProps {
   isAdminPage?: boolean;
@@ -47,27 +47,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ isAdminPage
     setIsOpen(false);
     // Navigate to advertisement creation page
     window.location.href = '/dashboard/advertising';
-  };
-
-  const handleCreateArticle = () => {
-    setShowPopup(false);
-    setIsOpen(false);
-    // Navigate to article creation page
-    window.location.href = '/dashboard/articles';
-  };
-
-  const handleCreateEvent = () => {
-    setShowPopup(false);
-    setIsOpen(false);
-    // Navigate to event creation page
-    window.location.href = '/dashboard/events';
-  };
-
-  const handleCreateFundingRequest = () => {
-    setShowPopup(false);
-    setIsOpen(false);
-    // Navigate to funding request creation page
-    window.location.href = '/dashboard/funding';
   };
 
   const handleCreateGroup = () => {
@@ -145,39 +124,6 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({ isAdminPage
                 <Megaphone className="w-4 h-4 text-gray-600 dark:text-gray-400" />
               </div>
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Create advertisement</span>
-            </button>
-
-            {/* Create New Article */}
-            <button
-              onClick={handleCreateArticle}
-              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors group"
-            >
-              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
-                <FileText className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Create new article</span>
-            </button>
-
-            {/* Create New Event */}
-            <button
-              onClick={handleCreateEvent}
-              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors group"
-            >
-              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
-                <Calendar className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Create new event</span>
-            </button>
-
-            {/* Create New Funding Request */}
-            <button
-              onClick={handleCreateFundingRequest}
-              className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors group"
-            >
-              <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
-                <Heart className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              </div>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Create new funding request</span>
             </button>
 
             {/* Create New Group */}
