@@ -12,10 +12,46 @@ const p2pProfileSchema = new mongoose.Schema({
     required: true,
     maxlength: 100 
   },
+  currentOrganisation: { 
+    type: String, 
+    default: null,
+    maxlength: 100 
+  },
+  workExperience: { 
+    type: String, 
+    default: null,
+    maxlength: 500 
+  },
+  aboutMeLocation: { 
+    type: String, 
+    default: null,
+    maxlength: 100 
+  },
+  description: { 
+    type: String, 
+    default: null,
+    maxlength: 200 
+  },
+  areasOfExpertise: [{ 
+    type: String, 
+    maxlength: 50 
+  }],
   hourlyRate: { 
     type: Number, 
     required: true,
     min: 0 
+  },
+  audioCallPrice: { 
+    type: String, 
+    default: null 
+  },
+  videoCallPrice: { 
+    type: String, 
+    default: null 
+  },
+  chatPrice: { 
+    type: String, 
+    default: null 
   },
   currency: { 
     type: String, 
@@ -40,6 +76,14 @@ const p2pProfileSchema = new mongoose.Schema({
   workingHours: {
     start: { type: String, default: '09:00' },
     end: { type: String, default: '17:00' }
+  },
+  availableFromTime: { 
+    type: String, 
+    default: null 
+  },
+  availableToTime: { 
+    type: String, 
+    default: null 
   },
   timezone: { 
     type: String, 
@@ -81,6 +125,9 @@ const p2pProfileSchema = new mongoose.Schema({
   socialLinks: {
     website: { type: String },
     linkedin: { type: String },
+    linkedInLink: { type: String },
+    instagramLink: { type: String },
+    twitterLink: { type: String },
     github: { type: String },
     behance: { type: String }
   }

@@ -1,89 +1,89 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { isAuthenticated, getCurrentUserId } from '@/utils/auth';
+import Image from 'next/image';
+import { isAuthenticated } from '@/utils/auth';
 import ToastContainer from '@/components/ToastContainer';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import { 
+  FaShareAlt, 
+  FaSearch, 
+  FaTwitter, 
+  FaLinkedin, 
+  FaInstagram, 
+  FaStar, 
+  FaPhone, 
+  FaVideo, 
+  FaComments,
+  FaCopy,
+  FaLightbulb
+} from 'react-icons/fa';
+import { HiDotsVertical } from 'react-icons/hi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const getAvatarUrl = (url?: string | null) => url?.startsWith('http') ? url : url?.includes('/avatars/') || url?.includes('/covers/') ? (url.startsWith('/') ? url : `/${url}`) : url ? `${API_URL}/${url}` : '/default-avatar.svg';
+
+// Feature flags to control section visibility
+const SHOW_WORTH_EXPLORING = true;
+const SHOW_TRENDING_SHORTS = true;
+const SHOW_TOP_RATED_PROFILES = true;
+const SHOW_FIND_BY_EXPERTS = true;
+const SHOW_FEATURE_CARDS = true;
+const SHOW_BANNER_CAROUSEL = true;
+const SHOW_FIND_BY_CATEGORY = true;
+
+type TabType = 'browse' | 'my-profile' | 'create' | 'bookings' | 'provider-bookings';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
+
+interface BaseUser { _id: string; name: string; username: string; avatar: string; }
+interface ExtendedUser extends BaseUser { fullName?: string; email: string; bio: string; location: string; }
+interface SimpleProfile { _id: string; occupation: string; hourlyRate: number; currency: string; }
 
 interface P2PProfile {
   _id: string;
-  userId: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar: string;
-    email: string;
-    bio: string;
-    location: string;
-  };
+  userId: ExtendedUser;
   occupation: string;
+  currentOrganisation?: string;
+  workExperience?: string;
+  aboutMeLocation?: string;
+  description?: string;
+  areasOfExpertise?: string[];
   hourlyRate: number;
+  audioCallPrice?: string;
+  videoCallPrice?: string;
+  chatPrice?: string;
   currency: string;
   skills: string[];
   experience: string;
+  availableFromTime?: string;
+  availableToTime?: string;
   availability: string;
-  workingHours: {
-    start: string;
-    end: string;
-  };
+  workingHours: { start: string; end: string; };
   timezone: string;
-  languages: Array<{
-    language: string;
-    proficiency: string;
-  }>;
-  portfolio: Array<{
-    title: string;
-    description: string;
-    url: string;
-    image: string;
-  }>;
-  certifications: Array<{
-    name: string;
-    issuer: string;
-    date: string;
-    credentialId: string;
-  }>;
-  rating: {
-    average: number;
-    count: number;
-  };
+  languages: { language: string; proficiency: string; }[];
+  portfolio: { title: string; description: string; url: string; image: string; }[];
+  certifications: { name: string; issuer: string; date: string; credentialId: string; }[];
+  rating: { average: number; count: number; };
   completedJobs: number;
   responseTime: string;
   isActive: boolean;
   isVerified: boolean;
   featured: boolean;
   tags: string[];
-  socialLinks: {
-    website: string;
-    linkedin: string;
-    github: string;
-    behance: string;
-  };
+  socialLinks: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
 
 interface Booking {
   _id: string;
-  clientId: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar: string;
-  };
-  serviceProviderId: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar: string;
-  };
-  p2pProfileId: {
-    _id: string;
-    occupation: string;
-    hourlyRate: number;
-    currency: string;
-  };
+  clientId: BaseUser;
+  serviceProviderId: BaseUser;
+  p2pProfileId: SimpleProfile;
   serviceType: string;
   title: string;
   description: string;
@@ -103,35 +103,14 @@ interface CreateProfileData {
   skills: string[];
   experience: string;
   availability: string;
-  workingHours: {
-    start: string;
-    end: string;
-  };
+  workingHours: { start: string; end: string; };
   timezone: string;
-  languages: Array<{
-    language: string;
-    proficiency: string;
-  }>;
-  portfolio: Array<{
-    title: string;
-    description: string;
-    url: string;
-    image: string;
-  }>;
-  certifications: Array<{
-    name: string;
-    issuer: string;
-    date: string;
-    credentialId: string;
-  }>;
+  languages: { language: string; proficiency: string; }[];
+  portfolio: { title: string; description: string; url: string; image: string; }[];
+  certifications: { name: string; issuer: string; date: string; credentialId: string; }[];
   responseTime: string;
   tags: string[];
-  socialLinks: {
-    website: string;
-    linkedin: string;
-    github: string;
-    behance: string;
-  };
+  socialLinks: Record<string, string>;
 }
 
 interface CreateBookingData {
@@ -146,20 +125,15 @@ interface CreateBookingData {
   deliverables: string[];
 }
 
-interface ToastData {
-  id: string;
-  type: 'success' | 'error' | 'info' | 'warning';
-  title: string;
-  message: string;
-  duration?: number;
-}
+interface ToastData { id: string; type: ToastType; title: string; message: string; duration?: number; }
 
 export default function P2PPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'browse' | 'my-profile' | 'create' | 'bookings' | 'provider-bookings'>('browse');
+  const [activeTab, setActiveTab] = useState<TabType>('browse');
   const [profiles, setProfiles] = useState<P2PProfile[]>([]);
   const [featuredProfiles, setFeaturedProfiles] = useState<P2PProfile[]>([]);
   const [myProfile, setMyProfile] = useState<P2PProfile | null>(null);
+  const [currentUser, setCurrentUser] = useState<ExtendedUser | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [providerBookings, setProviderBookings] = useState<Booking[]>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -167,70 +141,82 @@ export default function P2PPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({
-    occupation: '',
-    minRate: '',
-    maxRate: '',
-    skills: ''
-  });
-
-  // Booking form state
+  const [filters, setFilters] = useState({ occupation: '', minRate: '', maxRate: '', skills: '' });
+  const [selectedProfileDetail, setSelectedProfileDetail] = useState<P2PProfile | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<P2PProfile | null>(null);
+  const [selectedServiceType, setSelectedServiceType] = useState<string>('consultation');
   const [bookingForm, setBookingForm] = useState<CreateBookingData>({
-    serviceProviderId: '',
-    p2pProfileId: '',
-    serviceType: 'consultation',
-    title: '',
-    description: '',
-    scheduledDate: '',
-    duration: 60,
-    requirements: [],
-    deliverables: []
+    serviceProviderId: '', p2pProfileId: '', serviceType: 'consultation',
+    title: '', description: '', scheduledDate: '', duration: 60, requirements: [], deliverables: []
   });
 
-  // Form states for creating/editing profile
   const [profileForm, setProfileForm] = useState<CreateProfileData>({
-    occupation: '',
-    hourlyRate: 0,
-    currency: 'USD',
-    skills: [],
-    experience: '',
-    availability: 'Available',
-    workingHours: {
-      start: '09:00',
-      end: '17:00'
-    },
-    timezone: 'UTC',
-    languages: [{ language: '', proficiency: 'Intermediate' }],
-    portfolio: [],
-    certifications: [],
-    responseTime: 'Within 24 hours',
-    tags: [],
-    socialLinks: {
-      website: '',
-      linkedin: '',
-      github: '',
-      behance: ''
-    }
+    occupation: '', hourlyRate: 0, currency: 'USD', skills: [], experience: '',
+    availability: 'Available', workingHours: { start: '09:00', end: '17:00' },
+    timezone: 'UTC', languages: [{ language: '', proficiency: 'Intermediate' }],
+    portfolio: [], certifications: [], responseTime: 'Within 24 hours', tags: [],
+    socialLinks: { website: '', linkedin: '', github: '', behance: '' }
   });
-
   const [newSkill, setNewSkill] = useState('');
   const [newTag, setNewTag] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
-
-  // Toast notifications
   const [toasts, setToasts] = useState<ToastData[]>([]);
 
-  // Toast functions
-  const addToast = (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string, duration = 5000) => {
-    const id = Date.now().toString();
-    const newToast: ToastData = { id, type, title, message, duration };
-    setToasts(prev => [...prev, newToast]);
+  const addToast = (type: ToastType, title: string, message: string, duration = 5000) => {
+    setToasts(prev => [...prev, { id: Date.now().toString(), type, title, message, duration }]);
   };
 
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
+  const removeToast = (id: string) => setToasts(prev => prev.filter(toast => toast.id !== id));
+
+  // Calculate P2P profile completion percentage
+  const calculateProfileCompletion = (profile: P2PProfile): number => {
+    const fields = [
+      { key: 'occupation', value: profile.occupation },
+      { key: 'hourlyRate', value: profile.hourlyRate },
+      { key: 'skills', value: profile.skills?.length > 0 },
+      { key: 'experience', value: profile.experience || profile.description },
+      { key: 'workingHours', value: profile.workingHours?.start && profile.workingHours?.end },
+      { key: 'availability', value: profile.availability },
+      { key: 'languages', value: profile.languages?.length > 0 },
+      { key: 'description', value: profile.description },
+      { key: 'userId.avatar', value: profile.userId?.avatar },
+      { key: 'userId.name', value: profile.userId?.name || profile.userId?.fullName },
+    ];
+
+    const completedFields = fields.filter(field => {
+      if (typeof field.value === 'boolean') return field.value;
+      if (Array.isArray(field.value)) return field.value.length > 0;
+      return field.value && field.value.toString().trim() !== '';
+    }).length;
+
+    return Math.round((completedFields / fields.length) * 100);
+  };
+
+  // Get filtered and sorted profiles for "Top experts for you"
+  const getTopExpertsProfiles = (): P2PProfile[] => {
+    const allProfiles = featuredProfiles.length > 0 ? featuredProfiles : profiles;
+    
+    // Filter profiles with 80% or more completion
+    const completeProfiles = allProfiles.filter(profile => {
+      const completion = calculateProfileCompletion(profile);
+      return completion >= 80;
+    });
+
+    // Sort by rating (stars) first, then by creation time (oldest first)
+    return completeProfiles.sort((a, b) => {
+      // First sort by rating (higher rating first)
+      const ratingA = a.rating?.average || 0;
+      const ratingB = b.rating?.average || 0;
+      if (ratingB !== ratingA) {
+        return ratingB - ratingA;
+      }
+      
+      // If ratings are equal, sort by creation time (oldest first)
+      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      return timeA - timeB;
+    });
   };
 
   useEffect(() => {
@@ -241,11 +227,9 @@ export default function P2PPage() {
     loadData();
   }, []);
 
-  // Auto-refresh data every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (isAuthenticated()) {
-        // Only refresh booking data, not the entire profile data
         Promise.all([loadBookings(), loadProviderBookings()]);
       }
     }, 5000);
@@ -253,67 +237,61 @@ export default function P2PPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const apiCall = async (endpoint: string, options?: RequestInit) => {
+    const token = localStorage.getItem('token');
+    return fetch(`${API_URL}${endpoint}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', ...options?.headers },
+      ...options
+    });
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      // Load featured profiles
-      const featuredResponse = await fetch(`${API_URL}/api/p2p/profiles/featured`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (featuredResponse.ok) {
-        const featuredData = await featuredResponse.json();
-        setFeaturedProfiles(featuredData.profiles || []);
+      const [featuredRes, profilesRes, myProfileRes, currentUserRes] = await Promise.all([
+        apiCall('/api/p2p/profiles/featured'),
+        apiCall('/api/p2p/profiles'),
+        apiCall('/api/p2p/profile/me'),
+        apiCall('/api/auth/me')
+      ]);
+
+      if (currentUserRes.ok) {
+        const userData = await currentUserRes.json();
+        setCurrentUser(userData.user || userData);
       }
 
-      // Load all profiles
-      await loadProfiles();
+      if (featuredRes.ok) {
+        const data = await featuredRes.json();
+        setFeaturedProfiles(data.profiles || []);
+        if (data.profiles?.length > 0) setSelectedProfileDetail(prev => prev || data.profiles[0]);
+      }
 
-      // Load user's profile
-      const myProfileResponse = await fetch(`${API_URL}/api/p2p/profile/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (myProfileResponse.ok) {
-        const myProfileData = await myProfileResponse.json();
-        setMyProfile(myProfileData.profile);
-        if (myProfileData.profile) {
+      if (profilesRes.ok) {
+        const data = await profilesRes.json();
+        setProfiles(data.profiles || []);
+      }
+
+      if (myProfileRes.ok) {
+        const data = await myProfileRes.json();
+        setMyProfile(data.profile);
+        if (data.profile) {
+          const profile = data.profile;
           setProfileForm({
-            occupation: myProfileData.profile.occupation || '',
-            hourlyRate: myProfileData.profile.hourlyRate || 0,
-            currency: myProfileData.profile.currency || 'USD',
-            skills: myProfileData.profile.skills || [],
-            experience: myProfileData.profile.experience || '',
-            availability: myProfileData.profile.availability || 'Available',
-            workingHours: myProfileData.profile.workingHours || { start: '09:00', end: '17:00' },
-            timezone: myProfileData.profile.timezone || 'UTC',
-            languages: myProfileData.profile.languages || [{ language: '', proficiency: 'Intermediate' }],
-            portfolio: myProfileData.profile.portfolio || [],
-            certifications: myProfileData.profile.certifications || [],
-            responseTime: myProfileData.profile.responseTime || 'Within 24 hours',
-            tags: myProfileData.profile.tags || [],
-            socialLinks: myProfileData.profile.socialLinks || {
-              website: '',
-              linkedin: '',
-              github: '',
-              behance: ''
-            }
+            occupation: profile.occupation || '', hourlyRate: profile.hourlyRate || 0,
+            currency: profile.currency || 'USD', skills: profile.skills || [],
+            experience: profile.experience || '', availability: profile.availability || 'Available',
+            workingHours: profile.workingHours || { start: '09:00', end: '17:00' },
+            timezone: profile.timezone || 'UTC',
+            languages: profile.languages || [{ language: '', proficiency: 'Intermediate' }],
+            portfolio: profile.portfolio || [], certifications: profile.certifications || [],
+            responseTime: profile.responseTime || 'Within 24 hours', tags: profile.tags || [],
+            socialLinks: profile.socialLinks || { website: '', linkedin: '', github: '', behance: '' }
           });
         }
       }
 
-      // Load bookings
-      await loadBookings();
-      await loadProviderBookings();
-
+      await Promise.all([loadBookings(), loadProviderBookings()]);
     } catch (error) {
-      console.error('Error loading P2P data:', error);
       setError('Failed to load data');
     } finally {
       setLoading(false);
@@ -322,169 +300,110 @@ export default function P2PPage() {
 
   const loadBookings = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/bookings?userType=client`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      const [clientRes, providerRes] = await Promise.all([
+        apiCall('/api/bookings?userType=client'),
+        apiCall('/api/bookings?userType=provider')
+      ]);
+      if (clientRes.ok) {
+        const data = await clientRes.json();
         setBookings(data.bookings || []);
       }
-    } catch (error) {
-      console.error('Error loading bookings:', error);
-    }
-  };
-
-  const loadProviderBookings = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/bookings?userType=provider`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      if (providerRes.ok) {
+        const data = await providerRes.json();
         setProviderBookings(data.bookings || []);
       }
     } catch (error) {
-      console.error('Error loading provider bookings:', error);
+      // Silent error
     }
   };
 
+  const loadProviderBookings = async () => loadBookings();
+
   const loadProfiles = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const queryParams = new URLSearchParams();
+      const queryParams = Object.entries(filters)
+        .filter(([_, value]) => value)
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .join('&');
       
-      if (filters.occupation) queryParams.append('occupation', filters.occupation);
-      if (filters.minRate) queryParams.append('minRate', filters.minRate);
-      if (filters.maxRate) queryParams.append('maxRate', filters.maxRate);
-      if (filters.skills) queryParams.append('skills', filters.skills);
-      
-      const response = await fetch(`${API_URL}/api/p2p/profiles?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiCall(`/api/p2p/profiles${queryParams ? `?${queryParams}` : ''}`);
       
       if (response.ok) {
         const data = await response.json();
         setProfiles(data.profiles || []);
+        if (data.profiles?.length > 0 && !selectedProfileDetail && featuredProfiles.length === 0) {
+          setSelectedProfileDetail(prev => prev || data.profiles[0]);
+        }
       }
     } catch (error) {
-      console.error('Error loading profiles:', error);
+      // Silent error
     }
   };
 
   const searchProfiles = async () => {
     if (!searchQuery.trim()) return;
-    
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/p2p/profiles/search?q=${encodeURIComponent(searchQuery)}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
+      const response = await apiCall(`/api/p2p/profiles/search?q=${encodeURIComponent(searchQuery)}`);
       if (response.ok) {
         const data = await response.json();
         setProfiles(data.profiles || []);
       }
     } catch (error) {
-      console.error('Error searching profiles:', error);
+      // Silent error
     }
   };
 
-  const handleBookService = (profile: P2PProfile) => {
-    setSelectedProfile(profile);
-    
-    // Auto-set current date/time from browser when opening modal
+  const handleBookService = (profile: P2PProfile, serviceType: string = 'consultation') => {
     const now = new Date();
-    const currentDateTime = now.toISOString().slice(0, 16);
-    
+    setSelectedProfile(profile);
+    setSelectedServiceType(serviceType);
     setBookingForm({
-      serviceProviderId: profile.userId._id,
-      p2pProfileId: profile._id,
-      serviceType: 'consultation',
-      title: '',
-      description: '',
-      scheduledDate: currentDateTime, // Auto-populate with current browser time
-      duration: 60,
-      requirements: [],
-      deliverables: []
+      serviceProviderId: profile.userId._id, p2pProfileId: profile._id,
+      serviceType: serviceType, title: '', description: '',
+      scheduledDate: now.toISOString().slice(0, 16), duration: 60,
+      requirements: [], deliverables: []
     });
     setShowBookingModal(true);
   };
 
   const createBooking = async () => {
-    if (!bookingForm.title.trim() || !bookingForm.description.trim() || !bookingForm.scheduledDate) {
-      addToast('warning', 'Missing Information', 'Please fill in all required fields');
-      return;
+    const { title, description, scheduledDate } = bookingForm;
+    if (!title.trim() || !description.trim() || !scheduledDate) {
+      return addToast('warning', 'Missing Information', 'Please fill in all required fields');
     }
 
-    // Check if scheduled time is not in the past
-    const scheduledDateTime = new Date(bookingForm.scheduledDate);
-    const currentTime = new Date();
-
-    if (scheduledDateTime < currentTime) {
-      addToast('error', 'Scheduling Error', 'Meeting cannot be scheduled in the past. Please select a future date and time.');
-      return;
+    if (new Date(scheduledDate) < new Date()) {
+      return addToast('error', 'Scheduling Error', 'Meeting cannot be scheduled in the past. Please select a future date and time.');
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/bookings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(bookingForm)
-      });
-      
+      const response = await apiCall('/api/bookings', { method: 'POST', body: JSON.stringify(bookingForm) });
       const data = await response.json();
       
       if (response.ok) {
         setShowBookingModal(false);
         setSelectedProfile(null);
-        // Update both booking lists
-        await Promise.all([loadBookings(), loadProviderBookings()]);
+        await loadBookings();
         addToast('success', 'Booking Request Sent!', 'Your booking request has been sent successfully');
       } else {
         addToast('error', 'Booking Failed', data.message || 'Failed to create booking');
       }
     } catch (error) {
-      console.error('Error creating booking:', error);
       addToast('error', 'Network Error', 'Failed to create booking. Please check your connection');
     }
   };
 
   const acceptBooking = async (bookingId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/bookings/${bookingId}/accept`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
+      const response = await apiCall(`/api/bookings/${bookingId}/accept`, { method: 'PUT' });
       if (response.ok) {
-        // Update both booking lists
-        await Promise.all([loadBookings(), loadProviderBookings()]);
+        await loadBookings();
         addToast('success', 'Booking Accepted!', 'Booking has been accepted successfully');
       } else {
         const data = await response.json();
         addToast('error', 'Accept Failed', data.message || 'Failed to accept booking');
       }
     } catch (error) {
-      console.error('Error accepting booking:', error);
       addToast('error', 'Network Error', 'Failed to accept booking. Please check your connection');
     }
   };
@@ -494,90 +413,54 @@ export default function P2PPage() {
     if (!reason) return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/bookings/${bookingId}/reject`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ reason })
+      const response = await apiCall(`/api/bookings/${bookingId}/reject`, { 
+        method: 'PUT', body: JSON.stringify({ reason }) 
       });
       
       if (response.ok) {
-        // Update both booking lists
-        await Promise.all([loadBookings(), loadProviderBookings()]);
+        await loadBookings();
         addToast('success', 'Booking Rejected', 'Booking has been rejected successfully');
       } else {
         const data = await response.json();
         addToast('error', 'Reject Failed', data.message || 'Failed to reject booking');
       }
     } catch (error) {
-      console.error('Error rejecting booking:', error);
       addToast('error', 'Network Error', 'Failed to reject booking. Please check your connection');
     }
   };
 
   const startVideoCall = async (bookingId: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/bookings/${bookingId}/start`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
+      const response = await apiCall(`/api/bookings/${bookingId}/start`, { method: 'PUT' });
       const data = await response.json();
       
       if (response.ok) {
-        // Redirect to video call page as admin (caller) in same tab
         window.location.href = `/dashboard/video-call/${data.videoCall.id}?type=admin`;
       } else {
-        // Show specific error message based on response
         const errorMessage = data.message || 'Failed to start video call';
-        if (errorMessage.includes('30 minutes')) {
-          addToast('warning', 'Timing Issue', 'Video call can only be started within 30 minutes of the scheduled time');
-        } else if (errorMessage.includes('cannot be started')) {
-          addToast('warning', 'Booking Status', 'This booking cannot be started. Please check the booking status');
-        } else {
-          addToast('error', 'Video Call Failed', errorMessage);
-        }
+        const toastType = errorMessage.includes('30 minutes') || errorMessage.includes('cannot be started') ? 'warning' : 'error';
+        const title = errorMessage.includes('30 minutes') ? 'Timing Issue' : 
+                     errorMessage.includes('cannot be started') ? 'Booking Status' : 'Video Call Failed';
+        addToast(toastType, title, errorMessage);
       }
     } catch (error) {
-      console.error('Error starting video call:', error);
       addToast('error', 'Network Error', 'Failed to start video call. Please check your connection');
     }
   };
 
   const saveProfile = async () => {
-    // Frontend validation
-    if (!profileForm.occupation.trim()) {
-      addToast('warning', 'Missing Information', 'Please enter your occupation');
-      return;
-    }
+    const validationErrors = [
+      { condition: !profileForm.occupation.trim(), message: 'Please enter your occupation' },
+      { condition: !profileForm.hourlyRate || profileForm.hourlyRate <= 0, message: 'Please enter a valid hourly rate' },
+      { condition: !profileForm.experience.trim() || profileForm.experience.trim().length < 10, 
+        message: 'Please provide a detailed experience description (at least 10 characters)' }
+    ];
 
-    if (!profileForm.hourlyRate || profileForm.hourlyRate <= 0) {
-      addToast('warning', 'Invalid Rate', 'Please enter a valid hourly rate');
-      return;
-    }
-
-    if (!profileForm.experience.trim() || profileForm.experience.trim().length < 10) {
-      addToast('warning', 'Experience Required', 'Please provide a detailed experience description (at least 10 characters)');
-      return;
-    }
+    const error = validationErrors.find(v => v.condition);
+    if (error) return addToast('warning', 'Validation Error', error.message);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/p2p/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(profileForm)
-      });
-      
+      const response = await apiCall('/api/p2p/profile', { method: 'POST', body: JSON.stringify(profileForm) });
       const data = await response.json();
       
       if (response.ok) {
@@ -585,87 +468,63 @@ export default function P2PPage() {
         setActiveTab('my-profile');
         addToast('success', 'Profile Saved!', 'Your profile has been saved successfully');
       } else {
-        if (data.errors && Array.isArray(data.errors)) {
-          addToast('error', 'Validation Errors', data.errors.join('\n'));
-        } else {
-          addToast('error', 'Save Failed', data.message || 'Failed to save profile');
-        }
+        const message = data.errors?.length ? data.errors.join('\n') : data.message || 'Failed to save profile';
+        addToast('error', data.errors?.length ? 'Validation Errors' : 'Save Failed', message);
       }
     } catch (error) {
-      console.error('Error saving profile:', error);
       addToast('error', 'Network Error', 'Failed to save profile. Please check your connection');
     }
   };
 
+  const updateArray = (field: keyof CreateProfileData, action: 'add' | 'remove', value: any, index?: number) => {
+    setProfileForm(prev => {
+      const currentArray = prev[field] as any[];
+      let newArray;
+      
+      if (action === 'add') {
+        newArray = [...currentArray, value];
+      } else {
+        newArray = index !== undefined ? currentArray.filter((_, i) => i !== index) : currentArray.filter(item => item !== value);
+      }
+      
+      return { ...prev, [field]: newArray };
+    });
+  };
+
   const addSkill = () => {
     if (newSkill.trim() && !profileForm.skills.includes(newSkill.trim())) {
-      setProfileForm(prev => ({
-        ...prev,
-        skills: [...prev.skills, newSkill.trim()]
-      }));
+      updateArray('skills', 'add', newSkill.trim());
       setNewSkill('');
     }
   };
 
-  const removeSkill = (skill: string) => {
-    setProfileForm(prev => ({
-      ...prev,
-      skills: prev.skills.filter(s => s !== skill)
-    }));
-  };
+  const removeSkill = (skill: string) => updateArray('skills', 'remove', skill);
 
   const addTag = () => {
     if (newTag.trim() && !profileForm.tags.includes(newTag.trim())) {
-      setProfileForm(prev => ({
-        ...prev,
-        tags: [...prev.tags, newTag.trim()]
-      }));
+      updateArray('tags', 'add', newTag.trim());
       setNewTag('');
     }
   };
 
-  const removeTag = (tag: string) => {
-    setProfileForm(prev => ({
-      ...prev,
-      tags: prev.tags.filter(t => t !== tag)
-    }));
-  };
+  const removeTag = (tag: string) => updateArray('tags', 'remove', tag);
 
   const addLanguage = () => {
     if (newLanguage.trim()) {
-      setProfileForm(prev => ({
-        ...prev,
-        languages: [...prev.languages, { language: newLanguage.trim(), proficiency: 'Intermediate' }]
-      }));
+      updateArray('languages', 'add', { language: newLanguage.trim(), proficiency: 'Intermediate' });
       setNewLanguage('');
     }
   };
 
-  const removeLanguage = (index: number) => {
-    setProfileForm(prev => ({
-      ...prev,
-      languages: prev.languages.filter((_, i) => i !== index)
-    }));
-  };
+  const removeLanguage = (index: number) => updateArray('languages', 'remove', null, index);
 
-  const addPortfolioItem = () => {
-    setProfileForm(prev => ({
-      ...prev,
-      portfolio: [...prev.portfolio, { title: '', description: '', url: '', image: '' }]
-    }));
-  };
-
-  const removePortfolioItem = (index: number) => {
-    setProfileForm(prev => ({
-      ...prev,
-      portfolio: prev.portfolio.filter((_, i) => i !== index)
-    }));
-  };
+  const addPortfolioItem = () => updateArray('portfolio', 'add', { title: '', description: '', url: '', image: '' });
+  const removePortfolioItem = (index: number) => updateArray('portfolio', 'remove', null, index);
 
   const updatePortfolioItem = (index: number, field: string, value: string) => {
     setProfileForm(prev => ({
       ...prev,
-      portfolio: prev.portfolio.map((item, i) => 
+      portfolio: prev.portfolio.map((item, i) =>
         i === index ? { ...item, [field]: value } : item
       )
     }));
@@ -680,39 +539,18 @@ export default function P2PPage() {
     if (!selectedBookingForPayment) return;
     
     try {
-      // Simulate payment processing
       addToast('success', 'Payment Processed!', `Payment of $${selectedBookingForPayment.totalAmount} ${selectedBookingForPayment.currency} processed successfully!`);
       setShowPaymentModal(false);
       setSelectedBookingForPayment(null);
-      
-      // In a real app, you would call a payment API here
-      // const response = await fetch(`${API_URL}/api/payments`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${token}`
-      //   },
-      //   body: JSON.stringify({
-      //     bookingId: selectedBookingForPayment._id,
-      //     amount: selectedBookingForPayment.totalAmount,
-      //     currency: selectedBookingForPayment.currency
-      //   })
-      // });
     } catch (error) {
-      console.error('Payment error:', error);
       addToast('error', 'Payment Failed', 'Payment failed. Please try again.');
     }
   };
 
   const handleContact = async (profile: P2PProfile) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/messages/p2p-conversation`, {
+      const data = await apiCall('/api/messages/p2p-conversation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           serviceProviderId: profile.userId._id,
           p2pProfileId: profile._id,
@@ -720,32 +558,17 @@ export default function P2PPage() {
         })
       });
       
-      const data = await response.json();
-      
-      if (response.ok) {
-        // Redirect to messages page with the new conversation
-        router.push(`/dashboard/messages?userId=${profile.userId._id}&p2p=true`);
-      } else {
-        addToast('error', 'Contact Failed', data.message || 'Failed to start conversation');
-      }
-    } catch (error) {
-      console.error('Error creating P2P conversation:', error);
-      addToast('error', 'Network Error', 'Failed to start conversation. Please check your connection');
+      router.push(`/dashboard/messages?userId=${profile.userId._id}&p2p=true`);
+    } catch (error: any) {
+      addToast('error', 'Contact Failed', error.message || 'Failed to start conversation');
     }
   };
 
   const ProfileCard = ({ profile }: { profile: P2PProfile }) => {
-    const handleContactClick = () => {
-      handleContact(profile);
-    };
-
-    const handleViewProfile = () => {
-      // You can implement a detailed profile view here
-      console.log('View profile:', profile._id);
-    };
-
-    const handleBookServiceClick = () => {
-      handleBookService(profile);
+    const handlers = {
+      contact: () => handleContact(profile),
+      view: () => setSelectedProfileDetail(profile),
+      book: () => handleBookService(profile)
     };
 
     return (
@@ -819,14 +642,14 @@ export default function P2PPage() {
           
           <div className="flex space-x-2">
             <button 
-              onClick={handleContactClick}
+              onClick={handlers.contact}
               className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
             >
               Contact
             </button>
             {(profile.availability === 'Available' || profile.availability === 'Away') && (
               <button 
-                onClick={handleBookServiceClick}
+                onClick={handlers.book}
                 className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
               >
                 Book
@@ -910,21 +733,21 @@ export default function P2PPage() {
           
           <div className="space-y-2">
             <button 
-              onClick={handleViewProfile}
+              onClick={handlers.view}
               className="w-full bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
             >
               View Profile
             </button>
             <div className="flex space-x-2">
               <button 
-                onClick={handleContactClick}
+                onClick={handlers.contact}
                 className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
               >
                 Contact
               </button>
               {(profile.availability === 'Available' || profile.availability === 'Away') && (
                 <button 
-                  onClick={handleBookServiceClick}
+                  onClick={handlers.book}
                   className="flex-1 bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
                 >
                   Book Service
@@ -949,8 +772,8 @@ export default function P2PPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 w-full">
+      <div className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
@@ -965,51 +788,28 @@ export default function P2PPage() {
         <div className="mb-6 sm:mb-8">
           <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="-mb-px flex flex-wrap gap-2 sm:gap-0 sm:space-x-8 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('browse')}
-                className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                  activeTab === 'browse'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                Browse Services
-              </button>
-              <button
-                onClick={() => setActiveTab('bookings')}
-                className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                  activeTab === 'bookings'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                My Bookings
-              </button>
-              <button
-                onClick={() => setActiveTab('provider-bookings')}
-                className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                  activeTab === 'provider-bookings'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                Provider Bookings
-              </button>
-              <button
-                onClick={() => setActiveTab('create')}
-                className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                  activeTab === 'create'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                {myProfile ? 'Edit Profile' : 'Create Profile'}
-              </button>
+              {[
+                { key: 'browse', label: 'Browse Services' },
+                { key: 'bookings', label: 'My Bookings' },
+                { key: 'provider-bookings', label: 'Provider Bookings' },
+                { key: 'create', label: myProfile ? 'Edit Profile' : 'Create Profile' }
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key as any)}
+                  className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                    activeTab === key
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </nav>
           </div>
         </div>
 
-        {/* Bookings Tab */}
         {activeTab === 'bookings' && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
@@ -1137,108 +937,944 @@ export default function P2PPage() {
         {/* Browse Tab */}
         {activeTab === 'browse' && (
           <div>
-            {/* Featured Profiles */}
-            {featuredProfiles.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-                  Featured Professionals
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                  {featuredProfiles.map((profile) => (
-                    <ProfileCard key={profile._id} profile={profile} />
-                  ))}
+            {/* Main Container: Profile Section (Left) + Banner Section (Right) */}
+            <div className="w-full flex flex-col lg:flex-row gap-5 mb-8 p-5">
+              {/* Profile Container (Left Side - 50%) */}
+              <div className="w-full lg:w-[50%] bg-white dark:bg-gray-800 rounded-[20px] p-5 shadow-lg border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
+                {/* Header */}
+                <div className="flex justify-between items-center pb-5 border-b border-gray-200 dark:border-gray-700 mb-5">
+                  <div className="flex gap-2 mt-2 text-xl font-medium"></div>
+                  <div className="flex gap-4 items-center">
+                    <FaShareAlt 
+                      className="w-6 h-6 cursor-pointer text-gray-900 dark:text-white"
+                    />
+                    <HiDotsVertical 
+                      className="w-6 h-6 cursor-pointer text-gray-900 dark:text-white"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Search and Filters */}
-            <div className="mb-6 sm:mb-8">
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                      Search
-                    </label>
-                    <input
-                      type="text"
+                {/* Profile Section - Logged in User Profile */}
+                {(() => {
+                  const user = currentUser || myProfile?.userId;
+                  return user ? (
+                <div className="flex flex-col items-center gap-5 w-full">
+                  {/* Profile Picture */}
+                  <div className="relative flex flex-col items-center">
+                    <Image 
+                      src={getAvatarUrl(user.avatar) || '/default-avatar.svg'} 
+                      alt={(user.fullName || user.name) || 'Profile'} 
+                      width={150}
+                      height={150}
+                      className="w-[150px] h-[150px] rounded-full border-[3px] border-blue-500 object-cover"
+                      unoptimized
+                    />
+                    <button 
+                      onClick={() => setActiveTab('create')}
+                      className="mt-4 bg-blue-500 text-white border-none px-4 py-2 rounded-[20px] text-sm cursor-pointer transition-all hover:bg-blue-600 mx-auto"
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+
+                  {/* Profile Info */}
+                  <div className="text-center w-full">
+                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2.5">
+                      {user.fullName || user.name}
+                    </h1>
+                    
+                    {/* Title/Organization */}
+                    <h3 className="text-base text-[#CCCCCC] dark:text-gray-300 mb-5">
+                      {(() => {
+                        if (myProfile) {
+                          const parts = [];
+                          if (myProfile.currentOrganisation) {
+                            parts.push(myProfile.currentOrganisation);
+                          }
+                          if (myProfile.occupation && myProfile.occupation !== myProfile.currentOrganisation) {
+                            parts.push(myProfile.occupation);
+                          }
+                          return parts.length > 0 ? parts.join(' | ') : myProfile.occupation || 'Professional';
+                        }
+                        return user.bio || 'Professional';
+                      })()}
+                    </h3>
+                    
+                    {/* Tags/Areas of Expertise */}
+                    <div className="flex flex-wrap gap-2.5 justify-center mb-5">
+                      {(() => {
+                        if (myProfile) {
+                          const allTags = [
+                            ...(myProfile.areasOfExpertise || []),
+                            ...(myProfile.skills || []),
+                            ...(myProfile.tags || [])
+                          ];
+                          const uniqueTags = Array.from(new Set(allTags));
+                          return uniqueTags.length > 0 ? uniqueTags.map((tag: string, idx: number) => (
+                            <div 
+                              key={idx}
+                              className="px-3 py-1.5 rounded-[20px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs border border-blue-200 dark:border-blue-800"
+                            >
+                              {tag}
+                            </div>
+                          )) : null;
+                        }
+                        return null;
+                      })()}
+                    </div>
+                    
+                    {/* Description */}
+                    <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-5 text-center">
+                      {myProfile?.description || myProfile?.experience || user.bio || 'No description available.'}
+                    </p>
+                  </div>
+
+                  {/* CTA Section - User's Own Pricing */}
+                  {myProfile && (
+                    <div className="flex gap-5 mt-5 w-full justify-center">
+                      {/* Audio Call */}
+                      <div className="flex-1 bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-xl p-5 text-center border border-gray-200 dark:border-gray-600 max-w-[200px]">
+                        <h3 className="text-base mb-2.5 text-gray-900 dark:text-white">Audio Call</h3>
+                        <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-2.5">
+                          {myProfile.audioCallPrice 
+                            ? `₹${myProfile.audioCallPrice}`
+                            : myProfile.hourlyRate 
+                              ? `₹${myProfile.hourlyRate}/${myProfile.currency || 'hour'}`
+                              : 'N/A'}
+                        </p>
+                        <button 
+                          onClick={() => setActiveTab('create')}
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all mt-2.5"
+                        >
+                          Edit Pricing
+                        </button>
+                      </div>
+                      
+                      {/* Video Call */}
+                      <div className="flex-1 bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-xl p-5 text-center border border-gray-200 dark:border-gray-600 max-w-[200px]">
+                        <h3 className="text-base mb-2.5 text-gray-900 dark:text-white">Video Call</h3>
+                        <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-2.5">
+                          {myProfile.videoCallPrice 
+                            ? `₹${myProfile.videoCallPrice}`
+                            : myProfile.hourlyRate 
+                              ? `₹${myProfile.hourlyRate}/${myProfile.currency || 'hour'}`
+                              : 'N/A'}
+                        </p>
+                        <button 
+                          onClick={() => setActiveTab('create')}
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all mt-2.5"
+                        >
+                          Edit Pricing
+                        </button>
+                      </div>
+                      
+                      {/* Next Available */}
+                      <div className="flex-1 bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-xl p-5 text-center border border-gray-200 dark:border-gray-600 max-w-[200px]">
+                        <h3 className="text-base mb-2.5 text-gray-900 dark:text-white">Available at</h3>
+                        <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-2.5">
+                          {(() => {
+                            const startTime = myProfile.workingHours?.start || myProfile.availableFromTime || '09:00';
+                            const endTime = myProfile.workingHours?.end || myProfile.availableToTime || '17:00';
+                            // Format time to 12-hour format if needed
+                            const formatTime = (time: string) => {
+                              if (!time) return '';
+                              if (time.includes('AM') || time.includes('PM')) return time;
+                              const [hours, minutes] = time.split(':');
+                              const hour = parseInt(hours);
+                              const ampm = hour >= 12 ? 'PM' : 'AM';
+                              const hour12 = hour % 12 || 12;
+                              return `${hour12}:${minutes || '00'} ${ampm}`;
+                            };
+                            return `${formatTime(startTime)} - ${formatTime(endTime)}`;
+                          })()}
+                        </p>
+                        <button 
+                          onClick={() => setActiveTab('create')}
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all mt-2.5"
+                        >
+                          Edit Availability
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {myProfile && myProfile.rating && myProfile.rating.count > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-600">
+                      <div className="text-center">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Rating</p>
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          ⭐ {myProfile.rating.average.toFixed(1)} ({myProfile.rating.count})
+                        </p>
+                      </div>
+                      {myProfile.completedJobs > 0 && (
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Completed Jobs</p>
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {myProfile.completedJobs}
+                          </p>
+                        </div>
+                      )}
+                      {myProfile.responseTime && (
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Response Time</p>
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                            {myProfile.responseTime}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-center gap-2.5 mt-5">
+                    {myProfile?.socialLinks?.twitterLink && (
+                      <a 
+                        href={myProfile.socialLinks.twitterLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 rounded-full bg-[rgba(51,51,51,0.5)] dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <FaTwitter 
+                          className="w-5 h-5 text-gray-900 dark:text-white"
+                        />
+                      </a>
+                    )}
+                    {myProfile?.socialLinks?.linkedInLink && (
+                      <a 
+                        href={myProfile.socialLinks.linkedInLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 rounded-full bg-[rgba(51,51,51,0.5)] dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <FaLinkedin 
+                          className="w-5 h-5 text-gray-900 dark:text-white"
+                        />
+                      </a>
+                    )}
+                    {myProfile?.socialLinks?.instagramLink && (
+                      <a 
+                        href={myProfile.socialLinks.instagramLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 rounded-full bg-[rgba(51,51,51,0.5)] dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <FaInstagram 
+                          className="w-5 h-5 text-gray-900 dark:text-white"
+                        />
+                      </a>
+                    )}
+                  </div>
+                </div>
+                  ) : null;
+                })()}
+                {(() => {
+                  const user = currentUser || myProfile?.userId;
+                  if (!user && loading) {
+                    return (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500 dark:text-gray-400">Loading profile...</p>
+                      </div>
+                    );
+                  }
+                  if (!user && !loading) {
+                    return (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500 dark:text-gray-400">Unable to load profile. Please refresh the page.</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
+              {/* Banner Section (Right Side - 50%) */}
+              {SHOW_FIND_BY_EXPERTS && (
+                <div className="w-full lg:w-[50%] h-[400px] bg-white dark:bg-gray-800 flex flex-col justify-center items-center text-center relative rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+                  <h1 className="text-[40px] font-bold text-[#1A1A1A] dark:text-white mb-4">
+                    Find the best expert to help you with
+                  </h1>
+                  <div className="text-[40px] font-bold text-blue-600 dark:text-blue-400 mb-8 animate-[fade-in_1.5s_ease-in-out_forwards]">
+                    interview preparation
+                  </div>
+                  
+                  {/* Search Bar */}
+                  <div className="w-[80%] max-w-[600px] h-[50px] flex items-center bg-[#F5F5F5] dark:bg-gray-700 rounded-[50px] px-2 shadow-md">
+                    <FaSearch 
+                      className="w-6 h-6 ml-3 text-gray-500"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Search by name, company, skills, and more..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search by skills, occupation..."
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      onKeyPress={(e) => e.key === 'Enter' && searchProfiles()}
+                      className="flex-1 h-full border-none bg-transparent px-3 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-500"
                     />
+                    <button 
+                      onClick={searchProfiles}
+                      className="bg-blue-500 text-white border-none px-6 h-[90%] rounded-[50px] text-sm font-medium cursor-pointer transition-all hover:bg-blue-600"
+                    >
+                      Search
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                      Occupation
-                    </label>
-                    <input
-                      type="text"
-                      value={filters.occupation}
-                      onChange={(e) => setFilters(prev => ({ ...prev, occupation: e.target.value }))}
-                      placeholder="e.g., Developer, Designer"
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                      Min Rate
-                    </label>
-                    <input
-                      type="number"
-                      value={filters.minRate}
-                      onChange={(e) => setFilters(prev => ({ ...prev, minRate: e.target.value }))}
-                      placeholder="0"
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                      Max Rate
-                    </label>
-                    <input
-                      type="number"
-                      value={filters.maxRate}
-                      onChange={(e) => setFilters(prev => ({ ...prev, maxRate: e.target.value }))}
-                      placeholder="1000"
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-                  <button
-                    onClick={searchProfiles}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors"
-                  >
-                    Search
-                  </button>
-                  <button
-                    onClick={loadProfiles}
-                    className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors"
-                  >
-                    Clear Filters
-                  </button>
-                </div>
-              </div>
-            </div>
 
-            {/* All Profiles */}
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
-                All Professionals
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-                {profiles.map((profile) => (
-                  <ProfileCard key={profile._id} profile={profile} />
-                ))}
-              </div>
-              {profiles.length === 0 && (
-                <div className="text-center py-8 sm:py-12">
-                  <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                    No profiles found. Try adjusting your search criteria.
-                  </p>
+                  {/* Footer */}
+                  <div className="absolute bottom-0 left-0 w-full h-12 flex justify-center items-center bg-[#F5F5F5] dark:bg-gray-700 border-b-[12px] rounded-b-xl text-sm text-gray-600 dark:text-gray-400">
+                    <h5 className="font-light">Need help?</h5>
+                    <div className="w-px h-6 bg-gray-400 mx-4"></div>
+                    <h5 className="font-medium text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">Contact us</h5>
+                  </div>
                 </div>
               )}
             </div>
+
+            {SHOW_FIND_BY_CATEGORY && (
+            <div className="bg-[#1A1A1A] dark:bg-gray-900 pt-10 pb-5">
+            <h3 className="text-[28px] font-semibold text-center mb-5 text-gray-900 dark:text-white relative inline-block w-full">
+              Find experts by category
+              <span className="absolute left-1/2 bottom-[-10px] w-[60px] h-1 bg-gradient-to-r from-[#FF7F7F] to-[#FF4D4D] transform -translate-x-1/2 rounded"></span>
+            </h3>
+            <div className="w-full mx-auto pt-5 pb-10 px-5 relative">
+              <Swiper
+                modules={[Navigation, Pagination, Autoplay]}
+                spaceBetween={20}
+                slidesPerView={5}
+                navigation={{
+                  nextEl: '.swiper-button-next',
+                  prevEl: '.swiper-button-prev',
+                }}
+                pagination={{
+                  clickable: true,
+                  el: '.swiper-pagination',
+                }}
+                autoplay={{
+                  delay: 3000,
+                  disableOnInteraction: false,
+                }}
+                breakpoints={{
+                  320: { slidesPerView: 2, spaceBetween: 10 },
+                  640: { slidesPerView: 3, spaceBetween: 15 },
+                  1024: { slidesPerView: 4, spaceBetween: 20 },
+                  1280: { slidesPerView: 5, spaceBetween: 20 },
+                }}
+                className="h-[250px]"
+              >
+                {[
+                  { title: 'Relationship & Loneliness', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19368_59d475d3-ee9a-4ce7-b319-88bd1a42961e.png', desc: 'Dating advice | Emotional support | Moving on | Breakup' },
+                  { title: 'Astrology & More', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19370_61290102-0201-4187-9747-296c2f211572.png', desc: 'Vedic Astrology/Vaastu | Tarrot card | Numerology | Kundli' },
+                  { title: 'Careers & Jobs', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19350_7e4f44aa-ebd3-437d-8b05-4c5d60731da7.png', desc: 'Job Switch | Career Planning | International Careers | Upskill' },
+                  { title: 'Life Coach', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19357_61a16c0d-9a95-44a4-84a9-54e284d24fda.png', desc: 'Work life balance | Stress management | Confidence building' },
+                  { title: 'Fitness & Nutrition', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19367_97e70bef-7a25-405e-9ed2-47263190d9a9.png', desc: 'Dietician | Body building | Weight management | Yoga' },
+                  { title: 'Influencers & Models', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19369_88d452bf-9b63-4f14-a867-7bb6db23cf91.png', desc: 'Creators | Models | Directors | Artists' },
+                  { title: 'Finance & Trading', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19360_2a75c4a2-a983-4c37-b585-fc8146af7c50.png', desc: 'Taxation | Stocks | Mutual funds | Crypto | Financial planning' },
+                  { title: 'College Studies', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19356_85c68f72-61d7-4dea-9e3d-81b4cd1fe0c8.png', desc: 'Entrance | Networking | Study abroad | Exams | Dream college' },
+                  { title: 'Communication', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19365_7b076ef2-4d82-4a02-b7f8-9dadd69ccabc.png', desc: 'English/Other foreign languages | Public speaking | Storytelling' },
+                  { title: 'Mental Well Being', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_135346_9e7a96f3-06d3-437e-b734-49ddfb43d3bf.png', desc: 'Anxiety/Depression | Stress | Therapy | ADHD' },
+                ].map((category, idx) => (
+                  <SwiperSlide key={idx}>
+                    <div className="bg-white dark:bg-gray-800 rounded-[15px] p-5 h-[200px] flex flex-col justify-between items-center cursor-pointer border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg hover:-translate-y-2.5 transition-all">
+                      <h5 className="text-base font-bold text-gray-900 dark:text-white mb-2.5 text-center leading-tight">{category.title}</h5>
+                      <img src={category.img} alt={category.title} className="w-[100px] h-[62px] object-cover drop-shadow-md" />
+                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center leading-snug">{category.desc}</p>
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+              <div className="swiper-pagination swiper-pagination-bullets swiper-pagination-horizontal absolute bottom-[10px] left-1/2 transform -translate-x-1/2"></div>
+              <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute left-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-prev hover:bg-gray-400 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
+                  <path d="m15 18-6-6 6-6"></path>
+                </svg>
+              </div>
+              <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute right-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-next hover:bg-gray-400 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
+                  <path d="m9 18 6-6-6-6"></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+            )}
+
+          <div className="w-full mx-auto mt-[60px] mb-5 p-6 bg-white dark:bg-gray-800 shadow-md rounded-xl">
+            <table className="w-full">
+              <tbody>
+                <tr>
+                  <td className="w-1/2 align-top">
+                    <h3 className="text-[35px] font-semibold leading-[40px] text-[#1A1A1A] dark:text-white mb-3">
+                      Top experts for you
+                    </h3>
+                    <p className="text-base font-light leading-6 text-gray-600 dark:text-gray-400 mt-3">
+                      Connect with trusted and verified professionals across various fields of expertise
+                    </p>
+                  </td>
+                  <td className="w-1/2 align-top text-right">
+                    <div className="flex gap-3 justify-end">
+                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                        Instantly available
+                      </button>
+                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                        Verified profiles
+                      </button>
+                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                        Top rated
+                      </button>
+                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                        Sort by
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-5 w-full mx-auto mb-5 px-5">
+            <div className="flex justify-around items-center w-full flex-wrap gap-5">{getTopExpertsProfiles().slice(0, 6).map((profile) => (
+                <div 
+                  key={profile._id}
+                  className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-[20px] p-6 shadow-lg text-center border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all"
+                >
+                  <div 
+                    onClick={() => setSelectedProfileDetail(profile)}
+                    className="cursor-pointer"
+                  >
+                    <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
+                      <Image 
+                        src={getAvatarUrl(profile.userId.avatar)} 
+                        alt={profile.userId.fullName || profile.userId.name} 
+                        width={100}
+                        height={100}
+                        className="w-full h-full rounded-full border-4 border-[#f0f0f0] dark:border-gray-600 object-cover"
+                        unoptimized
+                      />
+                      <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
+                        <FaStar 
+                          className="w-3.5 h-3.5 text-white"
+                        />
+                        <span className="text-xs font-semibold text-white">
+                          {profile.rating?.average?.toFixed(1) || '5.0'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                        {profile.userId.fullName || profile.userId.name}
+                      </h1>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {(() => {
+                          const parts = [];
+                          if (profile.currentOrganisation) parts.push(profile.currentOrganisation);
+                          if (profile.occupation && profile.occupation !== profile.currentOrganisation) {
+                            parts.push(profile.occupation);
+                          }
+                          return parts.length > 0 ? parts.join(' | ') : profile.occupation || 'Professional';
+                        })()}
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+                      {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center mb-6">
+                      {(() => {
+                        const allTags = [
+                          ...(profile.areasOfExpertise || []),
+                          ...(profile.skills || []),
+                          ...(profile.tags || [])
+                        ];
+                        const uniqueTags = Array.from(new Set(allTags));
+                        return uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
+                          <div 
+                            key={idx}
+                            className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all"
+                          >
+                            {tag}
+                          </div>
+                        ));
+                      })()}
+                      {(() => {
+                        const allTags = [
+                          ...(profile.areasOfExpertise || []),
+                          ...(profile.skills || []),
+                          ...(profile.tags || [])
+                        ];
+                        const uniqueTags = Array.from(new Set(allTags));
+                        return uniqueTags.length > 5 ? (
+                          <div className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px]">
+                            +{uniqueTags.length - 5} more
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Pricing & Services Section */}
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">
+                      Available Services & Pricing
+                    </h3>
+                    
+                    {/* Services Grid */}
+                    <div className="grid grid-cols-1 gap-3 mb-4">
+                      {/* Audio Call Service */}
+                      {(profile.audioCallPrice || profile.hourlyRate) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBookService(profile, 'audio_call');
+                          }}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaPhone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Audio Call</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Voice consultation</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
+                              ₹{profile.audioCallPrice || profile.hourlyRate}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {profile.audioCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
+                            </p>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* Video Call Service */}
+                      {(profile.videoCallPrice || profile.hourlyRate) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBookService(profile, 'video_call');
+                          }}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaVideo className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Video Call</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Face-to-face consultation</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
+                              ₹{profile.videoCallPrice || profile.hourlyRate}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {profile.videoCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
+                            </p>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* Chat Service */}
+                      {profile.chatPrice && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBookService(profile, 'chat');
+                          }}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaComments className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Chat</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Text messaging</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
+                              ₹{profile.chatPrice}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">per message</p>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* Hourly Rate (if no specific prices) */}
+                      {!profile.audioCallPrice && !profile.videoCallPrice && !profile.chatPrice && profile.hourlyRate > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBookService(profile, 'consultation');
+                          }}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaStar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="text-left">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Hourly Rate</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">Consultation services</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">
+                              ₹{profile.hourlyRate}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">/{profile.currency || 'hour'}</p>
+                          </div>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Book Now Button - Opens modal to select service */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBookService(profile, 'consultation');
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                    >
+                      <span>Book Consultation</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="m9 18 6-6-6-6"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {(SHOW_FEATURE_CARDS || SHOW_BANNER_CAROUSEL) && (
+            <div className="flex flex-col lg:flex-row gap-5 w-full mx-auto mb-5 px-5">
+              {SHOW_FEATURE_CARDS && (
+                <div className="w-full lg:w-[50%] h-[300px] grid grid-cols-3 gap-2.5 overflow-hidden">
+                  {[
+                    { img: 'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/upcoming-calls.svg', title: 'Upcoming calls', desc: 'See your upcoming schedule and plan ahead.' },
+                    { img: 'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/service-quick.svg', title: 'Create service', desc: 'Define and offer your personalised services.' },
+                    { img: 'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/call-history-quick.svg', title: 'Call history', desc: 'Track and review your previous audio/video calls.' },
+                    { img: 'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/visits-quick.svg', title: 'Profile visits', desc: 'See who\'s viewing your profile and services.' },
+                    { img: 'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/schedule-quick.svg', title: 'Set schedule', desc: 'Update your availability to maximise your earnings.' },
+                    { title: 'Share profile', desc: 'Copy link', isShare: true },
+                  ].map((feature, idx) => (
+                    <div 
+                      key={idx}
+                      className="flex flex-col items-center justify-center p-2.5 bg-[#F5F5F5] dark:bg-gray-700 rounded-xl cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg text-center"
+                    >
+                      {feature.isShare ? (
+                        <div className="w-10 h-10 p-0.5 relative mb-2">
+                          <div className="bg-blue-500 flex justify-center items-center font-medium text-white p-2 rounded-full text-sm w-[38px] h-[38px]">
+                            {selectedProfileDetail?.userId?.fullName?.substring(0, 2).toUpperCase() || 'KY'}
+                          </div>
+                        </div>
+                      ) : (
+                        <img src={feature.img} alt={feature.title} className="w-10 h-10 mb-2" />
+                      )}
+                      <h5 className="text-sm font-semibold text-[#1A1A1A] dark:text-white mb-1">
+                        {feature.title}
+                      </h5>
+                      {feature.desc && (
+                        <div className="flex items-center justify-start text-xs cursor-pointer text-blue-600 dark:text-blue-400">
+                          {feature.isShare ? (
+                            <>
+                              <FaCopy className="mr-1 w-3 h-3" />
+                              {feature.desc}
+                            </>
+                          ) : (
+                            <p className="text-[10px] font-light text-gray-600 dark:text-gray-400">{feature.desc}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {SHOW_BANNER_CAROUSEL && (
+                <div className="w-full lg:w-[50%] h-[300px] overflow-hidden rounded-xl relative">
+                  <Swiper
+                    modules={[Pagination, Autoplay]}
+                    spaceBetween={0}
+                    slidesPerView={1}
+                    pagination={{
+                      clickable: true,
+                      el: '.promo-pagination',
+                    }}
+                    autoplay={{
+                      delay: 3000,
+                      disableOnInteraction: false,
+                    }}
+                    className="h-full"
+                  >
+                    {[
+                      'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/price_banner_3x.png',
+                      'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/set_time_banner_3x.png',
+                      'https://application-assets-app-and-web.s3.ap-south-1.amazonaws.com/verified_badge_banner_3x.png',
+                    ].map((banner, idx) => (
+                      <SwiperSlide key={idx}>
+                        <img src={banner} alt={`Banner ${idx + 1}`} className="w-full h-full object-cover rounded-xl" />
+                      </SwiperSlide>
+                    ))}
+                  </Swiper>
+                  <div className="promo-pagination absolute bottom-5 left-1/2 transform -translate-x-1/2 flex gap-2 z-10"></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="relative py-10 px-5 overflow-hidden bg-white dark:bg-gray-900 mb-5">
+            {SHOW_WORTH_EXPLORING && (
+              <>
+                <div className="absolute top-[60%] right-[10%] transform -translate-y-1/2 w-[525px] h-[425px] z-[-1] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(17,214,190,0.15)_23%,rgba(10,7,11,0.15)_100%)] blur-[40px]"></div>
+                <div className="text-center">
+                  <h3 className="text-[35px] font-semibold text-[#1A1A1A] dark:text-white leading-[35px] mb-12">
+                    Worth Exploring
+                  </h3>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {[
+                      'Entrepreneurship', 'Marketing Leadership', 'Sales Leadership', 'Business Development',
+                      'Sales Operations', 'Digital Marketing', 'Software Development', 'Design Leadership',
+                      'Motivation Coaching', 'Coding', 'Education Guidance', 'Accounting Management',
+                      'Data Analysis', 'Management', 'Student Counseling', 'Graphic Designing',
+                      'Leadership Development', 'Study Planning', 'Content Creation', 'Mentoring'
+                    ].map((tag, idx) => (
+                      <div
+                        key={idx}
+                        className="px-[18px] py-2 border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 rounded-[100px] cursor-pointer transition-all hover:bg-blue-500 hover:text-white hover:-translate-y-0.5"
+                      >
+                        <h6 className="text-sm font-medium text-[#1A1A1A] dark:text-white capitalize m-0 hover:text-white transition-colors">
+                          {tag}
+                        </h6>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {SHOW_TRENDING_SHORTS && (
+            <div className="py-20 bg-[rgba(255,255,255,0.15)] dark:bg-gray-800/50 mt-[60px] w-full mb-5">
+              <div className="w-[90%] mx-auto">
+                <div className="mb-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[35px] font-semibold leading-[35px] text-[#1A1A1A] dark:text-white">
+                      Trending JFshorts
+                    </h3>
+                    <button className="flex items-center gap-1 text-base font-semibold text-blue-600 dark:text-blue-400 cursor-pointer bg-none border-none hover:underline">
+                      View all
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arrow-icon">
+                        <path d="M5 12h14"></path>
+                        <path d="m12 5 7 7-7 7"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  <h5 className="text-base font-light text-gray-600 dark:text-gray-400">
+                    Watch the latest clips from trending sessions. Click to view the full session and gain expert insights.
+                  </h5>
+                </div>
+
+                <div className="relative">
+                  <Swiper
+                    modules={[Navigation]}
+                    spaceBetween={20}
+                    slidesPerView={4}
+                    navigation={{
+                      nextEl: '.video-next',
+                      prevEl: '.video-prev',
+                    }}
+                    breakpoints={{
+                      320: { slidesPerView: 1 },
+                      640: { slidesPerView: 2 },
+                      1024: { slidesPerView: 3 },
+                      1280: { slidesPerView: 4 },
+                    }}
+                  >
+                    {[
+                      { title: 'Want a career in media industry?', src: 'https://cfront-snips.unikon.ai/snip_asset_29370_846b5248-22ad-48ed-9d10-37476f925522.mp4' },
+                      { title: 'Want to increase profitability?', src: 'https://cfront-snips.unikon.ai/snip_asset_36431_6eb907df-9e0b-4fa8-8a3c-d9705d1a86f8.mp4' },
+                      { title: 'Seeking key startup steps?', src: 'https://cfront-snips.unikon.ai/snip_asset_22996_49aea3b3-3e6d-464e-bcf9-b04d011ae460.mp4' },
+                      { title: 'How to pivot from design to data analysis?', src: 'https://cfront-snips.unikon.ai/snip_asset_68177_059ff3fd-f17a-4d67-b60c-56523dcfca76.mp4' },
+                    ].map((video, idx) => (
+                      <SwiperSlide key={idx}>
+                        <div className="relative rounded-lg overflow-hidden">
+                          <div className="absolute bottom-4 left-3 z-10">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-[rgba(36,36,36,0.7)] rounded">
+                              <FaLightbulb className="w-2.5 h-2.5 text-white" />
+                              <h5 className="text-[10px] text-white m-0">{video.title}</h5>
+                            </div>
+                          </div>
+                          <video playsInline loop className="w-full h-auto rounded-lg">
+                            <source src={video.src} type="video/mp4" />
+                          </video>
+                        </div>
+                      </SwiperSlide>
+                    ))}
+                  </Swiper>
+                  <div className="flex justify-between absolute top-1/2 left-0 right-0 transform -translate-y-1/2 z-10">
+                    <button className="bg-[#D9D9D9] border-none rounded-full w-[27px] h-[27px] flex items-center justify-center cursor-pointer transition-all hover:bg-[#C0C0C0] video-prev">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-[#1C1B1F]">
+                        <path d="m15 18-6-6 6-6"></path>
+                      </svg>
+                    </button>
+                    <button className="bg-[#D9D9D9] border-none rounded-full w-[27px] h-[27px] flex items-center justify-center cursor-pointer transition-all hover:bg-[#C0C0C0] video-next">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-[#1C1B1F]">
+                        <path d="m9 18 6-6-6-6"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {SHOW_TOP_RATED_PROFILES && (
+            <div className="w-full mx-auto mb-5 p-6 bg-white dark:bg-gray-800 shadow-md rounded-xl">
+              <table className="w-full">
+                <tbody>
+                  <tr>
+                    <td className="w-full align-top">
+                      <h3 className="text-[35px] font-semibold leading-[40px] text-[#1A1A1A] dark:text-white mb-3">
+                        Top Rated Profiles
+                      </h3>
+                      <p className="text-base font-light leading-6 text-gray-600 dark:text-gray-400 mt-3">
+                        Browse highly-rated experts with 4.5+ reviews from users for exceptional guidance
+                      </p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-5 w-full mx-auto mb-5 px-5">
+            <div className="flex justify-around items-center w-full flex-wrap gap-5">{(featuredProfiles.length > 0 ? featuredProfiles : profiles).slice(6, 12).map((profile) => (
+                <div 
+                  key={profile._id}
+                  onClick={() => setSelectedProfileDetail(profile)}
+                  className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-[20px] p-6 shadow-lg text-center border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-xl transition-all"
+                >
+                  <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
+                    <Image 
+                      src={getAvatarUrl(profile.userId.avatar)} 
+                      alt={profile.userId.fullName || profile.userId.name} 
+                      width={100}
+                      height={100}
+                      className="w-full h-full rounded-full border-4 border-[#f0f0f0] dark:border-gray-600 object-cover"
+                      unoptimized
+                    />
+                    <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
+                      <FaStar 
+                        className="w-3.5 h-3.5 text-white"
+                      />
+                      <span className="text-xs font-semibold text-white">
+                        {profile.rating?.average?.toFixed(1) || '5.0'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mb-4">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                      {profile.userId.fullName || profile.userId.name}
+                    </h1>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {(() => {
+                        const parts = [];
+                        if (profile.currentOrganisation) parts.push(profile.currentOrganisation);
+                        if (profile.occupation && profile.occupation !== profile.currentOrganisation) {
+                          parts.push(profile.occupation);
+                        }
+                        return parts.length > 0 ? parts.join(' | ') : profile.occupation || 'Professional';
+                      })()}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+                    {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center mb-6">
+                    {(() => {
+                      const allTags = [
+                        ...(profile.areasOfExpertise || []),
+                        ...(profile.skills || []),
+                        ...(profile.tags || [])
+                      ];
+                      const uniqueTags = Array.from(new Set(allTags));
+                      return uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
+                        <div 
+                          key={idx}
+                          className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all"
+                        >
+                          {tag}
+                        </div>
+                      ));
+                    })()}
+                    {(() => {
+                      const allTags = [
+                        ...(profile.areasOfExpertise || []),
+                        ...(profile.skills || []),
+                        ...(profile.tags || [])
+                      ];
+                      const uniqueTags = Array.from(new Set(allTags));
+                      return uniqueTags.length > 5 ? (
+                        <div className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px]">
+                          +{uniqueTags.length - 5} more
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                  <div className="flex justify-center gap-4">
+                    {profile.audioCallPrice && (
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProfile(profile);
+                          setShowBookingModal(true);
+                        }}
+                        className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
+                      >
+                        <FaPhone 
+                          className="w-6 h-6 text-white"
+                        />
+                        <span className="text-xs font-medium">₹{profile.audioCallPrice}</span>
+                      </a>
+                    )}
+                    {profile.videoCallPrice && (
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProfile(profile);
+                          setShowBookingModal(true);
+                        }}
+                        className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
+                      >
+                        <FaVideo 
+                          className="w-6 h-6 text-white"
+                        />
+                        <span className="text-xs font-medium">₹{profile.videoCallPrice}</span>
+                      </a>
+                    )}
+                    {profile.chatPrice && (
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleContact(profile);
+                        }}
+                        className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
+                      >
+                        <FaComments 
+                          className="w-6 h-6 text-white"
+                        />
+                        <span className="text-xs font-medium">₹{profile.chatPrice}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           </div>
         )}
 
@@ -1373,7 +2009,6 @@ export default function P2PPage() {
           </div>
         )}
 
-        {/* My Profile Tab */}
         {activeTab === 'my-profile' && (
           <div>
             {myProfile ? (
@@ -1501,7 +2136,6 @@ export default function P2PPage() {
           </div>
         )}
 
-        {/* Create/Edit Profile Tab */}
         {activeTab === 'create' && (
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
@@ -1509,7 +2143,6 @@ export default function P2PPage() {
             </h2>
 
             <div className="space-y-6">
-              {/* Basic Information */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Basic Information
@@ -1563,7 +2196,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Experience */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Experience * (Minimum 10 characters)
@@ -1586,7 +2218,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Skills */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Skills
@@ -1625,7 +2256,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Availability */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Availability
@@ -1641,7 +2271,6 @@ export default function P2PPage() {
                 </select>
               </div>
 
-              {/* Working Hours */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Working Hours
@@ -1678,7 +2307,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Languages */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Languages
@@ -1740,7 +2368,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Portfolio */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1805,7 +2432,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Social Links */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                   Social Links
@@ -1874,7 +2500,6 @@ export default function P2PPage() {
                 </div>
               </div>
 
-              {/* Save Button */}
               <div className="flex justify-end space-x-4">
                 <button
                   onClick={() => setActiveTab('browse')}
@@ -1893,7 +2518,6 @@ export default function P2PPage() {
           </div>
         )}
 
-        {/* Booking Modal */}
         {showBookingModal && selectedProfile && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto scrollbar-hide">
@@ -1928,16 +2552,74 @@ export default function P2PPage() {
               </div>
 
               <div className="space-y-4">
+                {/* Selected Service Display */}
+                {selectedServiceType && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {selectedServiceType === 'audio_call' && (
+                        <>
+                          <FaPhone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Audio Call Selected</p>
+                            <p className="text-xs text-blue-700 dark:text-blue-400">
+                              ₹{selectedProfile.audioCallPrice || selectedProfile.hourlyRate} {selectedProfile.audioCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {selectedServiceType === 'video_call' && (
+                        <>
+                          <FaVideo className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Video Call Selected</p>
+                            <p className="text-xs text-blue-700 dark:text-blue-400">
+                              ₹{selectedProfile.videoCallPrice || selectedProfile.hourlyRate} {selectedProfile.videoCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {selectedServiceType === 'chat' && (
+                        <>
+                          <FaComments className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Chat Selected</p>
+                            <p className="text-xs text-blue-700 dark:text-blue-400">
+                              ₹{selectedProfile.chatPrice} per message
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {(selectedServiceType === 'consultation' || (!selectedServiceType || (selectedServiceType !== 'audio_call' && selectedServiceType !== 'video_call' && selectedServiceType !== 'chat'))) && (
+                        <>
+                          <FaStar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          <div>
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Consultation Selected</p>
+                            <p className="text-xs text-blue-700 dark:text-blue-400">
+                              ₹{selectedProfile.hourlyRate}/{selectedProfile.currency || 'hour'}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Service Type *
                   </label>
                   <select
                     value={bookingForm.serviceType}
-                    onChange={(e) => setBookingForm(prev => ({ ...prev, serviceType: e.target.value }))}
+                    onChange={(e) => {
+                      setBookingForm(prev => ({ ...prev, serviceType: e.target.value }));
+                      setSelectedServiceType(e.target.value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option value="consultation">Consultation</option>
+                    <option value="audio_call">Audio Call</option>
+                    <option value="video_call">Video Call</option>
+                    <option value="chat">Chat</option>
                     <option value="project">Project</option>
                     <option value="hourly">Hourly Work</option>
                     <option value="fixed_price">Fixed Price</option>
@@ -2030,7 +2712,6 @@ export default function P2PPage() {
         )}
       </div>
 
-      {/* Payment Modal */}
       {showPaymentModal && selectedBookingForPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
@@ -2106,10 +2787,8 @@ export default function P2PPage() {
         </div>
       )}
 
-      {/* Toast Container */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
-      {/* Custom Styles */}
       <style jsx>{`
         .scrollbar-hide {
           -ms-overflow-style: none;

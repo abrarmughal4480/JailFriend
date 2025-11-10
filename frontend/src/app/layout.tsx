@@ -33,7 +33,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className="bg-gray-50 dark:bg-gray-900 overflow-x-hidden transition-colors duration-200">
+      <body className="bg-gray-50 dark:bg-gray-900 overflow-x-hidden transition-colors duration-200 custom-scrollbar">
         <div className="w-full overflow-x-hidden">
           <DarkModeProvider>
             <PrivacyProvider>

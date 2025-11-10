@@ -121,7 +121,7 @@ const getMyProfile = async (req, res) => {
     const userId = req.user.id;
     
     const profile = await P2PProfile.findOne({ userId })
-      .populate('userId', 'name username avatar email bio location');
+      .populate('userId', 'name fullName username avatar email bio location');
 
     if (!profile) {
       return res.status(404).json({
@@ -196,7 +196,7 @@ const getAllProfiles = async (req, res) => {
     }
 
     const profiles = await P2PProfile.find(query)
-      .populate('userId', 'name username avatar email bio location')
+      .populate('userId', 'name fullName username avatar email bio location')
       .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -238,7 +238,7 @@ const getFeaturedProfiles = async (req, res) => {
     }
     
     const profiles = await P2PProfile.find(query)
-      .populate('userId', 'name username avatar email bio location')
+      .populate('userId', 'name fullName username avatar email bio location')
       .sort({ 'rating.average': -1 })
       .limit(6);
 
@@ -262,7 +262,7 @@ const getProfileById = async (req, res) => {
     const { profileId } = req.params;
     
     const profile = await P2PProfile.findById(profileId)
-      .populate('userId', 'name username avatar email bio location');
+      .populate('userId', 'name fullName username avatar email bio location');
 
     if (!profile) {
       return res.status(404).json({
@@ -314,7 +314,7 @@ const searchProfiles = async (req, res) => {
     }
 
     const profiles = await P2PProfile.find(query)
-      .populate('userId', 'name username avatar email bio location')
+      .populate('userId', 'name fullName username avatar email bio location')
       .sort({ 'rating.average': -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);

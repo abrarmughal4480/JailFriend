@@ -656,8 +656,8 @@ exports.getSuggestedUsers = async (req, res) => {
       _id: { $nin: excludedUsers },
       isPrivate: { $ne: true }
     })
-      .select('name fullName username avatar bio isOnline lastSeen isVerified followers following')
-      .limit(10);
+      .select('name fullName username avatar bio location isOnline lastSeen isVerified followers following')
+      .limit(20);
 
     console.log('👥 Found suggested users (non-private):', suggestedUsers.length);
 
@@ -667,8 +667,8 @@ exports.getSuggestedUsers = async (req, res) => {
       suggestedUsers = await User.find({
         _id: { $ne: currentUserId }
       })
-        .select('name fullName username avatar bio isOnline lastSeen isVerified followers following')
-        .limit(10);
+        .select('name fullName username avatar bio location isOnline lastSeen isVerified followers following')
+        .limit(20);
       
       console.log('👥 Found less restrictive users:', suggestedUsers.length);
     }
@@ -679,8 +679,8 @@ exports.getSuggestedUsers = async (req, res) => {
       suggestedUsers = await User.find({
         _id: { $ne: currentUserId }
       })
-        .select('name fullName username avatar bio isOnline lastSeen isVerified followers following')
-        .limit(10);
+        .select('name fullName username avatar bio location isOnline lastSeen isVerified followers following')
+        .limit(20);
       
       console.log('👥 Found all users:', suggestedUsers.length);
     }

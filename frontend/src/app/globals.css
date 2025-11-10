@@ -64,6 +64,51 @@
   --color-text-muted: rgb(100, 100, 100);
 }
 
+/* Custom Thin Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* Dark mode scrollbar */
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Light mode scrollbar */
+.light *::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.3);
+}
+
+.light *::-webkit-scrollbar-thumb:hover {
+  background: rgba(71, 85, 105, 0.5);
+}
+
 /* Custom utility classes */
 .bg-custom-primary {
   background-color: var(--color-bg-primary);
@@ -197,32 +242,47 @@ html, body {
     overflow-x: hidden;
   }
   
-  /* Hide horizontal scrollbars but allow vertical scrolling */
-  * {
-    scrollbar-width: thin;
-    -ms-overflow-style: auto;
-  }
-  
+  /* Use custom thin scrollbar on mobile */
   *::-webkit-scrollbar:horizontal {
     display: none;
     height: 0;
   }
   
   *::-webkit-scrollbar:vertical {
-    width: 4px;
+    width: 6px;
   }
   
   *::-webkit-scrollbar-track:vertical {
     background: transparent;
+    border-radius: 10px;
   }
   
   *::-webkit-scrollbar-thumb:vertical {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 2px;
+    background: rgba(100, 116, 139, 0.3);
+    border-radius: 10px;
+    transition: background 0.2s ease;
   }
   
   *::-webkit-scrollbar-thumb:vertical:hover {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(100, 116, 139, 0.5);
+  }
+  
+  /* Dark mode mobile scrollbar */
+  .dark *::-webkit-scrollbar-thumb:vertical {
+    background: rgba(148, 163, 184, 0.3);
+  }
+  
+  .dark *::-webkit-scrollbar-thumb:vertical:hover {
+    background: rgba(148, 163, 184, 0.5);
+  }
+  
+  /* Light mode mobile scrollbar */
+  .light *::-webkit-scrollbar-thumb:vertical {
+    background: rgba(71, 85, 105, 0.3);
+  }
+  
+  .light *::-webkit-scrollbar-thumb:vertical:hover {
+    background: rgba(71, 85, 105, 0.5);
   }
 }
 

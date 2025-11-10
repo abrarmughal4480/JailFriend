@@ -13,7 +13,27 @@ export const loginApi = async (data: { email: string; password: string }) => {
 
 export const setupUserApi = async (
   token: string,
-  data: { avatar: string; fullName: string; bio: string; location: string }
+  data: {
+    avatar?: string;
+    fullName?: string;
+    bio?: string;
+    location?: string;
+    workExperience?: string;
+    currentOrganisation?: string;
+    aboutMeLocation?: string;
+    description?: string;
+    areasOfExpertise?: string[];
+    audioCallPrice?: string;
+    videoCallPrice?: string;
+    chatPrice?: string;
+    linkedInLink?: string;
+    instagramLink?: string;
+    twitterLink?: string;
+    availableFromTime?: string;
+    availableToTime?: string;
+    stepNumber: number;
+    skipped?: boolean;
+  }
 ) => {
   console.log('API URL:', `${API_URL}/api/auth/setup`);
   console.log('Token:', token);
@@ -29,6 +49,37 @@ export const setupUserApi = async (
       } 
     }
   );
+  return res.data;
+};
+
+export const getUserProfileApi = async (token: string) => {
+  console.log('🔍 Fetching user profile from:', `${API_URL}/api/auth/profile`);
+  const res = await axios.get(`${API_URL}/api/auth/profile`, {
+    headers: { 
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  console.log('✅ User profile fetched:', res.data);
+  return res.data;
+};
+
+export const uploadProfilePhotoApi = async (token: string, file: File) => {
+  console.log('📤 Uploading profile photo...');
+  const formData = new FormData();
+  formData.append('avatar', file);
+  
+  const res = await axios.post(
+    `${API_URL}/api/upload/profile-photo`,
+    formData,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    }
+  );
+  console.log('✅ Profile photo uploaded:', res.data);
   return res.data;
 };
 
