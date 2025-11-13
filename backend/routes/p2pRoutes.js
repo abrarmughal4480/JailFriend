@@ -34,6 +34,6 @@ router.delete('/profile', authMiddleware, deleteProfile);
 router.get('/profiles', optionalAuthMiddleware, getAllProfiles);
 router.get('/profiles/featured', optionalAuthMiddleware, getFeaturedProfiles);
 router.get('/profiles/search', optionalAuthMiddleware, searchProfiles);
-router.get('/profiles/:profileId', getProfileById);
+router.get('/profiles/:profileId', optionalAuthMiddleware, getProfileById);
 
 module.exports = router;

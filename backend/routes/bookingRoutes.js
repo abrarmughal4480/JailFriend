@@ -11,7 +11,8 @@ const {
   completeBooking,
   cancelBooking,
   getBookingById,
-  getBookingStats
+  getBookingStats,
+  getProviderDailyBookings
 } = require('../controllers/bookingController');
 
 // Protected routes (require authentication)
@@ -19,6 +20,7 @@ router.post('/', authMiddleware, createBooking);
 router.get('/', authMiddleware, getUserBookings);
 router.get('/upcoming', authMiddleware, getUpcomingBookings);
 router.get('/stats', authMiddleware, getBookingStats);
+router.get('/provider/:providerId/availability', authMiddleware, getProviderDailyBookings);
 router.get('/:bookingId', authMiddleware, getBookingById);
 router.put('/:bookingId/accept', authMiddleware, acceptBooking);
 router.put('/:bookingId/reject', authMiddleware, rejectBooking);

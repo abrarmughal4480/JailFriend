@@ -114,6 +114,64 @@ const createBooking = async (req, res) => {
   }
 };
 
+// Get provider bookings for a specific date to determine availability
+const getProviderDailyBookings = async (req, res) => {
+  try {
+    const { providerId } = req.params;
+    const { date } = req.query;
+
+    if (!providerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provider ID is required'
+      });
+    }
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date query parameter is required (YYYY-MM-DD)'
+      });
+    }
+
+    const requestedDate = new Date(date);
+    if (Number.isNaN(requestedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format'
+      });
+    }
+
+    const startOfDay = new Date(requestedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const blockingStatuses = ['pending', 'accepted', 'in_progress'];
+
+    const bookings = await Booking.find({
+      serviceProviderId: providerId,
+      status: { $in: blockingStatuses },
+      scheduledDate: { $gte: startOfDay, $lt: endOfDay }
+    })
+      .select('scheduledDate duration status')
+      .sort({ scheduledDate: 1 });
+
+    res.status(200).json({
+      success: true,
+      bookings
+    });
+  } catch (error) {
+    console.error('Error fetching provider bookings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 // Get user's bookings (as client or service provider)
 const getUserBookings = async (req, res) => {
   try {
@@ -633,5 +691,6 @@ module.exports = {
   cancelBooking,
   getBookingById,
   getBookingStats,
-  getBookingByVideoCallId
+  getBookingByVideoCallId,
+  getProviderDailyBookings
 };

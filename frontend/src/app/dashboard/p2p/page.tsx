@@ -564,10 +564,15 @@ export default function P2PPage() {
     }
   };
 
+  const handleViewProfile = (profile: P2PProfile) => {
+    setSelectedProfileDetail(profile);
+    router.push(`/dashboard/p2p/${profile._id}`);
+  };
+
   const ProfileCard = ({ profile }: { profile: P2PProfile }) => {
     const handlers = {
       contact: () => handleContact(profile),
-      view: () => setSelectedProfileDetail(profile),
+      view: () => handleViewProfile(profile),
       book: () => handleBookService(profile)
     };
 
@@ -938,13 +943,24 @@ export default function P2PPage() {
         {activeTab === 'browse' && (
           <div>
             {/* Main Container: Profile Section (Left) + Banner Section (Right) */}
-            <div className="w-full flex flex-col lg:flex-row gap-5 mb-8 p-5">
+            <div className="w-full flex flex-col lg:flex-row gap-4 mb-8">
               {/* Profile Container (Left Side - 50%) */}
-              <div className="w-full lg:w-[50%] bg-white dark:bg-gray-800 rounded-[20px] p-5 shadow-lg border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
+              <div className="w-full lg:w-[60%] bg-white dark:bg-gray-800 rounded-[20px] p-5 shadow-lg border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
                 {/* Header */}
                 <div className="flex justify-between items-center pb-5 border-b border-gray-200 dark:border-gray-700 mb-5">
                   <div className="flex gap-2 mt-2 text-xl font-medium"></div>
                   <div className="flex gap-4 items-center">
+                    {myProfile?.rating && (
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 dark:bg-blue-500/20 rounded-full">
+                        <FaStar className="w-4 h-4 text-blue-500 dark:text-blue-400" />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          {(myProfile.rating.average ?? 0).toFixed(1)}
+                        </span>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          ({myProfile.rating.count ?? 0})
+                        </span>
+                      </div>
+                    )}
                     <FaShareAlt 
                       className="w-6 h-6 cursor-pointer text-gray-900 dark:text-white"
                     />
@@ -1031,68 +1047,76 @@ export default function P2PPage() {
 
                   {/* CTA Section - User's Own Pricing */}
                   {myProfile && (
-                    <div className="flex gap-5 mt-5 w-full justify-center">
+                    <div className="flex  justify-center gap-2 mt-5 w-full">
                       {/* Audio Call */}
-                      <div className="flex-1 bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-xl p-5 text-center border border-gray-200 dark:border-gray-600 max-w-[200px]">
-                        <h3 className="text-base mb-2.5 text-gray-900 dark:text-white">Audio Call</h3>
-                        <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-2.5">
-                          {myProfile.audioCallPrice 
-                            ? `₹${myProfile.audioCallPrice}`
-                            : myProfile.hourlyRate 
-                              ? `₹${myProfile.hourlyRate}/${myProfile.currency || 'hour'}`
-                              : 'N/A'}
-                        </p>
+                      <div className="w-[220px] h-[220px] bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 px-1 py-7 flex flex-col items-center text-center">
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Audio Call</h3>
+                          <div className="w-12 h-1 bg-blue-500 mx-auto mt-2 rounded-full"></div>
+                          <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mt-3">
+                            {myProfile.audioCallPrice 
+                              ? `₹${myProfile.audioCallPrice}`
+                              : myProfile.hourlyRate 
+                                ? `₹${myProfile.hourlyRate}/${myProfile.currency || 'hour'}`
+                                : 'N/A'}
+                          </p>
+                        </div>
                         <button 
                           onClick={() => setActiveTab('create')}
-                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all mt-2.5"
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all"
                         >
-                          Edit Pricing
+                          Book Now
                         </button>
                       </div>
                       
                       {/* Video Call */}
-                      <div className="flex-1 bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-xl p-5 text-center border border-gray-200 dark:border-gray-600 max-w-[200px]">
-                        <h3 className="text-base mb-2.5 text-gray-900 dark:text-white">Video Call</h3>
-                        <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-2.5">
-                          {myProfile.videoCallPrice 
-                            ? `₹${myProfile.videoCallPrice}`
-                            : myProfile.hourlyRate 
-                              ? `₹${myProfile.hourlyRate}/${myProfile.currency || 'hour'}`
-                              : 'N/A'}
-                        </p>
+                      <div className="w-[220px] h-[220px] bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 px-6 py-7 flex flex-col items-center text-center">
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Video Call</h3>
+                          <div className="w-12 h-1 bg-blue-500 mx-auto mt-2 rounded-full"></div>
+                          <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mt-3">
+                            {myProfile.videoCallPrice 
+                              ? `₹${myProfile.videoCallPrice}`
+                              : myProfile.hourlyRate 
+                                ? `₹${myProfile.hourlyRate}/${myProfile.currency || 'hour'}`
+                                : 'N/A'}
+                          </p>
+                        </div>
                         <button 
                           onClick={() => setActiveTab('create')}
-                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all mt-2.5"
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all"
                         >
-                          Edit Pricing
+                          Book Now
                         </button>
                       </div>
                       
                       {/* Next Available */}
-                      <div className="flex-1 bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-xl p-5 text-center border border-gray-200 dark:border-gray-600 max-w-[200px]">
-                        <h3 className="text-base mb-2.5 text-gray-900 dark:text-white">Available at</h3>
-                        <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-2.5">
-                          {(() => {
-                            const startTime = myProfile.workingHours?.start || myProfile.availableFromTime || '09:00';
-                            const endTime = myProfile.workingHours?.end || myProfile.availableToTime || '17:00';
-                            // Format time to 12-hour format if needed
-                            const formatTime = (time: string) => {
-                              if (!time) return '';
-                              if (time.includes('AM') || time.includes('PM')) return time;
-                              const [hours, minutes] = time.split(':');
-                              const hour = parseInt(hours);
-                              const ampm = hour >= 12 ? 'PM' : 'AM';
-                              const hour12 = hour % 12 || 12;
-                              return `${hour12}:${minutes || '00'} ${ampm}`;
-                            };
-                            return `${formatTime(startTime)} - ${formatTime(endTime)}`;
-                          })()}
-                        </p>
+                      <div className="w-[220px] h-[220px] bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 px-6 py-7 flex flex-col items-center text-center">
+                        <div className="mb-6">
+                          <h2 className="text-base font-medium text-gray-900 dark:text-white">Next Available at</h2>
+                          <div className="w-12 h-1 bg-blue-500 mx-auto mt-2 rounded-full"></div>
+                          <p className="text-xs text-[#CCCCCC] dark:text-gray-300 mt-3">
+                            {(() => {
+                              const startTime = myProfile.workingHours?.start || myProfile.availableFromTime || '09:00';
+                              const endTime = myProfile.workingHours?.end || myProfile.availableToTime || '17:00';
+                              const formatTime = (time: string) => {
+                                if (!time) return '';
+                                if (time.includes('AM') || time.includes('PM')) return time;
+                                const [hours, minutes] = time.split(':');
+                                const hour = parseInt(hours);
+                                const ampm = hour >= 12 ? 'PM' : 'AM';
+                                const hour12 = hour % 12 || 12;
+                                return `${hour12}:${minutes || '00'} ${ampm}`;
+                              };
+                              return `${formatTime(startTime)}-${formatTime(endTime)}`;
+                            })()}
+                          </p>
+                        </div>
                         <button 
                           onClick={() => setActiveTab('create')}
-                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all mt-2.5"
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all"
                         >
-                          Edit Availability
+                          Book Now
                         </button>
                       </div>
                     </div>
@@ -1188,40 +1212,37 @@ export default function P2PPage() {
 
               {/* Banner Section (Right Side - 50%) */}
               {SHOW_FIND_BY_EXPERTS && (
-                <div className="w-full lg:w-[50%] h-[400px] bg-white dark:bg-gray-800 flex flex-col justify-center items-center text-center relative rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
-                  <h1 className="text-[40px] font-bold text-[#1A1A1A] dark:text-white mb-4">
+                <div className="w-full lg:w-[40%] h-[400px] bg-[#28303D] flex flex-col justify-center items-center text-center relative rounded-xl shadow-lg">
+                  <h1 className="text-[25px] p-2 font-bold text-white mb-4">
                     Find the best expert to help you with
                   </h1>
-                  <div className="text-[40px] font-bold text-blue-600 dark:text-blue-400 mb-8 animate-[fade-in_1.5s_ease-in-out_forwards]">
+                  <div className="text-[25px] font-bold text-[#4285F4] mb-8 animate-[fade-in_1.5s_ease-in-out_forwards]">
                     interview preparation
                   </div>
                   
                   {/* Search Bar */}
-                  <div className="w-[80%] max-w-[600px] h-[50px] flex items-center bg-[#F5F5F5] dark:bg-gray-700 rounded-[50px] px-2 shadow-md">
-                    <FaSearch 
-                      className="w-6 h-6 ml-3 text-gray-500"
-                    />
+                  <div className="w-[90%] max-w-[600px] h-[50px] flex items-center bg-white rounded-[50px] px-2 shadow-md">
                     <input 
                       type="text" 
-                      placeholder="Search by name, company, skills, and more..."
+                      placeholder="Search by name, company, s"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && searchProfiles()}
-                      className="flex-1 h-full border-none bg-transparent px-3 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-500"
+                      className="flex-1 h-full border-none bg-transparent px-4 text-sm text-gray-900 outline-none placeholder:text-gray-500"
                     />
                     <button 
                       onClick={searchProfiles}
-                      className="bg-blue-500 text-white border-none px-6 h-[90%] rounded-[50px] text-sm font-medium cursor-pointer transition-all hover:bg-blue-600"
+                      className="bg-[#4285F4] text-white border-none px-4 h-[90%] rounded-[50px] text-sm font-medium cursor-pointer transition-all hover:bg-[#357AE8]"
                     >
                       Search
                     </button>
                   </div>
 
                   {/* Footer */}
-                  <div className="absolute bottom-0 left-0 w-full h-12 flex justify-center items-center bg-[#F5F5F5] dark:bg-gray-700 border-b-[12px] rounded-b-xl text-sm text-gray-600 dark:text-gray-400">
-                    <h5 className="font-light">Need help?</h5>
-                    <div className="w-px h-6 bg-gray-400 mx-4"></div>
-                    <h5 className="font-medium text-blue-600 dark:text-blue-400 cursor-pointer hover:underline">Contact us</h5>
+                  <div className="absolute bottom-4 left-0 w-full flex justify-center items-center text-sm">
+                    <span className="text-gray-400 font-light">Need help?</span>
+                    <span className="text-gray-400 mx-2">|</span>
+                    <span className="text-[#4285F4] font-medium cursor-pointer hover:underline">Contact us</span>
                   </div>
                 </div>
               )}
@@ -1328,13 +1349,13 @@ export default function P2PPage() {
           </div>
 
           <div className="flex flex-col gap-5 w-full mx-auto mb-5 px-5">
-            <div className="flex justify-around items-center w-full flex-wrap gap-5">{getTopExpertsProfiles().slice(0, 6).map((profile) => (
+            <div className="grid w-full gap-6 sm:grid-cols-2 xl:grid-cols-3 justify-items-center">{getTopExpertsProfiles().slice(0, 6).map((profile) => (
                 <div 
                   key={profile._id}
-                  className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-[20px] p-6 shadow-lg text-center border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all"
+                  className="w-full max-w-[360px] bg-white dark:bg-gray-800 rounded-[20px] p-5 shadow-lg text-center border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all"
                 >
                   <div 
-                    onClick={() => setSelectedProfileDetail(profile)}
+                    onClick={() => handleViewProfile(profile)}
                     className="cursor-pointer"
                   >
                     <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
@@ -1370,7 +1391,7 @@ export default function P2PPage() {
                         })()}
                       </p>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4 break-words">
                       {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
                     </p>
                     <div className="flex flex-wrap gap-2 justify-center mb-6">
@@ -1413,7 +1434,7 @@ export default function P2PPage() {
                     </h3>
                     
                     {/* Services Grid */}
-                    <div className="grid grid-cols-1 gap-3 mb-4">
+                    <div className="flex gap-2.5 mb-3">
                       {/* Audio Call Service */}
                       {(profile.audioCallPrice || profile.hourlyRate) && (
                         <button
@@ -1421,53 +1442,45 @@ export default function P2PPage() {
                             e.stopPropagation();
                             handleBookService(profile, 'audio_call');
                           }}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaPhone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div className=" items-center gap-1.5">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaPhone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div className="text-left">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Audio Call</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Voice consultation</p>
+                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Audio Call</p>
+                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                                ₹{profile.audioCallPrice || profile.hourlyRate}
+                              </p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                {profile.audioCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
+                              </p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              ₹{profile.audioCallPrice || profile.hourlyRate}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {profile.audioCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
-                            </p>
-                          </div>
+
                         </button>
                       )}
 
                       {/* Video Call Service */}
                       {(profile.videoCallPrice || profile.hourlyRate) && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBookService(profile, 'video_call');
-                          }}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                        
+                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaVideo className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div className=" items-center gap-1.5">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaVideo className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div className="text-left">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Video Call</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Face-to-face consultation</p>
+                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Video Call</p>
+                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                                ₹{profile.videoCallPrice || profile.hourlyRate}
+                              </p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                {profile.videoCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
+                              </p>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              ₹{profile.videoCallPrice || profile.hourlyRate}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {profile.videoCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
-                            </p>
                           </div>
                         </button>
                       )}
@@ -1475,26 +1488,20 @@ export default function P2PPage() {
                       {/* Chat Service */}
                       {profile.chatPrice && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBookService(profile, 'chat');
-                          }}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                         
+                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaComments className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div className=" items-start gap-1.5">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaComments className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div className="text-left">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Chat</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Text messaging</p>
+                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Chat</p>
+                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                                ₹{profile.chatPrice}
+                              </p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">per message</p>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              ₹{profile.chatPrice}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">per message</p>
                           </div>
                         </button>
                       )}
@@ -1502,33 +1509,31 @@ export default function P2PPage() {
                       {/* Hourly Rate (if no specific prices) */}
                       {!profile.audioCallPrice && !profile.videoCallPrice && !profile.chatPrice && profile.hourlyRate > 0 && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBookService(profile, 'consultation');
-                          }}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer"
+                          // onClick={(e) => {
+                          //   e.stopPropagation();
+                          //   handleBookService(profile, 'consultation');
+                          // }}
+                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaStar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div className=" items-center gap-1.5">
+                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                              <FaStar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div className="text-left">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">Hourly Rate</p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">Consultation services</p>
+                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Hourly Rate</p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">Consultation services</p>
+                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                                ₹{profile.hourlyRate}
+                              </p>
+                              <p className="text-[10px] text-gray-500 dark:text-gray-400">/{profile.currency || 'hour'}</p>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">
-                              ₹{profile.hourlyRate}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">/{profile.currency || 'hour'}</p>
                           </div>
                         </button>
                       )}
                     </div>
 
                     {/* Book Now Button - Opens modal to select service */}
-                    <button
+                    {/* <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleBookService(profile, 'consultation');
@@ -1539,7 +1544,7 @@ export default function P2PPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m9 18 6-6-6-6"></path>
                       </svg>
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               ))}
@@ -1752,7 +1757,7 @@ export default function P2PPage() {
             <div className="flex justify-around items-center w-full flex-wrap gap-5">{(featuredProfiles.length > 0 ? featuredProfiles : profiles).slice(6, 12).map((profile) => (
                 <div 
                   key={profile._id}
-                  onClick={() => setSelectedProfileDetail(profile)}
+                  onClick={() => handleViewProfile(profile)}
                   className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-[20px] p-6 shadow-lg text-center border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-xl transition-all"
                 >
                   <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
