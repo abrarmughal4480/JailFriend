@@ -12,6 +12,7 @@ interface RegisterForm {
   password: string;
   confirmPassword: string;
   gender: string;
+  userType: 'normal' | 'p2p';
   agreeToTerms: boolean;
 }
 
@@ -38,6 +39,7 @@ export default function Register(): React.ReactElement {
     password: '',
     confirmPassword: '',
     gender: 'Female',
+    userType: 'normal',
     agreeToTerms: false
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -92,8 +94,13 @@ export default function Register(): React.ReactElement {
   const closePopup = () => {
     setPopup(prev => ({ ...prev, isOpen: false }));
     if (popup.type === 'success') {
-      // Redirect to start-up page for profile setup
-      router.push('/start-up');
+      // Redirect based on user type
+      const userType = localStorage.getItem('userType') || 'normal';
+      if (userType === 'p2p') {
+        router.push('/start-up');
+      } else {
+        router.push('/dashboard');
+      }
     }
   };
 
@@ -164,7 +171,8 @@ export default function Register(): React.ReactElement {
           username: formData.username,
           email: formData.email,
           password: formData.password,
-          gender: formData.gender
+          gender: formData.gender,
+          userType: formData.userType
         })
       });
       const data = await response.json();
@@ -172,7 +180,11 @@ export default function Register(): React.ReactElement {
 
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        showPopup('success', 'Registration Successful!', 'Your account has been created successfully. You will be redirected to complete your profile setup.');
+        localStorage.setItem('userType', data.userType || formData.userType);
+        const message = formData.userType === 'p2p' 
+          ? 'Your account has been created successfully. You will be redirected to complete your profile setup.'
+          : 'Your account has been created successfully. You will be redirected to the dashboard.';
+        showPopup('success', 'Registration Successful!', message);
       } else {
         showPopup('error', 'Registration Failed', data.message || 'Something went wrong. Please try again.');
       }
@@ -524,6 +536,46 @@ export default function Register(): React.ReactElement {
                     <option value="Prefer not to say" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'}>Prefer not to say</option>
                   </select>
                 </div>
+              </div>
+
+              {/* User Type Field */}
+              <div className="space-y-2">
+                <label htmlFor="userType" className={`block text-sm font-medium ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  Account Type
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className={`w-5 h-5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                  </div>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                  </div>
+                  <select
+                    id="userType"
+                    name="userType"
+                    value={formData.userType}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl border-2 focus:outline-none focus:ring-2 transition-all duration-300 appearance-none cursor-pointer ${
+                      isDarkMode 
+                        ? 'text-white border-gray-600 focus:border-blue-500 focus:ring-blue-500/20 bg-gray-800' 
+                        : 'text-gray-700 border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 bg-white'
+                    }`}
+                  >
+                    <option value="normal" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'}>Normal User</option>
+                    <option value="p2p" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-700'}>P2P User (Service Provider)</option>
+                  </select>
+                </div>
+                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {formData.userType === 'p2p' 
+                    ? 'P2P users can offer services and set up their professional profile.' 
+                    : 'Normal users can browse and use the platform features.'}
+                </p>
               </div>
 
               {/* Terms and Conditions */}

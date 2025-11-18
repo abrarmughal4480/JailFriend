@@ -1,5 +1,14 @@
 const P2PProfile = require('../models/p2pProfile');
 const User = require('../models/user');
+const P2PCategory = require('../models/p2pCategory');
+
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+const parseRateInput = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const numericValue = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+};
 
 // Create or update P2P profile
 const createOrUpdateProfile = async (req, res) => {
@@ -19,7 +28,15 @@ const createOrUpdateProfile = async (req, res) => {
       certifications,
       responseTime,
       tags,
-      socialLinks
+      socialLinks,
+      categoryId,
+      audioCallPrice,
+      videoCallPrice,
+      chatPrice,
+      audioCallRate,
+      videoCallRate,
+      chatRate,
+      availableDays
     } = req.body;
 
     // Validate required fields
@@ -44,50 +61,78 @@ const createOrUpdateProfile = async (req, res) => {
       });
     }
 
+    let category = null;
+    if (categoryId) {
+      category = await P2PCategory.findById(categoryId);
+      if (!category) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected category does not exist'
+        });
+      }
+      if (!category.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected category is not active'
+        });
+      }
+    }
+
     // Check if profile already exists
     let profile = await P2PProfile.findOne({ userId });
 
+    const normalizedAvailableDays = Array.isArray(availableDays)
+      ? availableDays.filter(day => WEEK_DAYS.includes(day))
+      : undefined;
+
+    const normalizedAudioRate = parseRateInput(audioCallRate ?? audioCallPrice);
+    const normalizedVideoRate = parseRateInput(videoCallRate ?? videoCallPrice);
+    const normalizedChatRate = parseRateInput(chatRate ?? chatPrice);
+
+    const baseProfilePayload = {
+      occupation: occupation.trim(),
+      hourlyRate: parseFloat(hourlyRate),
+      currency: currency || 'USD',
+      skills: skills || [],
+      experience: experience.trim(),
+      availability: availability || 'Available',
+      workingHours: workingHours || { start: '09:00', end: '17:00' },
+      timezone: timezone || 'UTC',
+      languages: languages || [],
+      portfolio: portfolio || [],
+      certifications: certifications || [],
+      responseTime: responseTime || 'Within 24 hours',
+      tags: tags || [],
+      socialLinks: socialLinks || {},
+      category: category ? category._id : null,
+      audioCallRate: normalizedAudioRate,
+      videoCallRate: normalizedVideoRate,
+      chatRate: normalizedChatRate,
+      audioCallPrice: audioCallPrice ?? (normalizedAudioRate !== null ? normalizedAudioRate.toString() : null),
+      videoCallPrice: videoCallPrice ?? (normalizedVideoRate !== null ? normalizedVideoRate.toString() : null),
+      chatPrice: chatPrice ?? (normalizedChatRate !== null ? normalizedChatRate.toString() : null)
+    };
+
     if (profile) {
       // Update existing profile
-      Object.assign(profile, {
-        occupation: occupation.trim(),
-        hourlyRate: parseFloat(hourlyRate),
-        currency: currency || 'USD',
-        skills: skills || [],
-        experience: experience.trim(),
-        availability: availability || 'Available',
-        workingHours: workingHours || { start: '09:00', end: '17:00' },
-        timezone: timezone || 'UTC',
-        languages: languages || [],
-        portfolio: portfolio || [],
-        certifications: certifications || [],
-        responseTime: responseTime || 'Within 24 hours',
-        tags: tags || [],
-        socialLinks: socialLinks || {}
-      });
+      Object.assign(profile, baseProfilePayload);
+      if (normalizedAvailableDays !== undefined) {
+        profile.availableDays = normalizedAvailableDays;
+      }
     } else {
       // Create new profile
       profile = new P2PProfile({
         userId,
-        occupation: occupation.trim(),
-        hourlyRate: parseFloat(hourlyRate),
-        currency: currency || 'USD',
-        skills: skills || [],
-        experience: experience.trim(),
-        availability: availability || 'Available',
-        workingHours: workingHours || { start: '09:00', end: '17:00' },
-        timezone: timezone || 'UTC',
-        languages: languages || [],
-        portfolio: portfolio || [],
-        certifications: certifications || [],
-        responseTime: responseTime || 'Within 24 hours',
-        tags: tags || [],
-        socialLinks: socialLinks || {}
+        ...baseProfilePayload,
+        availableDays: normalizedAvailableDays || []
       });
     }
 
     await profile.save();
-    await profile.populate('userId', 'name username avatar email');
+    await profile.populate([
+      { path: 'userId', select: 'name username avatar email' },
+      { path: 'category', select: 'title description image slug' }
+    ]);
 
     res.status(200).json({
       success: true,
@@ -121,7 +166,8 @@ const getMyProfile = async (req, res) => {
     const userId = req.user.id;
     
     const profile = await P2PProfile.findOne({ userId })
-      .populate('userId', 'name fullName username avatar email bio location');
+      .populate('userId', 'name fullName username avatar email bio location')
+      .populate('category', 'title description image slug');
 
     if (!profile) {
       return res.status(404).json({
@@ -153,6 +199,7 @@ const getAllProfiles = async (req, res) => {
       occupation,
       minRate,
       maxRate,
+      category: categoryFilter,
       skills,
       sortBy = 'rating',
       sortOrder = 'desc'
@@ -178,6 +225,10 @@ const getAllProfiles = async (req, res) => {
       if (maxRate) query.hourlyRate.$lte = parseFloat(maxRate);
     }
     
+    if (categoryFilter) {
+      query.category = categoryFilter;
+    }
+
     if (skills) {
       const skillArray = skills.split(',').map(skill => skill.trim());
       query.skills = { $in: skillArray };
@@ -197,6 +248,7 @@ const getAllProfiles = async (req, res) => {
 
     const profiles = await P2PProfile.find(query)
       .populate('userId', 'name fullName username avatar email bio location')
+      .populate('category', 'title description image slug')
       .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -239,6 +291,7 @@ const getFeaturedProfiles = async (req, res) => {
     
     const profiles = await P2PProfile.find(query)
       .populate('userId', 'name fullName username avatar email bio location')
+      .populate('category', 'title description image slug')
       .sort({ 'rating.average': -1 })
       .limit(6);
 
@@ -262,7 +315,8 @@ const getProfileById = async (req, res) => {
     const { profileId } = req.params;
     
     const profile = await P2PProfile.findById(profileId)
-      .populate('userId', 'name fullName username avatar email bio location');
+      .populate('userId', 'name fullName username avatar email bio location')
+      .populate('category', 'title description image slug');
 
     if (!profile) {
       return res.status(404).json({
@@ -315,6 +369,7 @@ const searchProfiles = async (req, res) => {
 
     const profiles = await P2PProfile.find(query)
       .populate('userId', 'name fullName username avatar email bio location')
+      .populate('category', 'title description image slug')
       .sort({ 'rating.average': -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);

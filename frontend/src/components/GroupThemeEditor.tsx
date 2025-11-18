@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Palette, Save, RotateCcw, Code, Eye, EyeOff } from 'lucide-react';
 import { useGroupTheme } from '@/contexts/GroupThemeContext';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface GroupThemeEditorProps {
   groupId: string;
@@ -13,9 +12,6 @@ interface GroupThemeEditorProps {
 }
 
 const GroupThemeEditor: React.FC<GroupThemeEditorProps> = ({ groupId, isOpen, onClose }) => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const { currentGroupTheme, loading, updateGroupTheme, loadGroupTheme, resetTheme } = useGroupTheme();
   const { isDarkMode } = useDarkMode();
   

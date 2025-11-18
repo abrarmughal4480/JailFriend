@@ -33,7 +33,7 @@ const jobSchema = new mongoose.Schema({
     currency: { 
       type: String, 
       default: 'USD',
-      enum: ['USD', 'EUR', 'GBP', 'INR', 'PKR']
+      enum: ['USD', 'INR']
     },
     type: { 
       type: String, 

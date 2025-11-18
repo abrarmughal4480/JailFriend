@@ -1,5 +1,4 @@
 import React from 'react';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface ModalProps {
   isOpen: boolean;
@@ -9,8 +8,6 @@ interface ModalProps {
 }
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, message }) => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
   
   if (!isOpen) return null;
   return (

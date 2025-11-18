@@ -11,6 +11,7 @@ const {
   updateProfileStatus,
   deleteProfile
 } = require('../controllers/p2pController');
+const { getPublicCategories } = require('../controllers/p2pCategoryController');
 
 // Optional auth middleware for public routes that need user context
 const optionalAuthMiddleware = (req, res, next) => {
@@ -35,5 +36,6 @@ router.get('/profiles', optionalAuthMiddleware, getAllProfiles);
 router.get('/profiles/featured', optionalAuthMiddleware, getFeaturedProfiles);
 router.get('/profiles/search', optionalAuthMiddleware, searchProfiles);
 router.get('/profiles/:profileId', optionalAuthMiddleware, getProfileById);
+router.get('/categories', getPublicCategories);
 
 module.exports = router;

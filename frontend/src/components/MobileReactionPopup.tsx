@@ -1,6 +1,5 @@
 'use client';
 import { useRef, useEffect } from 'react';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
 export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
@@ -29,9 +28,6 @@ export default function MobileReactionPopup({
   currentReaction,
   isReacting
 }: MobileReactionPopupProps) {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const { isDarkMode } = useDarkMode();
   
   const popupRef = useRef<HTMLDivElement>(null);

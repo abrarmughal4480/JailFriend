@@ -41,6 +41,23 @@ const p2pProfileSchema = new mongoose.Schema({
     required: true,
     min: 0 
   },
+  // Call rates (multipliers for hourly rate)
+  audioCallRate: { 
+    type: Number, 
+    default: null,
+    min: 0 
+  },
+  videoCallRate: { 
+    type: Number, 
+    default: null,
+    min: 0 
+  },
+  chatRate: { 
+    type: Number, 
+    default: null,
+    min: 0 
+  },
+  // Legacy fields for backward compatibility (kept as String for now)
   audioCallPrice: { 
     type: String, 
     default: null 
@@ -56,12 +73,17 @@ const p2pProfileSchema = new mongoose.Schema({
   currency: { 
     type: String, 
     default: 'USD',
-    enum: ['USD', 'PKR', 'EUR', 'GBP', 'INR']
+    enum: ['USD', 'INR']
   },
   skills: [{
     type: String,
     maxlength: 50
   }],
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'P2PCategory',
+    default: null
+  },
   experience: { 
     type: String, 
     required: true,
@@ -85,6 +107,10 @@ const p2pProfileSchema = new mongoose.Schema({
     type: String, 
     default: null 
   },
+  availableDays: [{
+    type: String,
+    enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  }],
   timezone: { 
     type: String, 
     default: 'UTC' 
@@ -140,5 +166,6 @@ p2pProfileSchema.index({ occupation: 'text', skills: 'text', experience: 'text' 
 p2pProfileSchema.index({ hourlyRate: 1 });
 p2pProfileSchema.index({ rating: -1 });
 p2pProfileSchema.index({ featured: 1, isActive: 1 });
+p2pProfileSchema.index({ category: 1 });
 
 module.exports = mongoose.model('P2PProfile', p2pProfileSchema);

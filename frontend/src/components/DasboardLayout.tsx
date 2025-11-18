@@ -544,6 +544,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     { name: "Articles (Blog)", icon: "📰", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/articles" },
     { name: "Events", icon: "📅", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/events" },
     { name: "Content Monetization", icon: "💳", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/monetization" },
+    { name: "P2P Categories", icon: "🏷️", active: false, hasPlus: false, href: "/dashboard/admin/p2p/categories" },
     { name: "Languages", icon: "🌐", active: false, hasPlus: true, section: "languages", href: "/dashboard/admin/languages" },
     { name: "Add New Language & Keys", icon: "➕", active: false, hasPlus: false, isSubItem: true, section: "languages", href: "/dashboard/admin/languages/add" },
     { name: "Manage Languages", icon: "🔧", active: false, hasPlus: false, isSubItem: true, section: "languages", href: "/dashboard/admin/languages/manage" },
@@ -947,28 +948,44 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Main component return
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden" style={{ padding: '0' }}>
+    <div className={`min-h-screen overflow-x-hidden transition-colors duration-200 ${
+      isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+    }`} style={{ padding: '0' }}>
       {/* Popup Modals */}
       {popup.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100">
+          <div className={`rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-100 ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
             <div className="p-6">
               <div className="flex items-center justify-center mb-4">
                 {popup.type === 'success' ? (
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-green-500 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200 ${
+                    isDarkMode ? 'bg-green-900/30' : 'bg-green-100'
+                  }`}>
+                    <svg className={`w-8 h-8 transition-colors duration-200 ${
+                      isDarkMode ? 'text-green-400' : 'text-green-500'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                     </svg>
                   </div>
                 ) : popup.type === 'error' ? (
-                  <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200 ${
+                    isDarkMode ? 'bg-red-900/30' : 'bg-red-100'
+                  }`}>
+                    <svg className={`w-8 h-8 transition-colors duration-200 ${
+                      isDarkMode ? 'text-red-400' : 'text-red-500'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                   </div>
                 ) : (
-                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                    <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200 ${
+                    isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'
+                  }`}>
+                    <svg className={`w-8 h-8 transition-colors duration-200 ${
+                      isDarkMode ? 'text-blue-400' : 'text-blue-500'
+                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0 1 18 0z"></path>
                     </svg>
                   </div>
@@ -976,8 +993,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </div>
               
               <div className="text-center">
-                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{popup.title}</h3>
-                <p className="mb-6 text-gray-600 dark:text-gray-300">{popup.message}</p>
+                <h3 className={`text-xl font-semibold mb-2 transition-colors duration-200 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{popup.title}</h3>
+                <p className={`mb-6 transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}>{popup.message}</p>
                 
                 {(popup.title !== 'Logging Out...' && popup.title !== 'Redirecting...') && (
                   <button
@@ -1002,24 +1023,38 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Switch Account Modal */}
       {switchAccountModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full mx-4">
+          <div className={`rounded-2xl shadow-2xl max-w-md w-full mx-4 transition-colors duration-200 ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
             <div className="p-6 relative">
               <button
                 onClick={() => setSwitchAccountModal({ isOpen: false })}
-                className="absolute top-4 right-4 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className={`absolute top-4 right-4 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'text-gray-400 hover:text-gray-200' 
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
                 ×
               </button>
 
               <div className="text-center pt-4">
-                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4 mx-auto">
-                  <svg className="w-8 h-8 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto transition-colors duration-200 ${
+                  isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'
+                }`}>
+                  <svg className={`w-8 h-8 transition-colors duration-200 ${
+                    isDarkMode ? 'text-blue-400' : 'text-blue-500'
+                  }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 1 1 0 5.292M15 21H3v-1a6 6 0 0 1 12 0v1zm0 0h6v-1a6 6 0 0 0-9-5.197m13.5-1a5 5 0 1 1-11 0 5 5 0 0 1 11 0z"></path>
                   </svg>
                 </div>
                 
-                <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Switch Account</h3>
-                <p className="mb-6 text-gray-600 dark:text-gray-300">Would you like to add a new account?</p>
+                <h3 className={`text-xl font-semibold mb-2 transition-colors duration-200 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Switch Account</h3>
+                <p className={`mb-6 transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}>Would you like to add a new account?</p>
                 
                 <div className="space-y-3">
                   <button
@@ -1031,7 +1066,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   
                   <button
                     onClick={() => setSwitchAccountModal({ isOpen: false })}
-                    className="w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+                    className={`w-full py-3 px-1 rounded-xl font-medium transition-all duration-200 ${
+                      isDarkMode 
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' 
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                    }`}
                   >
                     Cancel
                   </button>
@@ -1047,7 +1086,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         <nav className={`w-full flex justify-center items-center px-1 py-3 z-[50] fixed top-0 left-0 shadow-md border-b transition-colors duration-200 ${
           isAdminPage 
             ? 'bg-gray-800 border-gray-700' 
-            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+            : isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}>
         <div className="flex items-center gap-2 w-full max-w-7xl justify-between mx-auto">
           
@@ -1063,7 +1102,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     setProfileSidebarOpen(false);
                   }
                 }}
-                className="w-10 h-10 rounded-lg bg-blue-600 dark:bg-blue-500 text-white flex items-center justify-center shadow-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                className={`w-10 h-10 rounded-lg text-white flex items-center justify-center shadow-sm transition-colors ${
+                  isDarkMode ? 'bg-blue-500 hover:bg-blue-600' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
               >
                 ☰
               </button>
@@ -1071,10 +1112,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="bg-blue-600 dark:bg-blue-500 rounded-lg w-8 h-8 flex items-center justify-center shadow-sm">
+              <div className={`${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'} rounded-lg w-8 h-8 flex items-center justify-center shadow-sm`}>
                 <span className="text-white text-lg font-bold">J</span>
               </div>
-              <span className="text-xl font-bold text-blue-600 dark:text-blue-400 tracking-wide hidden sm:block">
+              <span className={`text-xl font-bold tracking-wide hidden sm:block ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                 jaifriend
               </span>
             </Link>
@@ -1085,9 +1126,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             <div className={`rounded-full px-1 py-2 w-full flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-400 transition-all ${
               isAdminPage 
                 ? 'bg-gray-700 focus-within:bg-gray-600' 
-                : 'bg-gray-100 dark:bg-gray-700 focus-within:bg-white dark:focus-within:bg-gray-600'
+                : isDarkMode 
+                  ? 'bg-gray-700 focus-within:bg-gray-600' 
+                  : 'bg-gray-100 focus-within:bg-white'
             }`}>
-              <span className={`text-sm ${isAdminPage ? 'text-gray-400' : 'text-gray-500 dark:text-gray-400'}`}>🔍</span>
+              <span className={`text-sm ${isAdminPage ? 'text-gray-400' : isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>🔍</span>
               <input
                 type="text"
                 placeholder="Search for people, pages, groups and #hashtags"
@@ -1101,7 +1144,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 className={`bg-transparent outline-none border-none flex-1 text-sm ${
                   isAdminPage 
                     ? 'placeholder-gray-400 text-white' 
-                    : 'placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white'
+                    : isDarkMode 
+                      ? 'placeholder-gray-500 text-white' 
+                      : 'placeholder-gray-400 text-gray-900'
                 }`}
               />
               {isSearching && (
@@ -1111,17 +1156,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* Search Results Dropdown */}
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto z-50">
-                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+              <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl max-h-96 overflow-y-auto z-50 ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              } border`}>
+                <div className={`p-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     Search Results ({searchResults.length})
                   </h3>
                 </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
                   {searchResults.map((result, index) => (
                     <div 
                       key={index} 
-                      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                      className={`p-3 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
                       onClick={() => {
                         if (result.type === 'user') {
                           router.push(`/dashboard/profile/${result.id}`);
@@ -1160,10 +1207,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {result.title}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          <p className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             {result.subtitle}
                           </p>
                         </div>
@@ -1176,9 +1223,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             
             {/* No Results Message */}
             {showSearchResults && searchQuery.trim().length >= 2 && searchResults.length === 0 && !isSearching && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50">
+              <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl border z-50 ${
+                isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
                 <div className="p-4 text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     No results found for "{searchQuery}"
                   </p>
                 </div>
@@ -1195,7 +1244,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all ${
                   isAdminPage 
                     ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                    : isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                 }`}>
                 🔍
               </button>
@@ -1204,8 +1255,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             {/* Mobile Search Modal */}
             {isMobile && showSearchResults && (
               <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-1">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden">
-                  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className={`rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden ${
+                  isDarkMode ? 'bg-gray-800' : 'bg-white'
+                }`}>
+                  <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
                       <input
@@ -1213,7 +1266,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                         placeholder="Search for people, pages, groups and #hashtags"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                          isDarkMode 
+                            ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' 
+                            : 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-500'
+                        }`}
                         autoFocus
                       />
                       {isSearching && (
@@ -1224,16 +1281,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   
                   {searchResults.length > 0 && (
                     <div className="max-h-80 overflow-y-auto">
-                      <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                      <div className={`p-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <h3 className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           Search Results ({searchResults.length})
                         </h3>
                       </div>
-                      <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                      <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
                         {searchResults.map((result, index) => (
                           <div 
                             key={index} 
-                            className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                            className={`p-3 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
                             onClick={() => {
                               if (result.type === 'user') {
                                 router.push(`/dashboard/profile/${result.id}`);
@@ -1272,10 +1329,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                   {result.title}
                                 </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                <p className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                   {result.subtitle}
                                 </p>
                               </div>
@@ -1288,16 +1345,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   
                   {searchQuery.trim().length >= 3 && searchResults.length === 0 && !isSearching && (
                     <div className="p-4 text-center">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                         No results found for "{searchQuery}"
                       </p>
                     </div>
                   )}
                   
-                  <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                     <button
                       onClick={() => setShowSearchResults(false)}
-                      className="w-full py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                      className={`w-full py-2 text-sm transition-colors ${
+                        isDarkMode 
+                          ? 'text-gray-400 hover:text-gray-200' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
                     >
                       Close
                     </button>
@@ -1316,10 +1377,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       openDropdown === 'people' 
                         ? isAdminPage 
                           ? 'bg-blue-900/50 text-blue-400' 
-                          : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                          : isDarkMode
+                            ? 'bg-blue-900/50 text-blue-400'
+                            : 'bg-blue-100 text-blue-600'
                         : isAdminPage 
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                          : isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                     }`}
                     onClick={() => handleDropdownClick('people')}
                     onTouchStart={(e) => {
@@ -1332,12 +1397,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </button>
                   
                   {openDropdown === 'people' && (
-                    <div className="absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <div className={`absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 border ${
+                      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    }`}>
                       <div className="flex flex-col items-center text-center">
-                        <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-3">
-                          <span className="text-purple-600 dark:text-purple-400 text-lg">👥</span>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+                          isDarkMode ? 'bg-purple-900/30' : 'bg-purple-100'
+                        }`}>
+                          <span className={`text-lg ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>👥</span>
                         </div>
-                        <h3 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+                        <h3 className={`text-base font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           You do not have any requests
                         </h3>
                       </div>
@@ -1352,10 +1421,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       openDropdown === 'messages' 
                         ? isAdminPage 
                           ? 'bg-blue-900/50 text-blue-400' 
-                          : 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                          : isDarkMode
+                            ? 'bg-blue-900/50 text-blue-400'
+                            : 'bg-blue-100 text-blue-600'
                         : isAdminPage 
                           ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                          : isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
                     }`}
                     onClick={() => handleDropdownClick('messages')}
                     onTouchStart={(e) => {
@@ -1368,12 +1441,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   </button>
                   
                   {openDropdown === 'messages' && (
-                    <div className="absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <div className={`absolute top-10 right-0 w-72 rounded-xl shadow-xl p-4 z-50 border ${
+                      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    }`}>
                       <div className="flex flex-col items-center text-center">
-                        <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3">
-                          <span className="text-red-500 dark:text-red-400 text-lg">💬</span>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
+                          isDarkMode ? 'bg-red-900/30' : 'bg-red-100'
+                        }`}>
+                          <span className={`text-lg ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>💬</span>
                         </div>
-                        <h3 className="text-base font-semibold mb-1 text-gray-900 dark:text-white">
+                        <h3 className={`text-base font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           No more message
                         </h3>
                       </div>
@@ -1387,7 +1464,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-lg transition-all touch-manipulation ${
                       isAdminPage 
                         ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                        : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                        : isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-600'
                     }`}
                     onClick={() => router.push('/dashboard/notifications')}
                     onTouchStart={(e) => {

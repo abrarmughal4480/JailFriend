@@ -145,6 +145,8 @@ export default function Home(): React.ReactElement {
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showModalPassword, setShowModalPassword] = useState<boolean>(false);
   const [avatarModal, setAvatarModal] = useState<AvatarUploadModal>({
     isOpen: false,
     name: '',
@@ -307,7 +309,7 @@ export default function Home(): React.ReactElement {
   return (
     <AuthGuard requireAuth={false} redirectTo="/dashboard">
       {/* Header - Outside main body */}
-      <header className="fixed top-0 left-0 right-0 z-[100] backdrop-blur-sm sm:backdrop-blur-md border-b w-full transition-colors duration-200 bg-custom-tertiary dark:bg-custom-tertiary border-custom-primary shadow-lg" style={{ backgroundColor: 'var(--custom-tertiary)' }}>
+      <header className="fixed top-0 left-0 right-0 z-[100] backdrop-blur-sm sm:backdrop-blur-md border-b w-full transition-colors duration-200 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg">
         <div className="flex justify-between items-center px-4 sm:px-6 lg:px-8 py-3 sm:py-3 w-full max-w-7xl mx-auto min-h-[64px] sm:min-h-auto">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
@@ -342,11 +344,11 @@ export default function Home(): React.ReactElement {
         </div>
       </header>
 
-      <div className="w-full min-h-screen bg-custom-primary transition-all duration-500 overflow-x-hidden overflow-y-auto relative">
+      <div className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 transition-all duration-500 overflow-x-hidden overflow-y-auto relative">
         {/* Standalone Popup Modal */}
         {popup.isOpen && (
           <div className="fixed inset-0 flex items-center justify-center z-[110] p-2 sm:p-4 bg-black/20 backdrop-blur-md">
-            <div className="bg-custom-tertiary rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[95vh] overflow-y-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-md mx-2 sm:mx-4 transform transition-all duration-300 scale-100 max-h-[95vh] overflow-y-auto">
               <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-center mb-3 sm:mb-4">
                   {popup.type === 'success' ? (
@@ -392,9 +394,9 @@ export default function Home(): React.ReactElement {
         {/* Avatar Upload Modal */}
         {avatarModal.isOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-custom-tertiary rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-custom-primary">Add Your Avatar</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add Your Avatar</h3>
                 <button
                   onClick={closeModal}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -440,7 +442,7 @@ export default function Home(): React.ReactElement {
                     value={avatarModal.name}
                     onChange={(e) => handleAvatarModalChange('name', e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full px-4 py-3 border border-custom-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-custom-primary/20 text-custom-primary placeholder-gray-500 dark:placeholder-gray-400"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50/20 dark:bg-gray-900/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
 
@@ -453,7 +455,7 @@ export default function Home(): React.ReactElement {
                     value={avatarModal.profileLink}
                     onChange={(e) => handleAvatarModalChange('profileLink', e.target.value)}
                     placeholder="/profile/your-username"
-                    className="w-full px-4 py-3 border border-custom-primary rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-custom-primary/20 text-custom-primary placeholder-gray-500 dark:placeholder-gray-400"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50/20 dark:bg-gray-900/20 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                   />
                 </div>
 
@@ -501,8 +503,8 @@ export default function Home(): React.ReactElement {
           {/* Login Form */}
           <div id="welcome-back-section" className="w-full max-w-lg mx-auto bg-[rgba(32,32,33,0.8)] backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-5 lg:p-7 mb-9 sm:mb-11 lg:mb-14 border border-white/20 transition-all duration-300 hover:shadow-3xl">
             <div className="text-center mb-5 sm:mb-7">
-              <h2 className="text-base sm:text-lg font-bold text-custom-primary mb-2">Welcome Back</h2>
-              <p className="text-xs sm:text-sm text-custom-secondary">Sign in to your account to continue</p>
+              <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">Sign in to your account to continue</p>
             </div>
             
             <div className="flex mb-5 sm:mb-7 w-full bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
@@ -541,7 +543,7 @@ export default function Home(): React.ReactElement {
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-custom-primary/20 border border-custom-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-custom-primary/30 transition-all duration-300 text-custom-primary placeholder-gray-400 dark:placeholder-gray-500 text-xs sm:text-sm backdrop-blur-sm"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50/20 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-gray-50/30 dark:focus:bg-gray-900/30 transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-xs sm:text-sm backdrop-blur-sm"
                       required
                     />
                   </div>
@@ -551,14 +553,30 @@ export default function Home(): React.ReactElement {
                       Password
                     </label>
                     <input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       name="password"
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-custom-primary/20 border border-custom-primary/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-custom-primary/30 transition-all duration-300 text-custom-primary placeholder-gray-400 dark:placeholder-gray-500 text-xs sm:text-sm backdrop-blur-sm"
+                      className="w-full px-3 sm:px-4 pr-10 sm:pr-12 py-2.5 sm:py-3 bg-gray-50/20 dark:bg-gray-900/20 border border-gray-200/50 dark:border-gray-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-gray-50/30 dark:focus:bg-gray-900/30 transition-all duration-300 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-xs sm:text-sm backdrop-blur-sm"
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute top-[65%] right-0 pr-3 sm:pr-4 transform -translate-y-1/2 flex items-center hover:opacity-70 transition-opacity duration-200"
+                    >
+                      {showPassword ? (
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -742,15 +760,33 @@ export default function Home(): React.ReactElement {
               className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white dark:focus:bg-gray-700 transition-all duration-300 text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-base"
               required
             />
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white dark:focus:bg-gray-700 transition-all duration-300 text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-base"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showModalPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full px-4 pr-12 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white dark:focus:bg-gray-700 transition-all duration-300 text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-base"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowModalPassword(!showModalPassword)}
+                className="absolute top-[65%] right-0 pr-4 transform -translate-y-1/2 flex items-center hover:opacity-70 transition-opacity duration-200"
+              >
+                {showModalPassword ? (
+                  <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               onClick={() => {
                 // Validate form fields before API call

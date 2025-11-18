@@ -4,7 +4,6 @@ import FeedPost from './FeedPost';
 import AlbumDisplay from './AlbumDisplay';
 import PeopleYouMayKnow from './PeopleYouMayKnow';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-import { useSystemThemeOverride } from '@/hooks/useSystemThemeOverride';
 
 interface Post {
   _id: string;
@@ -107,9 +106,6 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
   onAlbumShare,
   onFollow
 }) => {
-  // Ensure system dark mode has no effect
-  useSystemThemeOverride();
-  
   const { isDarkMode } = useDarkMode();
   const getFilteredPosts = () => {
     if (activeFilter === 'all') {

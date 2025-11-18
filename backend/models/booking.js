@@ -19,7 +19,13 @@ const bookingSchema = new mongoose.Schema({
   serviceType: {
     type: String,
     required: true,
-    enum: ['consultation', 'project', 'hourly', 'fixed_price']
+    enum: ['consultation', 'project', 'hourly', 'fixed_price', 'audio_call', 'video_call', 'chat']
+  },
+  // Call type for audio/video/chat bookings
+  callType: {
+    type: String,
+    enum: ['audio', 'video', 'chat'],
+    default: null
   },
   title: {
     type: String,
@@ -46,6 +52,12 @@ const bookingSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  // Call rate multiplier (audioCallRate, videoCallRate, or chatRate)
+  callRate: {
+    type: Number,
+    default: null,
+    min: 0
+  },
   totalAmount: {
     type: Number,
     required: true,
@@ -54,7 +66,7 @@ const bookingSchema = new mongoose.Schema({
   currency: {
     type: String,
     default: 'USD',
-    enum: ['USD', 'PKR', 'EUR', 'GBP', 'INR']
+    enum: ['USD', 'INR']
   },
   status: {
     type: String,
@@ -153,9 +165,18 @@ bookingSchema.index({ p2pProfileId: 1 });
 
 // Virtual for calculating total amount based on duration and hourly rate
 bookingSchema.virtual('calculatedAmount').get(function() {
-  if (this.serviceType === 'hourly') {
-    return (this.duration / 60) * this.hourlyRate;
+  const hours = this.duration / 60;
+  
+  // For audio/video/chat calls: callRate * hourlyRate * hours
+  if (this.callType && this.callRate && this.hourlyRate) {
+    return this.callRate * this.hourlyRate * hours;
   }
+  
+  // For hourly service type: hourlyRate * hours
+  if (this.serviceType === 'hourly') {
+    return hours * this.hourlyRate;
+  }
+  
   return this.totalAmount;
 });
 

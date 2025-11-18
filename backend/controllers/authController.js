@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 
 exports.registerUser = async (req, res) => {
-  const { name, email, password, username, gender } = req.body;
+  const { name, email, password, username, gender, userType } = req.body;
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'Username, email, and password are required' });
   }
@@ -41,7 +41,8 @@ exports.registerUser = async (req, res) => {
       email, 
       password: hashedPassword, 
       username,
-      gender: gender || 'Prefer not to say'
+      gender: gender || 'Prefer not to say',
+      userType: userType || 'normal'
     });
     await user.save();
 
@@ -51,6 +52,7 @@ exports.registerUser = async (req, res) => {
     res.status(201).json({
       message: 'User registered successfully',
       token,
+      userType: user.userType,
       isSetupDone: user.isSetupDone
     });
   } catch (err) {
@@ -254,6 +256,8 @@ exports.setupProfile = async (req, res) => {
           audioCallPrice,
           videoCallPrice,
           chatPrice,
+          hourlyRate: req.body.hourlyRate,
+          currency: req.body.currency,
           availableFromTime,
           availableToTime,
           linkedInLink,
@@ -300,8 +304,11 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
     audioCallPrice,
     videoCallPrice,
     chatPrice,
+    hourlyRate,
+    currency,
     availableFromTime,
     availableToTime,
+    availableDays,
     linkedInLink,
     instagramLink,
     twitterLink
@@ -319,7 +326,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         occupation: 'Professional',
         hourlyRate: 100,
         experience: 'Professional',
-        currency: 'INR',
+        currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
         availability: 'Available',
         workingHours: { start: '09:00', end: '17:00' },
         timezone: 'UTC',
@@ -362,7 +369,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         occupation: 'Professional',
         hourlyRate: 100,
         experience: 'Professional',
-        currency: 'INR',
+        currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
         availability: 'Available',
         workingHours: { start: '09:00', end: '17:00' },
         timezone: 'UTC',
@@ -406,7 +413,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
           occupation: currentOrganisation || 'Professional',
           hourlyRate: 100, // Will be calculated below
           experience: description || workExperience || 'Professional',
-          currency: 'INR',
+          currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
           availability: 'Available',
           workingHours: { 
             start: availableFromTime || '09:00', 
@@ -425,21 +432,36 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         });
       }
 
-      // Update pricing fields
+      // Update pricing fields (legacy String fields for backward compatibility)
       if (audioCallPrice !== undefined) p2pProfile.audioCallPrice = audioCallPrice || null;
       if (videoCallPrice !== undefined) p2pProfile.videoCallPrice = videoCallPrice || null;
       if (chatPrice !== undefined) p2pProfile.chatPrice = chatPrice || null;
-
-      // Calculate hourly rate from prices (use first available price)
-      let hourlyRate = 0;
-      if (audioCallPrice) {
-        hourlyRate = parseFloat(audioCallPrice.replace(/[₹,\s]/g, '')) || 0;
-      } else if (videoCallPrice) {
-        hourlyRate = parseFloat(videoCallPrice.replace(/[₹,\s]/g, '')) || 0;
-      } else if (chatPrice) {
-        hourlyRate = parseFloat(chatPrice.replace(/[₹,\s]/g, '')) || 0;
+      
+      // Parse and store call rates as Numbers (multipliers)
+      if (audioCallPrice !== undefined && audioCallPrice) {
+        const parsed = parseFloat(audioCallPrice.toString().replace(/[₹$,\s]/g, ''));
+        p2pProfile.audioCallRate = isNaN(parsed) ? null : parsed;
+      }
+      if (videoCallPrice !== undefined && videoCallPrice) {
+        const parsed = parseFloat(videoCallPrice.toString().replace(/[₹$,\s]/g, ''));
+        p2pProfile.videoCallRate = isNaN(parsed) ? null : parsed;
+      }
+      if (chatPrice !== undefined && chatPrice) {
+        const parsed = parseFloat(chatPrice.toString().replace(/[₹$,\s]/g, ''));
+        p2pProfile.chatRate = isNaN(parsed) ? null : parsed;
+      }
+      
+      // Update currency if provided
+      if (currency && (currency === 'USD' || currency === 'INR')) {
+        p2pProfile.currency = currency;
       }
 
+      // Get hourlyRate from request body if provided, otherwise use default or calculate
+      let hourlyRate = 0;
+      if (data.hourlyRate !== undefined && data.hourlyRate) {
+        hourlyRate = parseFloat(data.hourlyRate.toString().replace(/[₹$,\s]/g, '')) || 0;
+      }
+      
       // If hourly rate is 0 or invalid, set a default
       if (hourlyRate <= 0) {
         hourlyRate = 100; // Default rate
@@ -456,7 +478,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         occupation: currentOrganisation || 'Professional',
         hourlyRate: 100,
         experience: description || workExperience || 'Professional',
-        currency: 'INR',
+        currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
         availability: 'Available',
         workingHours: { start: '09:00', end: '17:00' },
         timezone: 'UTC',
@@ -475,6 +497,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
     if (skipped) {
       p2pProfile.availableFromTime = null;
       p2pProfile.availableToTime = null;
+      p2pProfile.availableDays = [];
       p2pProfile.workingHours = { start: '09:00', end: '17:00' };
     } else {
       if (availableFromTime !== undefined) {
@@ -484,6 +507,15 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
       if (availableToTime !== undefined) {
         p2pProfile.availableToTime = availableToTime || null;
         if (availableToTime) p2pProfile.workingHours.end = availableToTime;
+      }
+      if (availableDays !== undefined) {
+        // Validate availableDays array
+        const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        if (Array.isArray(availableDays)) {
+          p2pProfile.availableDays = availableDays.filter(day => validDays.includes(day));
+        } else {
+          p2pProfile.availableDays = [];
+        }
       }
     }
   }
@@ -496,7 +528,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         occupation: currentOrganisation || 'Professional',
         hourlyRate: 100,
         experience: description || workExperience || 'Professional',
-        currency: 'INR',
+        currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
         availability: 'Available',
         workingHours: { 
           start: availableFromTime || '09:00', 
@@ -585,6 +617,7 @@ exports.getUserProfile = async (req, res) => {
       email: user.email,
       bio: user.bio,
       location: user.location,
+      userType: user.userType || 'normal',
       ...p2pFields,
       isSetupDone: user.isSetupDone || false
     });

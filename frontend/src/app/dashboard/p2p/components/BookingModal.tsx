@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { config } from '@/utils/config';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 type CallMode = 'audio' | 'video';
 type PlanCategory = 'single' | 'subscription';
@@ -156,6 +157,7 @@ export function BookingModal({
   onBookingSuccess,
   onBookingError,
 }: BookingModalProps) {
+  const { isDarkMode } = useDarkMode();
   const [callMode, setCallMode] = useState<CallMode>('audio');
   const [planCategory, setPlanCategory] = useState<PlanCategory>('single');
   const [callMinutes, setCallMinutes] = useState<number>(CALL_PLAN_MINUTES[0]);
@@ -440,25 +442,27 @@ export function BookingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-      <div className="relative max-h-[90vh] w-full max-w-[1000px] overflow-y-auto rounded-2xl border-2 border-gray-200 bg-white shadow-2xl">
+      <div className={`relative max-h-[90vh] w-full max-w-[1000px] overflow-y-auto rounded-2xl border-2 shadow-2xl ${
+        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+      }`}>
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition hover:bg-gray-100"
+          className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border transition ${
+            isDarkMode 
+              ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+              : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+          }`}
           aria-label="Close booking modal"
         >
           <span className="text-xl font-semibold">&times;</span>
         </button>
 
         <div className="flex flex-col">
-          <div className="border-b-2 border-gray-200 px-6 py-10">
-            <div className="mb-8 flex flex-wrap gap-4 text-sm font-medium text-gray-500">
-              <span className="rounded-full bg-[#148F80]/10 px-4 py-2 text-[#148F80]">1. Select Mode</span>
-              <span className="rounded-full border border-gray-200 px-4 py-2">2. Select Date &amp; Time</span>
-              <span className="rounded-full border border-gray-200 px-4 py-2">3. Select Plan</span>
-            </div>
+          <div className={`border-b-2 px-6 py-10 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+           
 
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900">Select mode to connect</h3>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select mode to connect</h3>
               <div className="mt-4 flex flex-wrap gap-4">
                 {(['audio', 'video'] as CallMode[]).map((mode) => (
                   <button
@@ -467,6 +471,8 @@ export function BookingModal({
                     className={`flex min-w-[180px] items-center gap-3 rounded-xl border-2 px-5 py-4 transition ${
                       callMode === mode
                         ? 'border-[#148F80] bg-[#148F80]/10'
+                        : isDarkMode
+                        ? 'border-gray-600 hover:border-[#148F80] hover:bg-[#148F80]/5'
                         : 'border-gray-200 hover:border-[#148F80] hover:bg-[#148F80]/5'
                     }`}
                   >
@@ -479,7 +485,7 @@ export function BookingModal({
                       alt={mode === 'audio' ? 'Audio Call' : 'Video Call'}
                       className="h-10 w-10"
                     />
-                    <span className="text-base font-medium text-gray-800">
+                    <span className={`text-base font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                       {mode === 'audio' ? 'Audio Call' : 'Video Call'}
                     </span>
                   </button>
@@ -488,9 +494,9 @@ export function BookingModal({
             </div>
 
             <div className="mb-10">
-              <h3 className="text-lg font-semibold text-gray-900">Select date</h3>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select date</h3>
               {availability.timezone && (
-                <p className="mt-1 text-sm text-gray-500">
+                <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   Availability shown in {availability.timezone}.
                 </p>
               )}
@@ -503,6 +509,8 @@ export function BookingModal({
                       className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${
                         callDate === suggestion.value
                           ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                          : isDarkMode
+                          ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                       }`}
                     >
@@ -515,11 +523,15 @@ export function BookingModal({
                   min={dateSuggestions[0]?.value}
                   value={callDate}
                   onChange={(event) => setCallDate(event.target.value)}
-                  className="rounded-xl border-2 border-gray-200 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20"
+                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
+                    isDarkMode 
+                      ? 'border-gray-600 bg-gray-700 text-white' 
+                      : 'border-gray-200'
+                  }`}
                 />
               </div>
 
-              <h3 className="mt-8 text-lg font-semibold text-gray-900">Select time</h3>
+              <h3 className={`mt-8 text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select time</h3>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <div className="flex flex-wrap gap-3">
                   {availableTimeOptions.map((slot) => (
@@ -529,6 +541,8 @@ export function BookingModal({
                       className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${
                         callTime === slot
                           ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                          : isDarkMode
+                          ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                       }`}
                     >
@@ -536,7 +550,7 @@ export function BookingModal({
                     </button>
                   ))}
                   {isLoadingAvailability && (
-                    <span className="text-sm text-gray-500">Checking availability...</span>
+                    <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Checking availability...</span>
                   )}
                   {!isLoadingAvailability && !availableTimeOptions.length && (
                     <span className="text-sm text-red-600">No slots available for this date. Please choose another date.</span>
@@ -550,13 +564,17 @@ export function BookingModal({
                   step={TIME_SLOT_STEP_MINUTES * 60}
                   disabled={!availableTimeOptions.length}
                   onChange={(event) => setCallTime(event.target.value)}
-                  className="rounded-xl border-2 border-gray-200 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20"
+                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
+                    isDarkMode 
+                      ? 'border-gray-600 bg-gray-700 text-white' 
+                      : 'border-gray-200'
+                  }`}
                 />
               </div>
             </div>
 
             <div className="mb-10">
-              <h3 className="text-lg font-semibold text-gray-900">Select call plan</h3>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select call plan</h3>
               <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
                 {CALL_PLAN_MINUTES.map((minutes) => {
                   const isActive = planCategory === 'single' && callMinutes === minutes;
@@ -572,18 +590,22 @@ export function BookingModal({
                       className={`flex min-w-[160px] flex-col gap-1 rounded-xl border-2 px-4 py-3 text-left text-sm transition ${
                         isActive
                           ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                          : isDarkMode
+                          ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                       }`}
                     >
                       <span className="font-semibold">{minutes} Min</span>
-                      <span className="text-xs text-gray-500">{formatCurrency(currencySymbol, price)}</span>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{formatCurrency(currencySymbol, price)}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="mb-10 rounded-2xl border-2 border-gray-200 bg-gray-50 p-6">
+            <div className={`mb-10 rounded-2xl border-2 p-6 ${
+              isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
+            }`}>
               <div className="mb-4 flex items-start gap-3">
                 <h3 className="flex-1 text-lg font-semibold text-[#148F80]">
                   Daily Subscription Plan
@@ -616,6 +638,8 @@ export function BookingModal({
                       className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${
                         isActive
                           ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                          : isDarkMode
+                          ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                       }`}
                     >
@@ -625,7 +649,7 @@ export function BookingModal({
                 })}
               </div>
 
-              <h4 className="mb-3 text-base font-semibold text-gray-900">Select Duration</h4>
+              <h4 className={`mb-3 text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select Duration</h4>
               <div className="flex flex-wrap gap-3">
                 {SUBSCRIPTION_TYPES.map((type) => {
                   const isActive = subscriptionType === type.value;
@@ -634,7 +658,11 @@ export function BookingModal({
                       key={type.value}
                       className={`relative flex cursor-pointer items-center gap-3 rounded-xl border-2 px-5 py-3 text-base font-medium transition ${
                         isActive
-                          ? 'border-[#148F80] bg-white text-[#148F80] shadow-lg'
+                          ? isDarkMode
+                          ? 'border-[#148F80] bg-gray-700 text-[#148F80] shadow-lg'
+                          : 'border-[#148F80] bg-white text-[#148F80] shadow-lg'
+                          : isDarkMode
+                          ? 'border-gray-600 bg-gray-700 text-gray-300 hover:border-[#148F80]'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-[#148F80]'
                       }`}
                     >
@@ -656,10 +684,14 @@ export function BookingModal({
               </div>
             </div>
 
-            <div className="rounded-2xl border-2 border-gray-200 bg-gray-50 p-6">
+            <div className={`rounded-2xl border-2 p-6 ${
+              isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
+            }`}>
               <div className="flex flex-col gap-3">
                 <h3 className="text-lg font-semibold text-[#148F80]">Real-Time Call Translation</h3>
-                <label className="flex items-center gap-3 text-sm font-semibold text-gray-700">
+                <label className={`flex items-center gap-3 text-sm font-semibold ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                   <input
                     type="checkbox"
                     checked={translateActive}
@@ -679,26 +711,28 @@ export function BookingModal({
             </div>
           </div>
 
-          <div className="border-t-2 border-gray-200 bg-gray-50 px-6 py-10">
-            <h2 className="text-xl font-semibold text-gray-900">Payment Summary</h2>
-            <div className="mt-6 space-y-4 text-sm text-gray-700">
+          <div className={`border-t-2 px-6 py-10 ${
+            isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+          }`}>
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Payment Summary</h2>
+            <div className={`mt-6 space-y-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               <div className="flex items-center justify-between">
                 <span>Expert</span>
-                <span className="font-semibold text-gray-900">{expertName}</span>
+                <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{expertName}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Type</span>
-                <span id="selected-mode-display" className="font-semibold text-gray-900">
+                <span id="selected-mode-display" className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {callMode === 'audio' ? 'Audio Call' : 'Video Call'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Plan</span>
-                <span className="font-semibold text-gray-900">{planDescription}</span>
+                <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{planDescription}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Date</span>
-                <span className="font-semibold text-gray-900">
+                <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {new Date(callDate).toLocaleDateString('en-IN', {
                     weekday: 'short',
                     day: 'numeric',
@@ -708,7 +742,7 @@ export function BookingModal({
               </div>
               <div className="flex items-center justify-between">
                 <span>Time</span>
-                <span className="font-semibold text-gray-900">
+                <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {callTime
                     ? `${formatTimeDisplay(callTime)}${availability.timezone ? ` (${availability.timezone})` : ''}`
                     : 'Select a time'}
@@ -716,11 +750,11 @@ export function BookingModal({
               </div>
               <div className="flex items-center justify-between">
                 <span>Base Price</span>
-                <span className="font-semibold text-gray-900">{formatCurrency(currencySymbol, basePrice)}</span>
+                <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(currencySymbol, basePrice)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Real-Time Translation</span>
-                <span className="font-semibold text-gray-900">
+                <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {formatCurrency(currencySymbol, translateCost)}
                 </span>
               </div>
@@ -730,21 +764,31 @@ export function BookingModal({
                   -{formatCurrency(currencySymbol, couponDiscount)}
                 </span>
               </div>
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4 text-base font-semibold text-gray-900">
+              <div className={`flex items-center justify-between border-t pt-4 text-base font-semibold ${
+                isDarkMode 
+                  ? 'border-gray-700 text-white' 
+                  : 'border-gray-200 text-gray-900'
+              }`}>
                 <span>Total</span>
                 <span>{formatCurrency(currencySymbol, totalPrice)}</span>
               </div>
             </div>
 
-            <div className="mt-8 rounded-2xl border-2 border-gray-200 bg-white p-5">
-              <h3 className="text-base font-semibold text-gray-900">Apply Coupon Code</h3>
+            <div className={`mt-8 rounded-2xl border-2 p-5 ${
+              isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-white'
+            }`}>
+              <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Apply Coupon Code</h3>
               <div className="mt-3 flex gap-2">
                 <input
                   type="text"
                   value={couponInput}
                   onChange={(event) => setCouponInput(event.target.value)}
                   placeholder="Enter coupon code"
-                  className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20"
+                  className={`flex-1 rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
+                    isDarkMode 
+                      ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400' 
+                      : 'border-gray-200'
+                  }`}
                 />
                 <button
                   onClick={() => setAppliedCoupon(couponInput.trim().toUpperCase())}
@@ -764,6 +808,8 @@ export function BookingModal({
                     className={`rounded-xl border-2 px-3 py-1 text-xs font-semibold transition ${
                       appliedCoupon === code
                         ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                        : isDarkMode
+                        ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                         : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                     }`}
                   >

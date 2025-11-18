@@ -24,109 +24,102 @@ interface DarkModeProviderProps {
 }
 
 export const DarkModeProvider: React.FC<DarkModeProviderProps> = ({ children }) => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isSystemMode, setIsSystemMode] = useState(true);
-
-  // Get system preference
-  const getSystemPreference = () => {
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  // Initialize state synchronously from localStorage to avoid race conditions
+  const getInitialTheme = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    const savedThemeMode = localStorage.getItem('themeMode');
+    const savedTheme = localStorage.getItem('theme');
+    
+    // Migrate 'system' to 'light' immediately
+    if (savedThemeMode === 'system') {
+      localStorage.setItem('themeMode', 'light');
+      localStorage.removeItem('theme');
+      return false;
     }
+    
+    if (savedThemeMode === 'dark') return true;
+    if (savedThemeMode === 'light') return false;
+    if (savedTheme === 'dark') {
+      localStorage.setItem('themeMode', 'dark');
+      localStorage.removeItem('theme');
+      return true;
+    }
+    if (savedTheme === 'light') {
+      localStorage.setItem('themeMode', 'light');
+      localStorage.removeItem('theme');
+      return false;
+    }
+    
+    // Default to light
+    localStorage.setItem('themeMode', 'light');
     return false;
   };
 
-  // Update theme based on current mode
-  const updateTheme = (systemPrefersDark: boolean, mode: 'system' | 'dark' | 'light') => {
+  const [isDarkMode, setIsDarkMode] = useState(() => getInitialTheme());
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSystemMode, setIsSystemMode] = useState(false);
+
+  // Update theme based on current mode - NEVER use system preference
+  const updateTheme = (mode: 'system' | 'dark' | 'light') => {
+    // If mode is 'system', force migrate to 'light' - NEVER follow system
     if (mode === 'system') {
-      setIsDarkMode(systemPrefersDark);
-      setIsSystemMode(true);
+      setIsDarkMode(false); // Force light mode
+      setIsSystemMode(false); // Not in system mode anymore
+      localStorage.setItem('themeMode', 'light');
+      localStorage.removeItem('theme');
     } else {
       setIsDarkMode(mode === 'dark');
       setIsSystemMode(false);
     }
   };
 
+  // Single initialization effect - runs once on mount
   useEffect(() => {
-    // Check for saved preference
-    const savedThemeMode = localStorage.getItem('themeMode'); // 'system', 'dark', or 'light'
-    const savedTheme = localStorage.getItem('theme'); // Legacy support
+    if (typeof window === 'undefined') return;
     
-    const systemPrefersDark = getSystemPreference();
+    // Check for saved preference
+    const savedThemeMode = localStorage.getItem('themeMode');
+    const savedTheme = localStorage.getItem('theme');
     
     // Handle legacy theme format or new themeMode format
-    let themeMode: 'system' | 'dark' | 'light' = 'system';
+    // NEVER use system preference - always default to light
+    let themeMode: 'system' | 'dark' | 'light' = 'light';
     if (savedThemeMode) {
-      themeMode = savedThemeMode as 'system' | 'dark' | 'light';
+      // If user has 'system' saved, FORCE migrate to 'light' - NEVER follow system
+      if (savedThemeMode === 'system') {
+        themeMode = 'light';
+        localStorage.setItem('themeMode', 'light');
+        localStorage.removeItem('theme');
+      } else {
+        themeMode = savedThemeMode as 'system' | 'dark' | 'light';
+      }
     } else if (savedTheme === 'dark' || savedTheme === 'light') {
       // Migrate from old format
       themeMode = savedTheme;
       localStorage.setItem('themeMode', themeMode);
       localStorage.removeItem('theme');
+    } else {
+      // No saved preference - default to light and save it
+      themeMode = 'light';
+      localStorage.setItem('themeMode', 'light');
     }
     
-    updateTheme(systemPrefersDark, themeMode);
+    // Update theme state - this will trigger the DOM update effect
+    updateTheme(themeMode);
     setIsInitialized(true);
-
-    // Always listen for system theme changes
-    const mediaQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-    
-    if (mediaQuery) {
-      const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-        const currentThemeMode = localStorage.getItem('themeMode') || 'system';
-        
-        // Only update if we're in system mode
-        if (currentThemeMode === 'system') {
-          setIsDarkMode(e.matches);
-          setIsSystemMode(true);
-        }
-      };
-
-      // Use addEventListener for better mobile support
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener('change', handleSystemThemeChange);
-      } else {
-        // Fallback for older browsers
-        mediaQuery.addListener(handleSystemThemeChange);
-      }
-      
-      return () => {
-        if (mediaQuery.removeEventListener) {
-          mediaQuery.removeEventListener('change', handleSystemThemeChange);
-        } else {
-          mediaQuery.removeListener(handleSystemThemeChange);
-        }
-      };
-    }
   }, []);
 
-  // Periodically check system theme (as a backup to media query)
+  // Apply dark mode to document - runs whenever isDarkMode or isInitialized changes
   useEffect(() => {
-    if (!isSystemMode) return; // Only check if in system mode
-
-    const checkSystemTheme = () => {
-      const systemPrefersDark = getSystemPreference();
-      if (isDarkMode !== systemPrefersDark) {
-        setIsDarkMode(systemPrefersDark);
-      }
-    };
-
-    // Check every 2 seconds when in system mode
-    const interval = setInterval(checkSystemTheme, 2000);
-
-    return () => clearInterval(interval);
-  }, [isSystemMode, isDarkMode]);
-
-  useEffect(() => {
-    // Apply dark mode to document
-    if (isInitialized) {
-      if (isDarkMode) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+    if (typeof window === 'undefined') return;
+    
+    // Always apply based on state, regardless of initialization
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
-  }, [isDarkMode, isInitialized]);
+  }, [isDarkMode]);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -146,10 +139,10 @@ export const DarkModeProvider: React.FC<DarkModeProviderProps> = ({ children }) 
   };
 
   const resetToSystem = () => {
-    const systemPrefersDark = getSystemPreference();
-    setIsDarkMode(systemPrefersDark);
-    setIsSystemMode(true);
-    localStorage.setItem('themeMode', 'system');
+    // We don't follow system - reset to light mode instead
+    setIsDarkMode(false);
+    setIsSystemMode(false);
+    localStorage.setItem('themeMode', 'light');
     localStorage.removeItem('theme');
   };
 

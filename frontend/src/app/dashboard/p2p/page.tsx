@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { isAuthenticated } from '@/utils/auth';
@@ -9,6 +9,7 @@ import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 import { 
   FaShareAlt, 
   FaSearch, 
@@ -36,12 +37,37 @@ const SHOW_FEATURE_CARDS = true;
 const SHOW_BANNER_CAROUSEL = true;
 const SHOW_FIND_BY_CATEGORY = true;
 
+const CATEGORY_PLACEHOLDERS = [
+  { id: 'relationship', title: 'Relationship & Loneliness', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19368_59d475d3-ee9a-4ce7-b319-88bd1a42961e.png', description: 'Dating advice | Emotional support | Moving on | Breakup' },
+  { id: 'astrology', title: 'Astrology & More', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19370_61290102-0201-4187-9747-296c2f211572.png', description: 'Vedic Astrology/Vaastu | Tarot | Numerology | Kundli' },
+  { id: 'careers', title: 'Careers & Jobs', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19350_7e4f44aa-ebd3-437d-8b05-4c5d60731da7.png', description: 'Job switch | Career planning | International careers | Upskill' },
+  { id: 'life-coach', title: 'Life Coach', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19357_61a16c0d-9a95-44a4-84a9-54e284d24fda.png', description: 'Work life balance | Stress management | Confidence building' },
+  { id: 'fitness', title: 'Fitness & Nutrition', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19367_97e70bef-7a25-405e-9ed2-47263190d9a9.png', description: 'Dietician | Body building | Weight management | Yoga' },
+  { id: 'influencers', title: 'Influencers & Models', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19369_88d452bf-9b63-4f14-a867-7bb6db23cf91.png', description: 'Creators | Models | Directors | Artists' },
+  { id: 'finance', title: 'Finance & Trading', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19360_2a75c4a2-a983-4c37-b585-fc8146af7c50.png', description: 'Taxation | Stocks | Mutual funds | Crypto | Planning' },
+  { id: 'college', title: 'College Studies', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19356_85c68f72-61d7-4dea-9e3d-81b4cd1fe0c8.png', description: 'Entrance | Networking | Study abroad | Exams | Dream college' },
+  { id: 'communication', title: 'Communication', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19365_7b076ef2-4d82-4a02-b7f8-9dadd69ccabc.png', description: 'English | Foreign languages | Public speaking | Storytelling' },
+  { id: 'mental-health', title: 'Mental Well Being', image: 'https://cfront-unikon-assets.unikon.ai/extra_asset_135346_9e7a96f3-06d3-437e-b734-49ddfb43d3bf.png', description: 'Anxiety | Stress | Therapy | ADHD' }
+];
+
+const FALLBACK_CATEGORY_IMAGE = CATEGORY_PLACEHOLDERS[0].image;
+
 type TabType = 'browse' | 'my-profile' | 'create' | 'bookings' | 'provider-bookings';
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface BaseUser { _id: string; name: string; username: string; avatar: string; }
 interface ExtendedUser extends BaseUser { fullName?: string; email: string; bio: string; location: string; }
 interface SimpleProfile { _id: string; occupation: string; hourlyRate: number; currency: string; }
+
+interface P2PCategory {
+  _id: string;
+  title: string;
+  description?: string;
+  image?: string;
+  slug?: string;
+}
+
+const WEEK_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 interface P2PProfile {
   _id: string;
@@ -53,6 +79,9 @@ interface P2PProfile {
   description?: string;
   areasOfExpertise?: string[];
   hourlyRate: number;
+  audioCallRate?: number;
+  videoCallRate?: number;
+  chatRate?: number;
   audioCallPrice?: string;
   videoCallPrice?: string;
   chatPrice?: string;
@@ -62,6 +91,7 @@ interface P2PProfile {
   availableFromTime?: string;
   availableToTime?: string;
   availability: string;
+  availableDays?: string[];
   workingHours: { start: string; end: string; };
   timezone: string;
   languages: { language: string; proficiency: string; }[];
@@ -77,6 +107,7 @@ interface P2PProfile {
   socialLinks: Record<string, string>;
   createdAt: string;
   updatedAt: string;
+  category?: P2PCategory | null;
 }
 
 interface Booking {
@@ -100,9 +131,13 @@ interface CreateProfileData {
   occupation: string;
   hourlyRate: number;
   currency: string;
+  audioCallPrice: string;
+  videoCallPrice: string;
+  chatPrice: string;
   skills: string[];
   experience: string;
   availability: string;
+  availableDays: string[];
   workingHours: { start: string; end: string; };
   timezone: string;
   languages: { language: string; proficiency: string; }[];
@@ -111,6 +146,7 @@ interface CreateProfileData {
   responseTime: string;
   tags: string[];
   socialLinks: Record<string, string>;
+  categoryId?: string;
 }
 
 interface CreateBookingData {
@@ -129,6 +165,7 @@ interface ToastData { id: string; type: ToastType; title: string; message: strin
 
 export default function P2PPage() {
   const router = useRouter();
+  const { isDarkMode } = useDarkMode();
   const [activeTab, setActiveTab] = useState<TabType>('browse');
   const [profiles, setProfiles] = useState<P2PProfile[]>([]);
   const [featuredProfiles, setFeaturedProfiles] = useState<P2PProfile[]>([]);
@@ -146,22 +183,54 @@ export default function P2PPage() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<P2PProfile | null>(null);
   const [selectedServiceType, setSelectedServiceType] = useState<string>('consultation');
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
   const [bookingForm, setBookingForm] = useState<CreateBookingData>({
     serviceProviderId: '', p2pProfileId: '', serviceType: 'consultation',
     title: '', description: '', scheduledDate: '', duration: 60, requirements: [], deliverables: []
   });
 
   const [profileForm, setProfileForm] = useState<CreateProfileData>({
-    occupation: '', hourlyRate: 0, currency: 'USD', skills: [], experience: '',
-    availability: 'Available', workingHours: { start: '09:00', end: '17:00' },
+    occupation: '', hourlyRate: 0, currency: 'USD',
+    audioCallPrice: '', videoCallPrice: '', chatPrice: '',
+    skills: [], experience: '',
+    availability: 'Available', availableDays: [],
+    workingHours: { start: '09:00', end: '17:00' },
     timezone: 'UTC', languages: [{ language: '', proficiency: 'Intermediate' }],
     portfolio: [], certifications: [], responseTime: 'Within 24 hours', tags: [],
-    socialLinks: { website: '', linkedin: '', github: '', behance: '' }
+    socialLinks: { website: '', linkedin: '', github: '', behance: '' },
+    categoryId: ''
   });
   const [newSkill, setNewSkill] = useState('');
   const [newTag, setNewTag] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
   const [toasts, setToasts] = useState<ToastData[]>([]);
+  const [categories, setCategories] = useState<P2PCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const categoryCards = useMemo(() => {
+    if (!categories.length) {
+      return CATEGORY_PLACEHOLDERS;
+    }
+    return categories.map(category => ({
+      id: category._id,
+      title: category.title,
+      description: category.description || 'Discover trusted experts in this category',
+      image: category.image || FALLBACK_CATEGORY_IMAGE
+    }));
+  }, [categories]);
+  const worthExploringItems = useMemo(() => {
+    if (categories.length) {
+      return categories.slice(0, 18).map(category => ({
+        id: category._id,
+        label: category.title,
+        isSelectable: true
+      }));
+    }
+    return CATEGORY_PLACEHOLDERS.map(category => ({
+      id: category.id,
+      label: category.title,
+      isSelectable: false
+    }));
+  }, [categories]);
 
   const addToast = (type: ToastType, title: string, message: string, duration = 5000) => {
     setToasts(prev => [...prev, { id: Date.now().toString(), type, title, message, duration }]);
@@ -245,14 +314,75 @@ export default function P2PPage() {
     });
   };
 
+  const fetchProfileDetails = async (profileId: string): Promise<P2PProfile | null> => {
+    try {
+      const response = await apiCall(`/api/p2p/profiles/${profileId}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.profile || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getCurrencySymbol = (currency?: string) => (currency === 'INR' ? '₹' : '$');
+
+  const parseNumericValue = (value?: string | number | null) => {
+    if (value === null || value === undefined || value === '') return null;
+    const numericValue = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(numericValue) ? numericValue : null;
+  };
+
+  const formatAmountDisplay = (amount?: string | number | null, currency?: string) => {
+    if (amount === null || amount === undefined || amount === '') return '—';
+    const numericValue = parseNumericValue(amount);
+    if (numericValue === null) {
+      return `${getCurrencySymbol(currency)}${amount}`;
+    }
+    return `${getCurrencySymbol(currency)}${numericValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  };
+
+  const getServiceMultiplier = (profile: P2PProfile | null, serviceType: string) => {
+    if (!profile) return null;
+    switch (serviceType) {
+      case 'audio_call':
+        return parseNumericValue(profile.audioCallRate ?? profile.audioCallPrice ?? null);
+      case 'video_call':
+        return parseNumericValue(profile.videoCallRate ?? profile.videoCallPrice ?? null);
+      case 'chat':
+        return parseNumericValue(profile.chatRate ?? profile.chatPrice ?? null);
+      default:
+        return null;
+    }
+  };
+
+  const estimatedCost = useMemo(() => {
+    if (!selectedProfile) return null;
+    const hours = (bookingForm.duration || 0) / 60;
+    if (hours <= 0 || !selectedProfile.hourlyRate) return null;
+
+    const multiplier = getServiceMultiplier(selectedProfile, bookingForm.serviceType);
+
+    if (multiplier && bookingForm.serviceType !== 'fixed_price') {
+      return multiplier * selectedProfile.hourlyRate * hours;
+    }
+
+    if (bookingForm.serviceType === 'fixed_price') {
+      return selectedProfile.hourlyRate;
+    }
+
+    return selectedProfile.hourlyRate * hours;
+  }, [bookingForm.duration, bookingForm.serviceType, selectedProfile]);
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [featuredRes, profilesRes, myProfileRes, currentUserRes] = await Promise.all([
+      const [featuredRes, profilesRes, myProfileRes, currentUserRes, categoriesRes] = await Promise.all([
         apiCall('/api/p2p/profiles/featured'),
         apiCall('/api/p2p/profiles'),
         apiCall('/api/p2p/profile/me'),
-        apiCall('/api/auth/me')
+        apiCall('/api/auth/me'),
+        apiCall('/api/p2p/categories')
       ]);
 
       if (currentUserRes.ok) {
@@ -271,6 +401,11 @@ export default function P2PPage() {
         setProfiles(data.profiles || []);
       }
 
+      if (categoriesRes.ok) {
+        const data = await categoriesRes.json();
+        setCategories(data.categories || []);
+      }
+
       if (myProfileRes.ok) {
         const data = await myProfileRes.json();
         setMyProfile(data.profile);
@@ -278,14 +413,21 @@ export default function P2PPage() {
           const profile = data.profile;
           setProfileForm({
             occupation: profile.occupation || '', hourlyRate: profile.hourlyRate || 0,
-            currency: profile.currency || 'USD', skills: profile.skills || [],
-            experience: profile.experience || '', availability: profile.availability || 'Available',
+            currency: profile.currency || 'USD',
+            audioCallPrice: profile.audioCallPrice || '',
+            videoCallPrice: profile.videoCallPrice || '',
+            chatPrice: profile.chatPrice || '',
+            skills: profile.skills || [],
+            experience: profile.experience || '',
+            availability: profile.availability || 'Available',
+            availableDays: profile.availableDays || [],
             workingHours: profile.workingHours || { start: '09:00', end: '17:00' },
             timezone: profile.timezone || 'UTC',
             languages: profile.languages || [{ language: '', proficiency: 'Intermediate' }],
             portfolio: profile.portfolio || [], certifications: profile.certifications || [],
             responseTime: profile.responseTime || 'Within 24 hours', tags: profile.tags || [],
-            socialLinks: profile.socialLinks || { website: '', linkedin: '', github: '', behance: '' }
+            socialLinks: profile.socialLinks || { website: '', linkedin: '', github: '', behance: '' },
+            categoryId: profile.category?._id || ''
           });
         }
       }
@@ -340,6 +482,12 @@ export default function P2PPage() {
     }
   };
 
+  const handleCategorySelect = (categoryId: string) => {
+    if (!categoryId || !categories.length) return;
+    setSelectedCategoryId(categoryId);
+    router.push(`/dashboard/p2p/category/${categoryId}`);
+  };
+
   const searchProfiles = async () => {
     if (!searchQuery.trim()) return;
     try {
@@ -353,12 +501,25 @@ export default function P2PPage() {
     }
   };
 
-  const handleBookService = (profile: P2PProfile, serviceType: string = 'consultation') => {
+  const handleBookService = async (profile: P2PProfile, serviceType: string = 'consultation') => {
+    let profileToUse = profile;
+
+    try {
+      const latestProfile = await fetchProfileDetails(profile._id);
+      if (latestProfile) {
+        profileToUse = latestProfile;
+      } else {
+        addToast('info', 'Latest profile unavailable', 'Showing cached profile details while we refresh the provider information.');
+      }
+    } catch (error) {
+      addToast('warning', 'Unable to refresh profile', 'Using cached profile details for now.');
+    }
+
     const now = new Date();
-    setSelectedProfile(profile);
+    setSelectedProfile(profileToUse);
     setSelectedServiceType(serviceType);
     setBookingForm({
-      serviceProviderId: profile.userId._id, p2pProfileId: profile._id,
+      serviceProviderId: profileToUse.userId._id, p2pProfileId: profileToUse._id,
       serviceType: serviceType, title: '', description: '',
       scheduledDate: now.toISOString().slice(0, 16), duration: 60,
       requirements: [], deliverables: []
@@ -376,6 +537,8 @@ export default function P2PPage() {
       return addToast('error', 'Scheduling Error', 'Meeting cannot be scheduled in the past. Please select a future date and time.');
     }
 
+    setBookingSubmitting(true);
+
     try {
       const response = await apiCall('/api/bookings', { method: 'POST', body: JSON.stringify(bookingForm) });
       const data = await response.json();
@@ -390,6 +553,8 @@ export default function P2PPage() {
       }
     } catch (error) {
       addToast('error', 'Network Error', 'Failed to create booking. Please check your connection');
+    } finally {
+      setBookingSubmitting(false);
     }
   };
 
@@ -517,6 +682,15 @@ export default function P2PPage() {
   };
 
   const removeLanguage = (index: number) => updateArray('languages', 'remove', null, index);
+
+  const toggleAvailableDay = (day: string) => {
+    setProfileForm(prev => ({
+      ...prev,
+      availableDays: prev.availableDays.includes(day)
+        ? prev.availableDays.filter(d => d !== day)
+        : [...prev.availableDays, day]
+    }));
+  };
 
   const addPortfolioItem = () => updateArray('portfolio', 'add', { title: '', description: '', url: '', image: '' });
   const removePortfolioItem = (index: number) => updateArray('portfolio', 'remove', null, index);
@@ -767,17 +941,17 @@ export default function P2PPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading P2P Services...</p>
+          <p className={`mt-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Loading P2P Services...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 w-full">
+    <div className={`min-h-screen w-full transition-colors duration-200 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
       <div className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
@@ -1212,23 +1386,27 @@ export default function P2PPage() {
 
               {/* Banner Section (Right Side - 50%) */}
               {SHOW_FIND_BY_EXPERTS && (
-                <div className="w-full lg:w-[40%] h-[400px] bg-[#28303D] flex flex-col justify-center items-center text-center relative rounded-xl shadow-lg">
-                  <h1 className="text-[25px] p-2 font-bold text-white mb-4">
+                <div
+                  className={`w-full lg:w-[40%] h-[400px] flex flex-col justify-center items-center text-center relative rounded-xl shadow-lg transition-colors ${
+                    isDarkMode ? 'bg-[#28303D] text-white' : 'bg-white text-gray-900'
+                  }`}
+                >
+                  <h1 className={`text-[25px] p-2 font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     Find the best expert to help you with
                   </h1>
-                  <div className="text-[25px] font-bold text-[#4285F4] mb-8 animate-[fade-in_1.5s_ease-in-out_forwards]">
+                  <div className={`text-[25px] font-bold mb-8 animate-[fade-in_1.5s_ease-in-out_forwards] ${isDarkMode ? 'text-[#66A5FF]' : 'text-[#4285F4]'}`}>
                     interview preparation
                   </div>
                   
                   {/* Search Bar */}
-                  <div className="w-[90%] max-w-[600px] h-[50px] flex items-center bg-white rounded-[50px] px-2 shadow-md">
+                  <div className={`w-[90%] max-w-[600px] h-[50px] flex items-center rounded-[50px] px-2 shadow-md ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
                     <input 
                       type="text" 
                       placeholder="Search by name, company, s"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && searchProfiles()}
-                      className="flex-1 h-full border-none bg-transparent px-4 text-sm text-gray-900 outline-none placeholder:text-gray-500"
+                      className={`flex-1 h-full border-none bg-transparent px-4 text-sm outline-none placeholder:text-gray-500 ${isDarkMode ? 'text-white placeholder:text-gray-400' : 'text-gray-900'}`}
                     />
                     <button 
                       onClick={searchProfiles}
@@ -1240,8 +1418,8 @@ export default function P2PPage() {
 
                   {/* Footer */}
                   <div className="absolute bottom-4 left-0 w-full flex justify-center items-center text-sm">
-                    <span className="text-gray-400 font-light">Need help?</span>
-                    <span className="text-gray-400 mx-2">|</span>
+                    <span className={`${isDarkMode ? 'text-gray-300' : 'text-gray-500'} font-light`}>Need help?</span>
+                    <span className={`${isDarkMode ? 'text-gray-500' : 'text-gray-300'} mx-2`}>|</span>
                     <span className="text-[#4285F4] font-medium cursor-pointer hover:underline">Contact us</span>
                   </div>
                 </div>
@@ -1249,70 +1427,86 @@ export default function P2PPage() {
             </div>
 
             {SHOW_FIND_BY_CATEGORY && (
-            <div className="bg-[#1A1A1A] dark:bg-gray-900 pt-10 pb-5">
-            <h3 className="text-[28px] font-semibold text-center mb-5 text-gray-900 dark:text-white relative inline-block w-full">
-              Find experts by category
-              <span className="absolute left-1/2 bottom-[-10px] w-[60px] h-1 bg-gradient-to-r from-[#FF7F7F] to-[#FF4D4D] transform -translate-x-1/2 rounded"></span>
-            </h3>
-            <div className="w-full mx-auto pt-5 pb-10 px-5 relative">
-              <Swiper
-                modules={[Navigation, Pagination, Autoplay]}
-                spaceBetween={20}
-                slidesPerView={5}
-                navigation={{
-                  nextEl: '.swiper-button-next',
-                  prevEl: '.swiper-button-prev',
-                }}
-                pagination={{
-                  clickable: true,
-                  el: '.swiper-pagination',
-                }}
-                autoplay={{
-                  delay: 3000,
-                  disableOnInteraction: false,
-                }}
-                breakpoints={{
-                  320: { slidesPerView: 2, spaceBetween: 10 },
-                  640: { slidesPerView: 3, spaceBetween: 15 },
-                  1024: { slidesPerView: 4, spaceBetween: 20 },
-                  1280: { slidesPerView: 5, spaceBetween: 20 },
-                }}
-                className="h-[250px]"
-              >
-                {[
-                  { title: 'Relationship & Loneliness', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19368_59d475d3-ee9a-4ce7-b319-88bd1a42961e.png', desc: 'Dating advice | Emotional support | Moving on | Breakup' },
-                  { title: 'Astrology & More', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19370_61290102-0201-4187-9747-296c2f211572.png', desc: 'Vedic Astrology/Vaastu | Tarrot card | Numerology | Kundli' },
-                  { title: 'Careers & Jobs', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19350_7e4f44aa-ebd3-437d-8b05-4c5d60731da7.png', desc: 'Job Switch | Career Planning | International Careers | Upskill' },
-                  { title: 'Life Coach', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19357_61a16c0d-9a95-44a4-84a9-54e284d24fda.png', desc: 'Work life balance | Stress management | Confidence building' },
-                  { title: 'Fitness & Nutrition', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19367_97e70bef-7a25-405e-9ed2-47263190d9a9.png', desc: 'Dietician | Body building | Weight management | Yoga' },
-                  { title: 'Influencers & Models', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19369_88d452bf-9b63-4f14-a867-7bb6db23cf91.png', desc: 'Creators | Models | Directors | Artists' },
-                  { title: 'Finance & Trading', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19360_2a75c4a2-a983-4c37-b585-fc8146af7c50.png', desc: 'Taxation | Stocks | Mutual funds | Crypto | Financial planning' },
-                  { title: 'College Studies', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19356_85c68f72-61d7-4dea-9e3d-81b4cd1fe0c8.png', desc: 'Entrance | Networking | Study abroad | Exams | Dream college' },
-                  { title: 'Communication', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_19365_7b076ef2-4d82-4a02-b7f8-9dadd69ccabc.png', desc: 'English/Other foreign languages | Public speaking | Storytelling' },
-                  { title: 'Mental Well Being', img: 'https://cfront-unikon-assets.unikon.ai/extra_asset_135346_9e7a96f3-06d3-437e-b734-49ddfb43d3bf.png', desc: 'Anxiety/Depression | Stress | Therapy | ADHD' },
-                ].map((category, idx) => (
-                  <SwiperSlide key={idx}>
-                    <div className="bg-white dark:bg-gray-800 rounded-[15px] p-5 h-[200px] flex flex-col justify-between items-center cursor-pointer border border-gray-200 dark:border-gray-700 shadow-md hover:shadow-lg hover:-translate-y-2.5 transition-all">
-                      <h5 className="text-base font-bold text-gray-900 dark:text-white mb-2.5 text-center leading-tight">{category.title}</h5>
-                      <img src={category.img} alt={category.title} className="w-[100px] h-[62px] object-cover drop-shadow-md" />
-                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center leading-snug">{category.desc}</p>
+              <div className={`pt-10 pb-5 transition-colors ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                <h3 className="text-[28px] font-semibold text-center mb-5 text-gray-900 dark:text-white relative inline-block w-full">
+                  Find experts by category
+                  <span className="absolute left-1/2 bottom-[-10px] w-[60px] h-1 bg-gradient-to-r from-[#FF7F7F] to-[#FF4D4D] transform -translate-x-1/2 rounded"></span>
+                </h3>
+                <div className="w-full mx-auto pt-5 pb-10 px-5 relative">
+                  {categories.length > 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+                      <p className="text-sm text-gray-400">
+                        Tap any category to open a dedicated page with every expert in that niche.
+                      </p>
                     </div>
-                  </SwiperSlide>
-                ))}
-              </Swiper>
-              <div className="swiper-pagination swiper-pagination-bullets swiper-pagination-horizontal absolute bottom-[10px] left-1/2 transform -translate-x-1/2"></div>
-              <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute left-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-prev hover:bg-gray-400 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
-                  <path d="m15 18-6-6 6-6"></path>
-                </svg>
+                  )}
+                  <Swiper
+                    modules={[Navigation, Pagination, Autoplay]}
+                    spaceBetween={20}
+                    slidesPerView={5}
+                    navigation={{
+                      nextEl: '.swiper-button-next',
+                      prevEl: '.swiper-button-prev',
+                    }}
+                    pagination={{
+                      clickable: true,
+                      el: '.swiper-pagination',
+                    }}
+                    autoplay={{
+                      delay: 3000,
+                      disableOnInteraction: false,
+                    }}
+                    breakpoints={{
+                      320: { slidesPerView: 2, spaceBetween: 10 },
+                      640: { slidesPerView: 3, spaceBetween: 15 },
+                      1024: { slidesPerView: 4, spaceBetween: 20 },
+                      1280: { slidesPerView: 5, spaceBetween: 20 },
+                    }}
+                    className="h-[250px]"
+                  >
+                    {categoryCards.map((category) => {
+                      const isSelectable = categories.length > 0;
+                      const isSelected = selectedCategoryId === category.id;
+                      return (
+                        <SwiperSlide key={category.id}>
+                          <div
+                            className={`bg-white dark:bg-gray-800 rounded-[15px] p-5 h-[200px] flex flex-col justify-between items-center border shadow-md transition-all ${
+                              isSelectable ? 'cursor-pointer hover:-translate-y-2.5 hover:shadow-lg' : 'cursor-default'
+                            } ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 dark:border-gray-700'}`}
+                            role={isSelectable ? 'button' : undefined}
+                            aria-pressed={isSelected}
+                            onClick={() => isSelectable && handleCategorySelect(category.id)}
+                          >
+                            <h5 className="text-base font-bold text-gray-900 dark:text-white mb-2.5 text-center leading-tight">
+                              {category.title}
+                            </h5>
+                            <img src={category.image} alt={category.title} className="w-[100px] h-[62px] object-cover drop-shadow-md rounded-md" />
+                            <p className="text-xs text-gray-600 dark:text-gray-400 text-center leading-snug">
+                              {category.description}
+                            </p>
+                            {isSelected && (
+                              <span className="text-[11px] font-semibold text-blue-600 mt-2">Selected</span>
+                            )}
+                          </div>
+                        </SwiperSlide>
+                      );
+                    })}
+                  </Swiper>
+                  <div className="flex justify-center mt-6">
+                    <div className="swiper-pagination swiper-pagination-bullets swiper-pagination-horizontal !static !w-auto"></div>
+                  </div>
+                  <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute left-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-prev hover:bg-gray-400 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
+                      <path d="m15 18-6-6 6-6"></path>
+                    </svg>
+                  </div>
+                  <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute right-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-next hover:bg-gray-400 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
+                      <path d="m9 18 6-6-6-6"></path>
+                    </svg>
+                  </div>
+                </div>
               </div>
-              <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute right-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-next hover:bg-gray-400 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
-                  <path d="m9 18 6-6-6-6"></path>
-                </svg>
-              </div>
-            </div>
-          </div>
             )}
 
           <div className="w-full mx-auto mt-[60px] mb-5 p-6 bg-white dark:bg-gray-800 shadow-md rounded-xl">
@@ -1376,6 +1570,13 @@ export default function P2PPage() {
                         </span>
                       </div>
                     </div>
+                    {profile.category?.title && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600">
+                          {profile.category.title}
+                        </span>
+                      </div>
+                    )}
                     <div className="mb-4">
                       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                         {profile.userId.fullName || profile.userId.name}
@@ -1637,23 +1838,30 @@ export default function P2PPage() {
                     Worth Exploring
                   </h3>
                   <div className="flex flex-wrap gap-3 justify-center">
-                    {[
-                      'Entrepreneurship', 'Marketing Leadership', 'Sales Leadership', 'Business Development',
-                      'Sales Operations', 'Digital Marketing', 'Software Development', 'Design Leadership',
-                      'Motivation Coaching', 'Coding', 'Education Guidance', 'Accounting Management',
-                      'Data Analysis', 'Management', 'Student Counseling', 'Graphic Designing',
-                      'Leadership Development', 'Study Planning', 'Content Creation', 'Mentoring'
-                    ].map((tag, idx) => (
-                      <div
-                        key={idx}
-                        className="px-[18px] py-2 border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 rounded-[100px] cursor-pointer transition-all hover:bg-blue-500 hover:text-white hover:-translate-y-0.5"
-                      >
-                        <h6 className="text-sm font-medium text-[#1A1A1A] dark:text-white capitalize m-0 hover:text-white transition-colors">
-                          {tag}
-                        </h6>
-                      </div>
-                    ))}
+                    {worthExploringItems.map(item => {
+                      const isActive = item.isSelectable && selectedCategoryId === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          disabled={!item.isSelectable}
+                          onClick={() => item.isSelectable && handleCategorySelect(item.id)}
+                          className={`px-[18px] py-2 rounded-[100px] border text-sm font-medium transition-all ${
+                            isActive
+                              ? 'bg-blue-500 border-blue-500 text-white'
+                              : 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-[#1A1A1A] dark:text-white hover:bg-blue-500 hover:text-white'
+                          } ${item.isSelectable ? 'cursor-pointer hover:-translate-y-0.5' : 'opacity-70 cursor-default'}`}
+                        >
+                          {item.label}
+                        </button>
+                      );
+                    })}
                   </div>
+                  {!categories.length && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                      Sample categories shown until admins publish the real list.
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -2031,6 +2239,11 @@ export default function P2PPage() {
                     <p className="text-gray-600 dark:text-gray-300">
                       @{myProfile.userId.username}
                     </p>
+                    {myProfile.category?.title && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 mt-2">
+                        {myProfile.category.title}
+                      </span>
+                    )}
                     <p className="text-gray-700 dark:text-gray-200 font-medium text-lg">
                       {myProfile.occupation}
                     </p>
@@ -2188,9 +2401,6 @@ export default function P2PPage() {
                         className="ml-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                       >
                         <option value="USD">USD</option>
-                        <option value="PKR">PKR</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
                         <option value="INR">INR</option>
                       </select>
                     </div>
@@ -2199,6 +2409,79 @@ export default function P2PPage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Category
+                </label>
+                <select
+                  value={profileForm.categoryId}
+                  onChange={(e) => setProfileForm(prev => ({ ...prev, categoryId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  disabled={!categories.length}
+                >
+                  <option value="">
+                    {categories.length ? 'Select a category' : 'No categories available'}
+                  </option>
+                  {categories.map(category => (
+                    <option key={category._id} value={category._id}>
+                      {category.title}
+                    </option>
+                  ))}
+                </select>
+                {!categories.length && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Categories are managed by admins. Please check back later.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  Call & Chat Rates
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Audio Call Rate (multiplier)
+                    </label>
+                    <input
+                      type="number"
+                      value={profileForm.audioCallPrice}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, audioCallPrice: e.target.value }))}
+                      placeholder="e.g., 12"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Video Call Rate (multiplier)
+                    </label>
+                    <input
+                      type="number"
+                      value={profileForm.videoCallPrice}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, videoCallPrice: e.target.value }))}
+                      placeholder="e.g., 15"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Chat Rate (multiplier)
+                    </label>
+                    <input
+                      type="number"
+                      value={profileForm.chatPrice}
+                      onChange={(e) => setProfileForm(prev => ({ ...prev, chatPrice: e.target.value }))}
+                      placeholder="e.g., 10"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Multipliers are applied to your hourly rate to derive session pricing for each medium.
+                </p>
               </div>
 
               <div>
@@ -2310,6 +2593,34 @@ export default function P2PPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Available Days
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {WEEK_DAYS.map(day => {
+                    const isSelected = profileForm.availableDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleAvailableDay(day)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {day.slice(0, 3)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  These help clients know which days you are generally available.
+                </p>
               </div>
 
               <div>
@@ -2550,8 +2861,14 @@ export default function P2PPage() {
                       {selectedProfile.userId.name}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm truncate">
-                      {selectedProfile.occupation} • ${selectedProfile.hourlyRate}/{selectedProfile.currency}/hour
+                      {selectedProfile.occupation} • {getCurrencySymbol(selectedProfile.currency)}
+                      {selectedProfile.hourlyRate}/{selectedProfile.currency}/hour
                     </p>
+                    {selectedProfile.category?.title && (
+                      <p className="text-[11px] uppercase tracking-wide text-blue-500 font-semibold mt-1">
+                        {selectedProfile.category.title}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2567,7 +2884,8 @@ export default function P2PPage() {
                           <div>
                             <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Audio Call Selected</p>
                             <p className="text-xs text-blue-700 dark:text-blue-400">
-                              ₹{selectedProfile.audioCallPrice || selectedProfile.hourlyRate} {selectedProfile.audioCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
+                              {formatAmountDisplay(selectedProfile.audioCallPrice || selectedProfile.hourlyRate, selectedProfile.currency)}{' '}
+                              {selectedProfile.audioCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
                             </p>
                           </div>
                         </>
@@ -2578,7 +2896,8 @@ export default function P2PPage() {
                           <div>
                             <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Video Call Selected</p>
                             <p className="text-xs text-blue-700 dark:text-blue-400">
-                              ₹{selectedProfile.videoCallPrice || selectedProfile.hourlyRate} {selectedProfile.videoCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
+                              {formatAmountDisplay(selectedProfile.videoCallPrice || selectedProfile.hourlyRate, selectedProfile.currency)}{' '}
+                              {selectedProfile.videoCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
                             </p>
                           </div>
                         </>
@@ -2589,7 +2908,7 @@ export default function P2PPage() {
                           <div>
                             <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Chat Selected</p>
                             <p className="text-xs text-blue-700 dark:text-blue-400">
-                              ₹{selectedProfile.chatPrice} per message
+                              {formatAmountDisplay(selectedProfile.chatPrice || selectedProfile.hourlyRate, selectedProfile.currency)} per message
                             </p>
                           </div>
                         </>
@@ -2600,7 +2919,7 @@ export default function P2PPage() {
                           <div>
                             <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Consultation Selected</p>
                             <p className="text-xs text-blue-700 dark:text-blue-400">
-                              ₹{selectedProfile.hourlyRate}/{selectedProfile.currency || 'hour'}
+                              {formatAmountDisplay(selectedProfile.hourlyRate, selectedProfile.currency)}/{selectedProfile.currency || 'hour'}
                             </p>
                           </div>
                         </>
@@ -2693,7 +3012,7 @@ export default function P2PPage() {
                     Estimated Cost
                   </h4>
                   <p className="text-blue-800 dark:text-blue-200">
-                    ${((bookingForm.duration / 60) * selectedProfile.hourlyRate).toFixed(2)} {selectedProfile.currency}
+                    {estimatedCost !== null ? formatAmountDisplay(estimatedCost, selectedProfile.currency) : '—'}
                   </p>
                 </div>
               </div>
@@ -2707,9 +3026,14 @@ export default function P2PPage() {
                 </button>
                 <button
                   onClick={createBooking}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors"
+                  disabled={bookingSubmitting}
+                  className={`px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors ${
+                    bookingSubmitting
+                      ? 'bg-blue-300 cursor-not-allowed text-white'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
                 >
-                  Send Booking Request
+                  {bookingSubmitting ? 'Sending...' : 'Send Booking Request'}
                 </button>
               </div>
             </div>

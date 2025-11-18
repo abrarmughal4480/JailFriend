@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Image from 'next/image';
 import { useDarkMode } from '@/contexts/DarkModeContext';
@@ -18,6 +18,13 @@ const parsePriceValue = (value?: string | number | null): number | null => {
   const numeric = parseFloat(sanitized);
   return Number.isFinite(numeric) ? numeric : null;
 };
+
+interface P2PCategory {
+  _id: string;
+  title: string;
+  description?: string;
+  image?: string;
+}
 
 interface P2PProfile {
   _id: string;
@@ -39,6 +46,7 @@ interface P2PProfile {
   hourlyRate?: number | string;
   currency?: string;
   availability?: string;
+  availableDays?: string[];
   workingHours?: {
     start?: string;
     end?: string;
@@ -60,9 +68,38 @@ interface P2PProfile {
     facebook?: string;
     youtube?: string;
   };
+  category?: {
+    _id?: string;
+    title: string;
+    description?: string;
+    image?: string;
+  };
 }
 
 const DEFAULT_TIME_RANGE = { start: '09:00', end: '17:00' };
+const WEEKDAY_ORDER = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WORTH_EXPLORING_FALLBACK_TAGS = [
+  'Entrepreneurship',
+  'Marketing Leadership',
+  'Sales Leadership',
+  'Business Development',
+  'Sales Operations',
+  'Digital Marketing',
+  'Software Development',
+  'Design Leadership',
+  'Motivation Coaching',
+  'Coding',
+  'Education Guidance',
+  'Accounting Management',
+  'Data Analysis',
+  'Management',
+  'Student Counseling',
+  'Graphic Designing',
+  'Leadership Development',
+  'Study Planning',
+  'Content Creation',
+  'Mentoring',
+];
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -156,6 +193,7 @@ export default function ExpertDetailPage() {
   const params = useParams();
   const { isDarkMode } = useDarkMode();
   const [profile, setProfile] = useState<P2PProfile | null>(null);
+  const [categories, setCategories] = useState<P2PCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'shorts' | 'services'>('shorts');
@@ -210,11 +248,32 @@ export default function ExpertDetailPage() {
     };
   }, [profile]);
 
+  const availableDayLabels = useMemo(() => {
+    if (profile?.availableDays?.length) {
+      const seen = new Set<string>();
+      return profile.availableDays
+        .map((day) => {
+          const trimmed = day?.trim();
+          if (!trimmed) return null;
+          const normalized = trimmed.toLowerCase();
+          const canonical =
+            WEEKDAY_ORDER.find((weekday) => weekday.toLowerCase() === normalized) ||
+            trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+          if (seen.has(canonical)) return null;
+          seen.add(canonical);
+          return canonical;
+        })
+        .filter((value): value is string => Boolean(value));
+    }
+    return WEEKDAY_ORDER;
+  }, [profile?.availableDays]);
+
   const profileId = params?.id as string;
 
   useEffect(() => {
     if (profileId) {
       fetchProfile();
+      fetchCategories();
     }
   }, [profileId]);
 
@@ -246,6 +305,27 @@ export default function ExpertDetailPage() {
       setError('Failed to load profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`${config.API_URL}/api/p2p/categories`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(Array.isArray(data.categories) ? data.categories : []);
+      }
+    } catch (error) {
+      // silently fail, fallback tags will be used
     }
   };
 
@@ -370,6 +450,44 @@ export default function ExpertDetailPage() {
     });
   }, [providerBookings]);
 
+  const getAvailableSlotsForDate = useCallback(
+    (dateKey: string) => {
+      const startMinutes = timeStringToMinutes(availabilityInfo.startTime);
+      const endMinutes = timeStringToMinutes(availabilityInfo.endTime);
+
+      if (
+        startMinutes === null ||
+        endMinutes === null ||
+        startMinutes >= endMinutes
+      ) {
+        return [];
+      }
+
+      const bookingsForDay = bookedRanges.filter((range) => range.dateKey === dateKey);
+
+      const slots: string[] = [];
+      for (
+        let current = startMinutes;
+        current + DEFAULT_PLAN_MINUTES <= endMinutes;
+        current += TIME_SLOT_STEP_MINUTES
+      ) {
+        const end = current + DEFAULT_PLAN_MINUTES;
+        const overlaps = bookingsForDay.some((booking) => {
+          const bookingStart = booking.start.getHours() * 60 + booking.start.getMinutes();
+          const bookingEnd = booking.end.getHours() * 60 + booking.end.getMinutes();
+          return current < bookingEnd && end > bookingStart;
+        });
+
+        if (!overlaps) {
+          slots.push(minutesToTimeString(current));
+        }
+      }
+
+      return slots;
+    },
+    [availabilityInfo.endTime, availabilityInfo.startTime, bookedRanges]
+  );
+
   const todaysBookings = useMemo(() => {
     const todayKey = availabilityInfo.baseDate.toISOString().split('T')[0];
     return bookedRanges
@@ -378,39 +496,59 @@ export default function ExpertDetailPage() {
   }, [availabilityInfo.baseDate, bookedRanges]);
 
   const availableTimeSlots = useMemo(() => {
-    const startMinutes = timeStringToMinutes(availabilityInfo.startTime);
-    const endMinutes = timeStringToMinutes(availabilityInfo.endTime);
+    const todayKey = availabilityInfo.baseDate.toISOString().split('T')[0];
+    return getAvailableSlotsForDate(todayKey);
+  }, [availabilityInfo.baseDate, getAvailableSlotsForDate]);
 
-    if (
-      startMinutes === null ||
-      endMinutes === null ||
-      startMinutes >= endMinutes
-    ) {
-      return [];
-    }
-
-    const slots: string[] = [];
-    for (
-      let current = startMinutes;
-      current <= endMinutes - DEFAULT_PLAN_MINUTES;
-      current += TIME_SLOT_STEP_MINUTES
-    ) {
-      const slotEnd = current + DEFAULT_PLAN_MINUTES;
-      const overlaps = todaysBookings.some(
-        (range) => current < range.endMinutes && slotEnd > range.startMinutes
+  const weeklyAvailability = useMemo(() => {
+    const today = new Date();
+    return availableDayLabels.slice(0, 7).map((day) => {
+      const normalizedIndex = WEEKDAY_ORDER.findIndex(
+        (weekday) => weekday.toLowerCase() === day.toLowerCase()
       );
-      if (!overlaps) {
-        slots.push(minutesToTimeString(current));
-      }
-    }
+      if (normalizedIndex === -1) return null;
 
-    return slots;
-  }, [
-    availabilityInfo.baseDate,
-    availabilityInfo.startTime,
-    availabilityInfo.endTime,
-    bookedRanges,
-  ]);
+      const reference = new Date(today);
+      const currentDayIndex = reference.getDay();
+      const diff = (normalizedIndex - currentDayIndex + 7) % 7;
+      reference.setDate(reference.getDate() + diff);
+      const dateKey = reference.toISOString().split('T')[0];
+
+      return {
+        id: `${day}-${dateKey}`,
+        dayLabel: day,
+        dateLabel: reference.toLocaleDateString('en-IN', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        }),
+        slots: getAvailableSlotsForDate(dateKey),
+      };
+    }).filter((entry): entry is {
+      id: string;
+      dayLabel: string;
+      dateLabel: string;
+      slots: string[];
+    } => Boolean(entry));
+  }, [availableDayLabels, getAvailableSlotsForDate]);
+
+  const worthExploringItems = useMemo(() => {
+    if (categories.length) {
+      return categories
+        .slice(0, 18)
+        .map((category) => ({
+          id: category._id,
+          label: category.title,
+          isSelectable: Boolean(category._id),
+        }))
+        .filter((item) => Boolean(item.label));
+    }
+    return WORTH_EXPLORING_FALLBACK_TAGS.map((label) => ({
+      id: label,
+      label,
+      isSelectable: false,
+    }));
+  }, [categories]);
 
   const formatScheduledDateTime = (date: Date, timezone?: string) => {
     const datePart = date.toLocaleDateString('en-IN', {
@@ -431,16 +569,10 @@ export default function ExpertDetailPage() {
     switch (currency) {
       case 'USD':
         return '$';
-      case 'EUR':
-        return '€';
-      case 'GBP':
-        return '£';
-      case 'PKR':
-        return '₨';
       case 'INR':
         return '₹';
       default:
-        return '₹';
+        return '$';
     }
   };
 
@@ -563,6 +695,11 @@ export default function ExpertDetailPage() {
                 <h3 className={`text-base mb-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   {expertTitle}
                 </h3>
+                {profile.category?.title && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 mb-4">
+                    {profile.category.title}
+                  </span>
+                )}
                 <div className="flex flex-wrap gap-2 mb-5">
                   {expertiseTags.map((tag, idx) => (
                     <div
@@ -714,6 +851,52 @@ export default function ExpertDetailPage() {
 
             {activeTab === 'services' && (
               <div className="space-y-6">
+                {weeklyAvailability.length > 0 && (
+                  <div>
+                    <h4 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Available days & slots
+                    </h4>
+                    <div className="space-y-3">
+                      {weeklyAvailability.map((day) => (
+                        <div
+                          key={day.id}
+                          className={`rounded-xl border px-4 py-3 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {day.dayLabel}
+                              </span>
+                              <span className="text-[11px] uppercase tracking-wide text-[#148F80]">
+                                {day.dateLabel}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {day.slots.length ? `${day.slots.length} slot${day.slots.length > 1 ? 's' : ''}` : 'Fully booked'}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {day.slots.length ? (
+                              day.slots.slice(0, 8).map((slot) => (
+                                <span
+                                  key={`${day.id}-${slot}`}
+                                  className="px-3 py-1 rounded-full border border-[#148F80] bg-[#148F80]/10 text-sm text-[#148F80]"
+                                >
+                                  {formatTime(slot)}
+                                </span>
+                              ))
+                            ) : (
+                              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                No open slots
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h4 className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     Available today
@@ -809,14 +992,11 @@ export default function ExpertDetailPage() {
                 <span className="text-xs font-semibold text-white">{rating.toFixed(1)}</span>
               </div>
             </div>
-            <h1 className={`text-2xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h1 className={`text-2xl font-bold mb-2 truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {expertName}
             </h1>
-            <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              {expertTitle}
-            </p>
-            <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              {profile.description || profile.userId.bio || 'Expert professional'}
+            <p className={`text-sm mb-4 line-clamp-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {profile.description || profile.userId.bio || expertTitle || 'Expert professional'}
             </p>
             <div className="flex flex-wrap gap-2 justify-center mb-6">
               {expertiseTags.slice(0, 5).map((tag, idx) => (
@@ -869,22 +1049,24 @@ export default function ExpertDetailPage() {
             <div className="absolute inset-0 bg-gradient-radial from-[rgba(17,214,190,0.15)] to-[rgba(10,7,11,0.15)] blur-[40px] -z-10 rounded-[20px]"></div>
             <h3 className={`text-base font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Worth Exploring</h3>
             <div className="flex flex-wrap gap-2">
-              {[
-                'Entrepreneurship', 'Marketing Leadership', 'Sales Leadership', 'Business Development',
-                'Sales Operations', 'Digital Marketing', 'Software Development', 'Design Leadership',
-                'Motivation Coaching', 'Coding', 'Education Guidance', 'Accounting Management',
-                'Data Analysis', 'Management', 'Student Counseling', 'Graphic Designing',
-                'Leadership Development', 'Study Planning', 'Content Creation', 'Mentoring'
-              ].map((tag, idx) => (
-                <div
-                  key={idx}
-                  className="px-[18px] py-2 border border-[#148F80] bg-[rgba(20,143,128,0.1)] rounded-full cursor-pointer hover:bg-[#148F80] hover:text-white transition-colors"
-                >
-                  <h6 className={`text-sm font-medium capitalize m-0 ${isDarkMode ? 'text-white' : 'text-gray-900'} hover:text-white transition-colors`}>
-                    {tag}
-                  </h6>
-                </div>
-              ))}
+              {worthExploringItems.map((item) => {
+                const key = item.id || item.label;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={!item.isSelectable}
+                    onClick={() => item.isSelectable && item.id && router.push(`/dashboard/p2p/category/${item.id}`)}
+                    className={`px-[18px] py-2 border border-[#148F80] rounded-full text-sm font-medium capitalize transition-colors ${
+                      item.isSelectable
+                        ? 'bg-[rgba(20,143,128,0.1)] text-[#148F80] hover:bg-[#148F80] hover:text-white cursor-pointer'
+                        : 'bg-transparent text-gray-500 cursor-not-allowed opacity-75'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

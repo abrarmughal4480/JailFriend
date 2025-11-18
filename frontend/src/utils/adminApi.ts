@@ -1,6 +1,13 @@
 // Use the Railway backend URL
 const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api`;
 
+type P2PCategoryPayload = {
+  title: string;
+  description?: string;
+  image?: string;
+  isActive?: boolean;
+};
+
 export const adminApi = {
   // Get dashboard statistics
   getDashboardStats: async () => {
@@ -165,6 +172,83 @@ export const adminApi = {
 
     if (!response.ok) {
       throw new Error('Failed to fetch messages');
+    }
+
+    return response.json();
+  },
+
+  getP2PCategories: async () => {
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(`${API_BASE_URL}/admin/p2p/categories`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch P2P categories');
+    }
+
+    return response.json();
+  },
+
+  createP2PCategory: async (payload: P2PCategoryPayload) => {
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(`${API_BASE_URL}/admin/p2p/categories`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to create category');
+    }
+
+    return response.json();
+  },
+
+  updateP2PCategory: async (categoryId: string, payload: P2PCategoryPayload) => {
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(`${API_BASE_URL}/admin/p2p/categories/${categoryId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to update category');
+    }
+
+    return response.json();
+  },
+
+  deleteP2PCategory: async (categoryId: string) => {
+    const token = localStorage.getItem('token');
+
+    const response = await fetch(`${API_BASE_URL}/admin/p2p/categories/${categoryId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Failed to delete category');
     }
 
     return response.json();

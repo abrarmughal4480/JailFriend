@@ -61,11 +61,17 @@ export default function StartUpPage() {
   const [audioCallPrice, setAudioCallPrice] = useState("");
   const [videoCallPrice, setVideoCallPrice] = useState("");
   const [chatPrice, setChatPrice] = useState("");
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const [linkedInLink, setLinkedInLink] = useState("");
   const [instagramLink, setInstagramLink] = useState("");
   const [twitterLink, setTwitterLink] = useState("");
   const [availableFromTime, setAvailableFromTime] = useState("");
   const [availableToTime, setAvailableToTime] = useState("");
+  const [availableDays, setAvailableDays] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Array<{ _id: string; title: string }>>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState(fallbackUsers);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -143,6 +149,7 @@ export default function StartUpPage() {
       // Step 4: My Expertise - only save if this is step 4
       if (stepNumber === 4) {
         payload.areasOfExpertise = data.areasOfExpertise !== undefined ? data.areasOfExpertise : expertiseTags;
+      payload.categoryId = data.categoryId !== undefined ? data.categoryId : categoryId;
       }
 
       // Step 5: Pricing Details - only save if this is step 5
@@ -150,12 +157,14 @@ export default function StartUpPage() {
         payload.audioCallPrice = data.audioCallPrice !== undefined ? data.audioCallPrice : audioCallPrice;
         payload.videoCallPrice = data.videoCallPrice !== undefined ? data.videoCallPrice : videoCallPrice;
         payload.chatPrice = data.chatPrice !== undefined ? data.chatPrice : chatPrice;
+        payload.currency = data.currency !== undefined ? data.currency : currency;
       }
 
       // Step 6: Available Time - only save if this is step 6
       if (stepNumber === 6) {
         payload.availableFromTime = data.availableFromTime !== undefined ? data.availableFromTime : availableFromTime;
         payload.availableToTime = data.availableToTime !== undefined ? data.availableToTime : availableToTime;
+        payload.availableDays = data.availableDays !== undefined ? data.availableDays : availableDays;
       }
 
       // Step 7: Social Media Links - only save if this is step 7
@@ -211,24 +220,38 @@ export default function StartUpPage() {
           setExpertiseTags(profileData.areasOfExpertise);
           setAreasOfExpertise(profileData.areasOfExpertise.join(', '));
         }
+        if (profileData.category?._id || profileData.categoryId) {
+          setCategoryId(profileData.category?._id || profileData.categoryId);
+        }
         
         setIfExists(profileData.audioCallPrice, setAudioCallPrice);
         setIfExists(profileData.videoCallPrice, setVideoCallPrice);
         setIfExists(profileData.chatPrice, setChatPrice);
+        if (profileData.currency && (profileData.currency === 'USD' || profileData.currency === 'INR')) {
+          setCurrency(profileData.currency);
+        }
         setIfExists(profileData.linkedInLink, setLinkedInLink);
         setIfExists(profileData.instagramLink, setInstagramLink);
         setIfExists(profileData.twitterLink, setTwitterLink);
         setIfExists(profileData.availableFromTime, setAvailableFromTime);
         setIfExists(profileData.availableToTime, setAvailableToTime);
+        if (profileData.availableDays && Array.isArray(profileData.availableDays)) {
+          setAvailableDays(profileData.availableDays);
+        }
+
+        // Store userType in localStorage if available
+        if (profileData.userType) {
+          localStorage.setItem('userType', profileData.userType);
+        }
 
         // Update saved steps based on what data exists
         setSavedSteps({
           step1: !!profileData.avatar,
           step2: !!(profileData.fullName && profileData.location),
           step3: !!(profileData.workExperience || profileData.currentOrganisation || profileData.description),
-          step4: !!(profileData.areasOfExpertise && profileData.areasOfExpertise.length > 0),
+          step4: !!((profileData.areasOfExpertise && profileData.areasOfExpertise.length > 0) || profileData.category || profileData.categoryId),
           step5: !!(profileData.audioCallPrice || profileData.videoCallPrice || profileData.chatPrice),
-          step6: !!(profileData.availableFromTime || profileData.availableToTime),
+          step6: !!(profileData.availableFromTime || profileData.availableToTime || (profileData.availableDays && profileData.availableDays.length > 0)),
           step7: !!(profileData.linkedInLink || profileData.instagramLink || profileData.twitterLink),
           step8: false, // These are optional steps
           step9: false
@@ -301,18 +324,65 @@ export default function StartUpPage() {
     }
   };
 
-  // Check if user is authenticated and fetch data
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const response = await fetch(`${config.API_URL}/api/p2p/categories`);
+      if (!response.ok) {
+        throw new Error('Failed to load categories');
+      }
+      const data = await response.json();
+      setCategories(Array.isArray(data?.categories) ? data.categories : []);
+    } catch (error) {
+      console.error('❌ Failed to fetch P2P categories:', error);
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  // Check if user is authenticated and is P2P user
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/');
-    } else {
-      // Fetch user profile first to prefill form fields
-      fetchUserProfile();
-      // Then fetch suggested users
-      fetchUsers();
+      return;
     }
+    
+    // Check userType from localStorage or fetch from API
+    const userType = localStorage.getItem('userType');
+    if (userType && userType !== 'p2p') {
+      // Normal users should not access startup form
+      router.push('/dashboard');
+      return;
+    }
+    
+    // Fetch user profile to verify userType
+    const checkUserType = async () => {
+      try {
+        const profileData = await getUserProfileApi(token);
+        if (profileData.userType && profileData.userType !== 'p2p') {
+          // User is not P2P, redirect to dashboard
+          router.push('/dashboard');
+          return;
+        }
+        // User is P2P, proceed with startup form
+        fetchUserProfile();
+        fetchUsers();
+      } catch (error) {
+        console.error('Error checking user type:', error);
+        // If API fails, still try to show form (graceful degradation)
+        fetchUserProfile();
+        fetchUsers();
+      }
+    };
+    
+    checkUserType();
   }, [router]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
   // Prevent zoom on mobile input focus
   useEffect(() => {
@@ -365,7 +435,8 @@ export default function StartUpPage() {
         fullName: fullName.trim(),
         bio: bio.trim(),
         location: location.trim(),
-        stepNumber: 2
+        stepNumber: 2,
+        categoryId
       });
       
       console.log('✅ User setup completed successfully');
@@ -918,6 +989,41 @@ export default function StartUpPage() {
                       Maximum 7 tags reached
                     </div>
                   )}
+                  <div className="mt-2">
+                    <label className={`block text-xs sm:text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                      Select a primary category
+                    </label>
+                    {categoriesLoading ? (
+                      <div className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Loading categories...
+                      </div>
+                    ) : (
+                      <select
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        className={`border rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 w-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDarkMode 
+                            ? 'border-gray-600 bg-gray-700 text-white' 
+                            : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                        disabled={!categories.length}
+                      >
+                        <option value="">
+                          {categories.length ? 'Choose a category' : 'Categories unavailable'}
+                        </option>
+                        {categories.map((category) => (
+                          <option key={category._id} value={category._id}>
+                            {category.title}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {!categories.length && !categoriesLoading && (
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Categories will appear once an admin creates them.
+                      </p>
+                    )}
+                  </div>
                 </form>
                 <div className="flex flex-col gap-3 sm:gap-4 mt-2 sm:mt-3 w-full max-w-xs sm:max-w-sm md:max-w-md px-2 sm:px-4">
                   <div className="text-center">
@@ -938,7 +1044,8 @@ export default function StartUpPage() {
                             currentOrganisation: currentOrganisation.trim(),
                             aboutMeLocation: aboutMeLocation.trim(),
                             description: description.trim(),
-                            areasOfExpertise: []
+                            areasOfExpertise: [],
+                            categoryId: categoryId || ''
                           }, true);
                           
                           if (saved) {
@@ -970,7 +1077,8 @@ export default function StartUpPage() {
                           currentOrganisation: currentOrganisation.trim(),
                           aboutMeLocation: aboutMeLocation.trim(),
                           description: description.trim(),
-                          areasOfExpertise: expertiseTags
+                          areasOfExpertise: expertiseTags,
+                          categoryId: categoryId
                         }, false);
                         
                         if (saved) {
@@ -994,9 +1102,32 @@ export default function StartUpPage() {
                   Pricing Details
                 </div>
                 <form className="w-full max-w-xs sm:max-w-sm md:max-w-md flex flex-col gap-2 sm:gap-3 p-4 px-2 sm:px-4">
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className={`border rounded-lg px-3 sm:px-4 py-2 sm:py-3 w-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDarkMode 
+                        ? 'border-gray-600 bg-gray-700 text-white' 
+                        : 'border-gray-300 bg-white text-gray-900'
+                    }`}
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="INR">INR (₹)</option>
+                  </select>
                   <input 
                     type="number" 
-                    placeholder="Audio Call (₹/hr) e.g. 500" 
+                    placeholder={`Per Hour Rate (${currency === 'USD' ? '$' : '₹'}/hr) e.g. ${currency === 'USD' ? '100' : '1000'}`}
+                    className={`border rounded-lg px-3 sm:px-4 py-2 sm:py-3 w-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDarkMode 
+                        ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' 
+                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                    }`}
+                    value={hourlyRate}
+                    onChange={(e) => setHourlyRate(e.target.value)}
+                  />
+                  <input 
+                    type="number" 
+                    placeholder={`Audio Call Rate (multiplier) e.g. 12`}
                     className={`border rounded-lg px-3 sm:px-4 py-2 sm:py-3 w-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDarkMode 
                         ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' 
@@ -1007,7 +1138,7 @@ export default function StartUpPage() {
                   />
                   <input 
                     type="number" 
-                    placeholder="Video Call (₹/hr) e.g. 750" 
+                    placeholder={`Video Call Rate (multiplier) e.g. 15`}
                     className={`border rounded-lg px-3 sm:px-4 py-2 sm:py-3 w-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDarkMode 
                         ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' 
@@ -1018,7 +1149,7 @@ export default function StartUpPage() {
                   />
                   <input 
                     type="number" 
-                    placeholder="Chat (₹) e.g. 50" 
+                    placeholder={`Chat Rate (multiplier) e.g. 10`}
                     className={`border rounded-lg px-3 sm:px-4 py-2 sm:py-3 w-full text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDarkMode 
                         ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' 
@@ -1038,6 +1169,7 @@ export default function StartUpPage() {
                           setAudioCallPrice('');
                           setVideoCallPrice('');
                           setChatPrice('');
+                          setHourlyRate('');
                           
                           const saved = await saveStepData(5, { 
                             avatar: selectedAvatar, 
@@ -1051,7 +1183,9 @@ export default function StartUpPage() {
                             areasOfExpertise: expertiseTags,
                             audioCallPrice: '',
                             videoCallPrice: '',
-                            chatPrice: ''
+                            chatPrice: '',
+                            hourlyRate: '',
+                            currency: currency
                           }, true);
                           
                           if (saved) {
@@ -1086,7 +1220,9 @@ export default function StartUpPage() {
                           areasOfExpertise: expertiseTags,
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
-                          chatPrice: chatPrice.trim()
+                          chatPrice: chatPrice.trim(),
+                          hourlyRate: hourlyRate.trim(),
+                          currency: currency
                         }, false);
                         
                         if (saved) {
@@ -1110,6 +1246,35 @@ export default function StartUpPage() {
                   Available Time
                 </div>
                 <form className="w-full max-w-xs sm:max-w-sm md:max-w-md flex flex-col gap-2 sm:gap-3 p-4 px-2 sm:px-4">
+                  <div className="mb-2">
+                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Select Available Days
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            if (availableDays.includes(day)) {
+                              setAvailableDays(availableDays.filter(d => d !== day));
+                            } else {
+                              setAvailableDays([...availableDays, day]);
+                            }
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
+                            availableDays.includes(day)
+                              ? 'bg-blue-600 text-white'
+                              : isDarkMode
+                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                              : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                          }`}
+                        >
+                          {day.slice(0, 3)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <input 
                     type="time" 
                     placeholder="Available From Time e.g. 09:00" 
@@ -1142,6 +1307,7 @@ export default function StartUpPage() {
                           // Clear local state when skipping
                           setAvailableFromTime('');
                           setAvailableToTime('');
+                          setAvailableDays([]);
                           
                           const saved = await saveStepData(6, { 
                             avatar: selectedAvatar, 
@@ -1156,8 +1322,10 @@ export default function StartUpPage() {
                             audioCallPrice: audioCallPrice.trim(),
                             videoCallPrice: videoCallPrice.trim(),
                             chatPrice: chatPrice.trim(),
+                            currency: currency,
                             availableFromTime: '',
-                            availableToTime: ''
+                            availableToTime: '',
+                            availableDays: []
                           }, true);
                           
                           if (saved) {
@@ -1193,8 +1361,10 @@ export default function StartUpPage() {
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
                           chatPrice: chatPrice.trim(),
+                          currency: currency,
                           availableFromTime: availableFromTime.trim(),
-                          availableToTime: availableToTime.trim()
+                          availableToTime: availableToTime.trim(),
+                          availableDays: availableDays
                         }, false);
                         
                         if (saved) {
@@ -1276,6 +1446,7 @@ export default function StartUpPage() {
                             audioCallPrice: audioCallPrice.trim(),
                             videoCallPrice: videoCallPrice.trim(),
                             chatPrice: chatPrice.trim(),
+                            currency: currency,
                             linkedInLink: '',
                             instagramLink: '',
                             twitterLink: '',
@@ -1337,6 +1508,7 @@ export default function StartUpPage() {
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
                           chatPrice: chatPrice.trim(),
+                          currency: currency,
                           linkedInLink: linkedInLink.trim(),
                           instagramLink: instagramLink.trim(),
                           twitterLink: twitterLink.trim(),
@@ -1448,6 +1620,7 @@ export default function StartUpPage() {
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
                           chatPrice: chatPrice.trim(),
+                          currency: currency,
                           linkedInLink: linkedInLink.trim(),
                           instagramLink: instagramLink.trim(),
                           twitterLink: twitterLink.trim(),
@@ -1501,6 +1674,7 @@ export default function StartUpPage() {
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
                           chatPrice: chatPrice.trim(),
+                          currency: currency,
                           linkedInLink: linkedInLink.trim(),
                           instagramLink: instagramLink.trim(),
                           twitterLink: twitterLink.trim(),
@@ -1660,6 +1834,7 @@ export default function StartUpPage() {
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
                           chatPrice: chatPrice.trim(),
+                          currency: currency,
                           linkedInLink: linkedInLink.trim(),
                           instagramLink: instagramLink.trim(),
                           twitterLink: twitterLink.trim(),
@@ -1714,6 +1889,7 @@ export default function StartUpPage() {
                           audioCallPrice: audioCallPrice.trim(),
                           videoCallPrice: videoCallPrice.trim(),
                           chatPrice: chatPrice.trim(),
+                          currency: currency,
                           linkedInLink: linkedInLink.trim(),
                           instagramLink: instagramLink.trim(),
                           twitterLink: twitterLink.trim(),

@@ -1956,10 +1956,7 @@ const PageView: React.FC = () => {
                           <div className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>MINIMUM</div>
                           <div className={`text-lg font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {job.salaryRange.currency === 'USD' ? '$' : 
-                             job.salaryRange.currency === 'EUR' ? '€' : 
-                             job.salaryRange.currency === 'GBP' ? '£' : 
-                             job.salaryRange.currency === 'INR' ? '₹' : 
-                             job.salaryRange.currency === 'PKR' ? '₨' : ''}
+                             job.salaryRange.currency === 'INR' ? '₹' : '$'}
                             {job.salaryRange.minimum} {job.salaryRange.type}
                           </div>
                         </div>
@@ -1967,10 +1964,7 @@ const PageView: React.FC = () => {
                           <div className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>MAXIMUM</div>
                           <div className={`text-lg font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {job.salaryRange.currency === 'USD' ? '$' : 
-                             job.salaryRange.currency === 'EUR' ? '€' : 
-                             job.salaryRange.currency === 'GBP' ? '£' : 
-                             job.salaryRange.currency === 'INR' ? '₹' : 
-                             job.salaryRange.currency === 'PKR' ? '₨' : ''}
+                             job.salaryRange.currency === 'INR' ? '₹' : '$'}
                             {job.salaryRange.maximum} {job.salaryRange.type}
                           </div>
                         </div>
@@ -2612,10 +2606,7 @@ const PageView: React.FC = () => {
                         }`}
                       >
                         <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
-                        <option value="GBP">GBP (£)</option>
                         <option value="INR">INR (₹)</option>
-                        <option value="PKR">PKR (₨)</option>
                       </select>
                     </div>
                     <div>

@@ -8,6 +8,7 @@ import { toggleCommentsApi, pinPostApi, boostPostApi } from '@/utils/api';
 import SharePopup, { ShareOptions } from './SharePopup';
 import { getCurrentUserId } from '@/utils/auth';
 import LocationDisplay from './LocationDisplay';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface FeedPostProps {
   post: any;
@@ -36,10 +37,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
   isOwnPost,
   onWatch
 }) => {
-  
+  const { isDarkMode } = useDarkMode();
 
   const router = useRouter();
-  const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [showSharePopup, setShowSharePopup] = useState(false);
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
@@ -124,7 +124,8 @@ const FeedPost: React.FC<FeedPostProps> = ({
     if (commentText.trim()) {
       onComment(post._id, commentText);
       setCommentText('');
-      setShowCommentInput(false);
+      // Keep comments visible after posting
+      setShowComments(true);
     }
   };
 
@@ -823,7 +824,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       if (preMatch) {
         const preContent = preMatch[1];
         return (
-          <div className="whitespace-pre-wrap break-words font-sans bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+          <div className={`whitespace-pre-wrap break-words font-sans ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
             {preContent}
           </div>
         );
@@ -854,8 +855,8 @@ const FeedPost: React.FC<FeedPostProps> = ({
             if (embedUrl) {
               return (
                 <div key={index} className="my-3">
-                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mb-2">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-lg p-3 mb-2`}>
+                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
                       🎥 Video Link: {part}
                     </div>
                     {embedUrl.includes('youtube.com/embed') || embedUrl.includes('vimeo.com') ? (
@@ -869,7 +870,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         className="rounded-lg"
                       />
                     ) : (
-                      <div className="bg-gray-200 dark:bg-gray-600 rounded-lg p-4 text-center">
+                      <div className={`${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-lg p-4 text-center`}>
                         <div className="text-lg mb-2">🎬</div>
                         <a 
                           href={part} 
@@ -901,7 +902,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       if (preMatch) {
         const preContent = preMatch[1];
         return (
-          <div className="whitespace-pre-wrap break-words font-sans bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+          <div className={`whitespace-pre-wrap break-words font-sans ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
             {preContent}
           </div>
         );
@@ -928,14 +929,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
             >
               {part}
             </a>
-            <div className="mt-2 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+            <div className={`mt-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg p-3 border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
               <div className="flex items-center gap-2">
                 <div className="text-lg">🔗</div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
                     {new URL(part).hostname}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Click to visit link
                   </div>
                 </div>
@@ -994,7 +995,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-3 sm:mb-4 transition-colors duration-200">
+    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} mb-3 sm:mb-4 transition-colors duration-200`}>
       {/* Promoted Post Indicator - Show when post has reactions/likes */}
       {(() => {
         const hasReactions = post.reactions && post.reactions.length > 0;
@@ -1031,7 +1032,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
               </div>
               
               {/* Engagement Count */}
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span className="font-medium">{totalEngagement}</span> {totalEngagement === 1 ? 'engagement' : 'engagements'}
               </div>
             </div>
@@ -1040,7 +1041,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       })()}
       
     
-      <div className="p-3 sm:p-4 border-b border-gray-100 dark:border-gray-700">
+      <div className={`p-3 sm:p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-3">
           
@@ -1059,14 +1060,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 />
               </div>
               {/* Online Status Indicator */}
-              <div className="absolute bottom-0 left-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+              <div className={`absolute bottom-0 left-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
             </div>
             
             {/* User Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <div 
-                  className="font-bold text-gray-900 dark:text-white cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate"
+                  className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate`}
                   onClick={navigateToProfile}
                 >
                   {post.user?.name || 'User'}
@@ -1076,12 +1077,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   <span className="text-white text-xs">✓</span>
                 </div>
               </div>
-              <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              <div className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span>{formatDate(post.createdAt)}</span>
                 
                 {/* Pin indicator */}
                 {post.isPinned && (
-                  <div className="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
+                  <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                     <span className="text-xs sm:text-sm">📌</span>
                     <span className="text-xs">Pinned</span>
                   </div>
@@ -1089,7 +1090,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 
                 {/* Boost indicator */}
                 {post.isBoosted && (
-                  <div className="flex items-center space-x-1 text-purple-600 dark:text-purple-400">
+                  <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
                     <span className="text-xs sm:text-sm">🚀</span>
                     <span className="text-xs">Boosted</span>
                   </div>
@@ -1097,7 +1098,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 
                 {/* Reel indicator */}
                 {post.type === 'reel' && (
-                  <div className="flex items-center space-x-1 text-red-500 dark:text-red-400">
+                  <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>
                     <span className="text-xs sm:text-sm">🎬</span>
                     <span className="text-xs">Reel</span>
                   </div>
@@ -1116,7 +1117,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                className={`p-2 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-full transition-colors`}
               >
                 <ChevronDown className="w-5 h-5 text-gray-500" />
               </button>
@@ -1146,7 +1147,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Title for posts and reels - Display first */}
         {post.title && (
           <div className="mb-2 sm:mb-3">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+            <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {post.title}
             </h3>
           </div>
@@ -1155,7 +1156,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Fallback title for reels without titles */}
         {post.type === 'reel' && !post.title && (
           <div className="mb-2 sm:mb-3">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white text-gray-500">
+            <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-500'}`}>
               Untitled Reel
             </h3>
           </div>
@@ -1165,7 +1166,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Content with word limit and Read More */}
         <div 
-          className="text-gray-900 dark:text-white text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer"
+          className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer`}
           onClick={() => onWatch && onWatch(post)}
         >
           {(() => {
@@ -1243,7 +1244,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     <div className="break-words whitespace-pre-wrap">{truncatedContentPlain}</div>
                   )}</div>
                   {!isExpanded && (
-                    <span className="text-gray-500 dark:text-gray-400">...</span>
+                    <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>...</span>
                   )}
                   <span 
                     className="text-blue-600 cursor-pointer ml-1 font-medium inline-flex items-center gap-1" 
@@ -1304,7 +1305,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {post.poll && post.poll.question && post.poll.options && post.poll.options.length > 0 && (
           <div className="mb-3 sm:mb-4">
             <div className="mb-2">
-              <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2">
+              <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
                 📊 {post.poll.question}
               </h4>
               <div className="space-y-2">
@@ -1321,7 +1322,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${
                           isVoted 
                             ? 'bg-blue-500 text-white border-blue-500' 
-                            : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                            : `${isDarkMode ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -1331,7 +1332,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                           </span>
                         </div>
                         {/* Progress bar */}
-                        <div className="mt-1 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                        <div className={`mt-1 w-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-full h-2`}>
                           <div 
                             className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${percentage}%` }}
@@ -1342,7 +1343,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   );
                 })}
               </div>
-              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <div className={`mt-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 Total votes: {post.poll.totalVotes || 0}
                 {post.poll.expiresAt && (
                   <span className="ml-2">
@@ -1360,10 +1361,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-2xl">{post.feeling.emoji}</span>
               <div>
-                <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Feeling {post.feeling.description}
                 </h4>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
+                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   Intensity: {post.feeling.intensity}/10
                 </p>
               </div>
@@ -1380,20 +1381,20 @@ const FeedPost: React.FC<FeedPostProps> = ({
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🏪</span>
                 <div>
-                  <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                  <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     {post.sell.productName}
                   </h4>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Condition: {post.sell.condition}
                     {post.sell.negotiable && <span className="ml-2">• Price negotiable</span>}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                <div className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   ${post.sell.price}
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
+                <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {post.sell.currency || 'USD'}
                 </div>
               </div>
@@ -1418,14 +1419,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-2xl">🎤</span>
               <div className="flex-1">
-                <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-2">
+                <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
                   Voice Message
                 </h4>
                 <audio controls className="w-full">
                   <source src={post.voice.url} type="audio/wav" />
                   Your browser does not support the audio element.
                 </audio>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
                   Duration: {post.voice.duration}s
                   {post.voice.transcription && (
                     <span className="ml-2">• Transcription: {post.voice.transcription}</span>
@@ -1441,30 +1442,32 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Media */}
         {post.media && post.media.length > 0 && (
-          <div className="mb-3 sm:mb-4">
+          <div className={`mb-3 sm:mb-4 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-2 sm:p-3 transition-colors duration-200`}>
             {post.media.map((media: any, index: number) => {
               const rawUrl = typeof media === 'string' 
                 ? media 
                 : (media?.secure_url || media?.url || media?.path || '');
               const resolvedUrl = getMediaUrl(rawUrl);
               return (
-              <div key={index} className="mb-2 cursor-pointer" onClick={() => onWatch && onWatch(post)}>
+              <div key={index} className={`mb-2 ${index < post.media.length - 1 ? 'mb-3' : ''} cursor-pointer ${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`} onClick={() => onWatch && onWatch(post)}>
                 {media.type === 'video' ? (
-                  <video
-                    src={resolvedUrl}
-                    controls
-                    className="w-full rounded-lg object-contain"
-                    style={{ maxHeight: '80vh' }}
-                  />
+                  <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                    <video
+                      src={resolvedUrl}
+                      controls
+                      className="w-full rounded-lg object-contain"
+                      style={{ maxHeight: '80vh' }}
+                    />
+                  </div>
                 ) : media.type === 'audio' ? (
-                  <div className="mb-2">
+                  <div className={`mb-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">🎵</span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {media.originalName || media.filename || media.name || 'Audio File'}
                         </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
                         </p>
                       </div>
@@ -1477,7 +1480,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   </div>
                 ) : media.type === 'file' || media.type === 'document' ? (
                   <div 
-                    className="mb-2 cursor-pointer"
+                    className={`mb-2 cursor-pointer ${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}
                     onClick={() => {
                       // For PDFs and other files, open in new tab with absolute URL
                       if (media.mimetype?.includes('pdf') || media.mimetype?.includes('text') || media.mimetype?.includes('image')) {
@@ -1510,10 +1513,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
                          media.mimetype?.includes('text') ? '📝' : '📄'}
                       </span>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {media.originalName || media.filename || media.name || 'Document'}
                         </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
                           {media.extension && ` • ${media.extension.toUpperCase()}`}
                           {media.mimetype && ` • ${media.mimetype.split('/')[1]?.toUpperCase()}`}
@@ -1523,16 +1526,18 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <img
-                    src={resolvedUrl}
-                    alt="Post media"
-                    className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity"
-                    style={{ maxHeight: '80vh' }}
-                    loading="lazy"
-                    onError={(e) => {
-                      if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
-                    }}
-                  />
+                  <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                    <img
+                      src={resolvedUrl}
+                      alt="Post media"
+                      className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity"
+                      style={{ maxHeight: '80vh' }}
+                      loading="lazy"
+                      onError={(e) => {
+                        if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             );
@@ -1546,7 +1551,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Top Section: Engagement Metrics */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-0 mb-3 sm:mb-4">
           {/* Right Side: Engagement Metrics */}
-          <div className="flex items-center justify-center sm:justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+          <div className={`flex items-center justify-center sm:justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             <div className="flex items-center space-x-1 sm:space-x-2">
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
@@ -1575,7 +1580,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
         {/* Single Reaction Display - Shows all reactions like Jaifriend */}
         {post.reactions && Array.isArray(post.reactions) && post.reactions.length > 0 && (
-          <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-600">
+          <div className={`px-4 py-2 border-b ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}>
             <div className="flex flex-wrap gap-2">
               {(() => {
                 const reactionCounts: { [key: string]: number } = {};
@@ -1593,9 +1598,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 };
                 
                 return Object.entries(reactionCounts).map(([type, count]) => (
-                  <div key={type} className="flex items-center space-x-1 bg-blue-50 dark:bg-blue-900/20 rounded-full px-3 py-1 border border-blue-200 dark:border-blue-700">
+                  <div key={type} className={`flex items-center space-x-1 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-full px-3 py-1 border`}>
                     <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
-                    <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">{count}</span>
+                    <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} font-medium`}>{count}</span>
                   </div>
                 ));
               })()}
@@ -1619,7 +1624,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   ref={reactionButtonRef}
                 >
                   {/* Reaction Button - Same size as other buttons */}
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
                     {isReacting ? (
                       <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
                     ) : (
@@ -1637,11 +1642,22 @@ const FeedPost: React.FC<FeedPostProps> = ({
             
             {/* Comment Button */}
             <button
-              onClick={() => setShowComments(!showComments)}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-blue-600 transition-colors touch-manipulation"
+              onClick={() => {
+                setShowComments(!showComments);
+                // Focus on comment input when showing comments
+                if (!showComments) {
+                  setTimeout(() => {
+                    const input = document.querySelector('input[placeholder="Write a comment and press enter"]') as HTMLInputElement;
+                    if (input) {
+                      input.focus();
+                    }
+                  }, 100);
+                }
+              }}
+              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-blue-600 transition-colors touch-manipulation`}
               style={{ touchAction: 'manipulation' }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
                 </svg>
@@ -1652,10 +1668,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* Share Button */}
             <button
               onClick={handleShare}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-green-600 transition-colors touch-manipulation"
+              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-green-600 transition-colors touch-manipulation`}
               style={{ touchAction: 'manipulation' }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
                 </svg>
@@ -1666,10 +1682,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* Review Button */}
             <button
               onClick={handleReview}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-yellow-600 transition-colors touch-manipulation px-1"
+              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-yellow-600 transition-colors touch-manipulation px-1`}
               style={{ touchAction: 'manipulation' }}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                 </svg>
@@ -1680,13 +1696,13 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* Save Button */}
             <button
               onClick={handleSave}
-              className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 text-gray-600 dark:text-white hover:text-purple-600 transition-colors touch-manipulation"
+              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-purple-600 transition-colors touch-manipulation`}
               style={{ touchAction: 'manipulation' }}
             >
               <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${
                 isPostSaved() 
-                  ? 'bg-purple-100 dark:bg-gray-900/20 text-purple-600 dark:text-purple-400' 
-                  : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  ? `${isDarkMode ? 'bg-gray-900/20 text-purple-400' : 'bg-purple-100 text-purple-600'}` 
+                  : `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`
               }`}>
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill={isPostSaved() ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -1702,9 +1718,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
         {/* Remove the old reaction popup section since we moved it above */}
 
-        {/* Comment Input - Only Show When Comments Are Visible */}
-        {showComments && (
-          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        {/* Comment Input - Only Show When Comments Are Visible - Hidden by default */}
+        {showComments === true && (
+          <div className={`mt-4 p-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'} rounded-lg`}>
             <div className="flex flex-col sm:flex-row items-start space-y-3 sm:space-y-0 sm:space-x-3">
               <img
                 src={getUserAvatar()}
@@ -1717,26 +1733,26 @@ const FeedPost: React.FC<FeedPostProps> = ({
               <div className="flex-1 w-full">
                 <div className="flex flex-col space-y-3">
                   {/* Comment Input */}
-                  <div className="flex items-center bg-white dark:bg-gray-700 rounded-lg px-3 py-2 shadow-sm border border-gray-200 dark:border-gray-600">
+                  <div className={`flex items-center ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg px-3 py-2 shadow-sm border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
               <input
                 type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Write a comment and press enter"
-                      className="flex-1 bg-transparent border-none outline-none text-sm sm:text-base text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                      className={`flex-1 bg-transparent border-none outline-none text-sm sm:text-base ${isDarkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'}`}
                 onKeyPress={(e) => e.key === 'Enter' && handleComment()}
               />
                 <div className="flex items-center space-x-2 ml-2">
                   <button 
                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className="text-gray-400 hover:text-blue-500 p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" 
+                        className={`text-gray-400 hover:text-blue-500 p-1.5 rounded-full ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} transition-colors`} 
                     title="Add emoji"
                   >
                     😊
                   </button>
                   <button 
                     onClick={() => setShowMediaPicker(!showMediaPicker)}
-                        className="text-gray-400 hover:text-green-500 p-1.5 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors" 
+                        className={`text-gray-400 hover:text-green-500 p-1.5 rounded-full ${isDarkMode ? 'hover:bg-green-900/20' : 'hover:bg-green-50'} transition-colors`} 
                     title="Add media"
                   >
                     📷
@@ -1760,7 +1776,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                           setShowEmojiPicker(false);
                           setShowMediaPicker(false);
                         }}
-                        className="px-3 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors text-sm"
+                        className={`px-3 py-2 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors text-sm`}
                       >
                         Cancel
               </button>
@@ -1770,7 +1786,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             
             {/* Emoji Picker */}
             {showEmojiPicker && (
-                  <div ref={emojiPickerRef} className="mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-3 shadow-lg">
+                  <div ref={emojiPickerRef} className={`mt-3 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-3 shadow-lg`}>
                 <div className="grid grid-cols-8 gap-2">
                   {['😊', '😂', '❤️', '👍', '🎉', '🔥', '😍', '🤔', '😭', '😡', '😱', '🥳', '😎', '🤗', '😴', '🤫'].map((emoji, index) => (
                     <button
@@ -1779,7 +1795,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         setCommentText(prev => prev + emoji);
                         setShowEmojiPicker(false);
                       }}
-                      className="text-2xl hover:scale-110 transition-transform p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className={`text-2xl hover:scale-110 transition-transform p-1 rounded ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                     >
                       {emoji}
                     </button>
@@ -1790,7 +1806,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             
             {/* Media Picker */}
             {showMediaPicker && (
-                  <div ref={mediaPickerRef} className="mt-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-4 shadow-lg">
+                  <div ref={mediaPickerRef} className={`mt-3 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4 shadow-lg`}>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <button 
                         onClick={() => handleMediaUpload('photo')}
@@ -1835,10 +1851,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     
                     {/* Upload Progress */}
                     {isUploading && (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                      <div className={`mt-3 p-3 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-lg border`}>
                         <div className="flex items-center space-x-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                          <span className="text-sm text-blue-600 dark:text-blue-400">Uploading media...</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Uploading media...</span>
                 </div>
               </div>
             )}
@@ -1849,11 +1865,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
           </div>
         )}
 
-        {/* Comments Display - Only Show When Comments Are Visible */}
-        {showComments && post.comments && post.comments.length > 0 && (
+        {/* Comments Display - Only Show When Comments Are Visible - Hidden by default */}
+        {/* DEBUG: showComments = {String(showComments)}, comments count = {post.comments?.length || 0} */}
+        {showComments === true && post.comments && Array.isArray(post.comments) && post.comments.length > 0 && (
           <div className="mt-4 space-y-4">
             {post.comments.slice(0, 3).map((comment: any, index: number) => (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div key={index} className={`flex items-start space-x-3 p-3 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'} rounded-lg`}>
                 <img
                   src={comment.user?.avatar ? getMediaUrl(comment.user.avatar) : '/default-avatar.svg'}
                   alt={comment.user?.name || 'User'}
@@ -1865,20 +1882,20 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <span className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
+                      <span className={`font-semibold text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {comment.user?.name || comment.user?.username || 'User'}
                     </span>
                     {comment.user?.verified && (
                       <span className="text-red-500 text-xs">✓</span>
                     )}
                   </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 sm:mt-0">
+                    <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1 sm:mt-0`}>
                       {formatDate(comment.createdAt || comment.date)}
                     </span>
                   </div>
                   
                   {editingCommentId === (comment._id || comment.id) ? (
-                    <div className="bg-white dark:bg-gray-700 rounded-lg p-3 mb-3 border border-gray-200 dark:border-gray-600">
+                    <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-lg p-3 mb-3 border`}>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
                         <input
                           type="text"
@@ -1891,7 +1908,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                               cancelEditComment();
                             }
                           }}
-                          className="flex-1 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`flex-1 ${isDarkMode ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-900'} border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
                           placeholder="Edit your comment..."
                           autoFocus
                         />
@@ -1913,8 +1930,8 @@ const FeedPost: React.FC<FeedPostProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-white dark:bg-gray-700 rounded-lg px-4 py-3 mb-3 relative group border border-gray-200 dark:border-gray-600">
-                      <div className="text-sm sm:text-base text-gray-700 dark:text-gray-300 pr-20">
+                    <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-lg px-4 py-3 mb-3 relative group border`}>
+                      <div className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} pr-20`}>
                         {comment.text || comment.content}
                       </div>
                       
@@ -1933,7 +1950,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         <div className="absolute top-3 right-3 flex items-center space-x-2">
                           <button
                             onClick={() => startEditComment(comment)}
-                            className="p-2 text-gray-500 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            className={`p-2 text-gray-500 hover:text-blue-600 transition-colors rounded-lg ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'}`}
                             title="Edit comment"
                           >
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -1943,7 +1960,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                           <button
                             onClick={() => deleteComment(comment._id || comment.id)}
                             disabled={deletingCommentId === (comment._id || comment.id)}
-                            className="p-2 text-gray-500 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                            className={`p-2 text-gray-500 hover:text-red-600 transition-colors rounded-lg ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'} disabled:opacity-50`}
                             title="Delete comment"
                           >
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -1957,10 +1974,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   
                   {/* Comment Actions */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                  <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                  <div className={`flex items-center space-x-4 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     <button 
                       onClick={() => handleCommentLike(comment._id || comment.id)}
-                      className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center space-x-1"
+                      className={`${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'} transition-colors flex items-center space-x-1`}
                     >
                       <span>👍</span>
                       <span>Like</span>
@@ -1970,7 +1987,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     </button>
                     <button 
                       onClick={() => handleCommentReply(comment._id || comment.id, comment.user?.name || 'User')}
-                        className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center space-x-1"
+                        className={`${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'} transition-colors flex items-center space-x-1`}
                     >
                         <span>💬</span>
                         <span>Reply</span>
@@ -1984,7 +2001,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             {/* View All Comments Button */}
             {post.comments.length > 3 && (
               <div className="text-center pt-2">
-                <button className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium hover:underline transition-colors">
+                <button className={`text-sm ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'} font-medium hover:underline transition-colors`}>
                 View all {post.comments.length} comments
               </button>
               </div>
@@ -1994,7 +2011,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         
         {/* Show Message When No Comments */}
         {showComments && (!post.comments || post.comments.length === 0) && (
-          <div className="mt-4 text-center text-gray-500 dark:text-gray-400 text-sm p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className={`mt-4 text-center ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-500 bg-gray-50'} text-sm p-4 rounded-lg`}>
             No comments yet. Be the first to comment! 💬
           </div>
         )}

@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middlewares/authMiddleware');
+const {
+  createCategory: createP2PCategory,
+  getCategories: getP2PCategories,
+  updateCategory: updateP2PCategory,
+  deleteCategory: deleteP2PCategory
+} = require('../controllers/p2pCategoryController');
 
 // Admin dashboard statistics
 router.get('/stats', authMiddleware, adminController.getDashboardStats);
@@ -23,5 +29,11 @@ router.post('/users/:userId/kick', authMiddleware, adminController.kickUser);
 router.post('/users/bulk/:action', authMiddleware, adminController.bulkAction);
 router.get('/users/stats', authMiddleware, adminController.getUserStats);
 router.get('/users/online', authMiddleware, adminController.getOnlineUsers);
+
+// P2P categories management
+router.get('/p2p/categories', authMiddleware, getP2PCategories);
+router.post('/p2p/categories', authMiddleware, createP2PCategory);
+router.put('/p2p/categories/:categoryId', authMiddleware, updateP2PCategory);
+router.delete('/p2p/categories/:categoryId', authMiddleware, deleteP2PCategory);
 
 module.exports = router; 

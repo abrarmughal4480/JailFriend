@@ -4,6 +4,67 @@ const User = require('../models/user');
 const VideoCall = require('../models/videoCall');
 const socketService = require('../services/socketService');
 
+const BLOCKING_BOOKING_STATUSES = ['pending', 'accepted', 'in_progress'];
+
+const parseMultiplierValue = (rateValue, legacyValue) => {
+  if (rateValue !== null && rateValue !== undefined) {
+    const numeric = Number(rateValue);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  if (legacyValue !== null && legacyValue !== undefined && legacyValue !== '') {
+    const numeric = typeof legacyValue === 'number' ? legacyValue : parseFloat(legacyValue);
+    if (Number.isFinite(numeric)) return numeric;
+  }
+  return null;
+};
+
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const [hours, minutes] = timeStr.split(':').map(part => parseInt(part, 10));
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+const getMinutesInTimezone = (date, timezone) => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone || 'UTC',
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  const parts = formatter.formatToParts(date);
+  const hour = parseInt(parts.find(part => part.type === 'hour')?.value ?? '0', 10);
+  const minute = parseInt(parts.find(part => part.type === 'minute')?.value ?? '0', 10);
+  return hour * 60 + minute;
+};
+
+const getWeekdayInTimezone = (date, timezone) =>
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone || 'UTC',
+    weekday: 'long'
+  }).format(date);
+
+const hasBookingConflict = (requestedStart, requestedEnd, existingBookings) =>
+  existingBookings.some(booking => {
+    const bookingStart = booking.scheduledDate;
+    const bookingEnd = new Date(bookingStart.getTime() + booking.duration * 60000);
+    return requestedStart < bookingEnd && requestedEnd > bookingStart;
+  });
+
+const getCallRateMultiplier = (profile, callType) => {
+  if (!callType) return null;
+  if (callType === 'audio') {
+    return parseMultiplierValue(profile.audioCallRate, profile.audioCallPrice);
+  }
+  if (callType === 'video') {
+    return parseMultiplierValue(profile.videoCallRate, profile.videoCallPrice);
+  }
+  if (callType === 'chat') {
+    return parseMultiplierValue(profile.chatRate, profile.chatPrice);
+  }
+  return null;
+};
+
 // Create a new booking request
 const createBooking = async (req, res) => {
   try {
@@ -12,6 +73,7 @@ const createBooking = async (req, res) => {
       serviceProviderId,
       p2pProfileId,
       serviceType,
+      callType,
       title,
       description,
       scheduledDate,
@@ -54,12 +116,93 @@ const createBooking = async (req, res) => {
       });
     }
 
+    const parsedDuration = parseInt(duration, 10);
+    if (!parsedDuration || parsedDuration <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Duration must be a positive number of minutes'
+      });
+    }
+
+    const requestedStart = new Date(scheduledDate);
+    if (Number.isNaN(requestedStart.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid scheduled date'
+      });
+    }
+
+    const requestedEnd = new Date(requestedStart.getTime() + parsedDuration * 60000);
+
+    // Determine call type from serviceType if not provided
+    let bookingCallType = callType;
+    if (!bookingCallType) {
+      if (serviceType === 'audio_call') bookingCallType = 'audio';
+      else if (serviceType === 'video_call') bookingCallType = 'video';
+      else if (serviceType === 'chat') bookingCallType = 'chat';
+    }
+
+    const providerTimezone = profile.timezone || 'UTC';
+
+    // Validate provider available days
+    if (Array.isArray(profile.availableDays) && profile.availableDays.length > 0) {
+      const requestedWeekday = getWeekdayInTimezone(requestedStart, providerTimezone);
+      if (!profile.availableDays.includes(requestedWeekday)) {
+        return res.status(400).json({
+          success: false,
+          message: `Service provider is not available on ${requestedWeekday}`
+        });
+      }
+    }
+
+    // Validate working hours window
+    const workingStartMinutes = parseTimeToMinutes(profile.workingHours?.start || '09:00');
+    const workingEndMinutes = parseTimeToMinutes(profile.workingHours?.end || '17:00');
+    if (workingStartMinutes !== null && workingEndMinutes !== null) {
+      const requestStartMinutes = getMinutesInTimezone(requestedStart, providerTimezone);
+      const requestEndMinutes = getMinutesInTimezone(requestedEnd, providerTimezone);
+      if (requestStartMinutes < workingStartMinutes || requestEndMinutes > workingEndMinutes) {
+        return res.status(400).json({
+          success: false,
+          message: 'Requested time is outside the service provider’s working hours'
+        });
+      }
+    }
+
+    // Validate overlapping bookings
+    const bufferWindowStart = new Date(requestedStart.getTime() - 12 * 60 * 60 * 1000);
+    const bufferWindowEnd = new Date(requestedEnd.getTime() + 12 * 60 * 60 * 1000);
+
+    const conflictingBookings = await Booking.find({
+      serviceProviderId,
+      status: { $in: BLOCKING_BOOKING_STATUSES },
+      scheduledDate: { $lt: bufferWindowEnd, $gt: bufferWindowStart }
+    }).select('scheduledDate duration');
+
+    if (hasBookingConflict(requestedStart, requestedEnd, conflictingBookings)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected time overlaps with another booking for this provider'
+      });
+    }
+
+    // Get the appropriate call rate based on call type
+    const callRate = getCallRateMultiplier(profile, bookingCallType);
+
     // Calculate total amount
     let totalAmount;
-    if (serviceType === 'hourly') {
-      totalAmount = (duration / 60) * profile.hourlyRate;
+    const hours = parsedDuration / 60;
+    
+    if (bookingCallType && callRate && profile.hourlyRate) {
+      // For audio/video/chat calls: callRate * hourlyRate * hours
+      // Example: 12 * 100 * 1 = 1200 for 1 hour audio call
+      totalAmount = callRate * profile.hourlyRate * hours;
+    } else if (serviceType === 'hourly') {
+      // For hourly service type: hourlyRate * hours
+      totalAmount = hours * profile.hourlyRate;
     } else {
-      totalAmount = profile.hourlyRate; // For fixed price services
+      // For fixed price services
+      totalAmount = profile.hourlyRate;
     }
 
     // Create the booking
@@ -68,11 +211,13 @@ const createBooking = async (req, res) => {
       serviceProviderId,
       p2pProfileId,
       serviceType,
+      callType: bookingCallType,
       title: title.trim(),
       description: description.trim(),
-      scheduledDate: new Date(scheduledDate),
-      duration,
+      scheduledDate: requestedStart,
+      duration: parsedDuration,
       hourlyRate: profile.hourlyRate,
+      callRate: callRate,
       totalAmount,
       currency: profile.currency,
       requirements: requirements || [],
@@ -148,11 +293,9 @@ const getProviderDailyBookings = async (req, res) => {
     const endOfDay = new Date(startOfDay);
     endOfDay.setDate(endOfDay.getDate() + 1);
 
-    const blockingStatuses = ['pending', 'accepted', 'in_progress'];
-
     const bookings = await Booking.find({
       serviceProviderId: providerId,
-      status: { $in: blockingStatuses },
+      status: { $in: BLOCKING_BOOKING_STATUSES },
       scheduledDate: { $gte: startOfDay, $lt: endOfDay }
     })
       .select('scheduledDate duration status')

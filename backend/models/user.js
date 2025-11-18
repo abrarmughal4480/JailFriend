@@ -16,6 +16,7 @@ const userSchema = new mongoose.Schema({
   country: { type: String, default: null },
   address: { type: String, default: null },
   gender: { type: String, enum: ['Male', 'Female', 'Other', 'Prefer not to say'], default: 'Prefer not to say' },
+  userType: { type: String, enum: ['normal', 'p2p'], default: 'normal' },
   dateOfBirth: { type: Date, default: null },
   phone: { type: String, default: null },
   isSetupDone: { type: Boolean, default: false },

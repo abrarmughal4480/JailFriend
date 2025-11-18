@@ -89,21 +89,9 @@ const PhotoAlbumManager: React.FC = () => {
     );
   };
   
-  // Follow system dark mode preference to align background with OS theme
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const applyTheme = () => {
-      if (mediaQuery.matches) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    };
-    applyTheme();
-    mediaQuery.addEventListener('change', applyTheme);
-    return () => mediaQuery.removeEventListener('change', applyTheme);
-  }, []);
+  // REMOVED: System theme following
+  // We NEVER follow system preference - only manual toggle
+  // Theme is controlled by DarkModeContext
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
   // Fetch real albums from API
   useEffect(() => {
