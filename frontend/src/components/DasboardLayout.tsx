@@ -2768,6 +2768,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </Link>
             
             <Link
+              href="/dashboard/p2p"
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+                pathname === '/dashboard/p2p' 
+                  ? 'text-blue-600 dark:text-blue-400' 
+                  : isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'
+              }`}
+            >
+              <span className="text-xl mb-1">🤝</span>
+              <span className="text-xs font-medium">Connect</span>
+            </Link>
+            
+            <Link
               href="/dashboard/notifications"
               className={`flex flex-col items-center p-2 rounded-lg transition-colors relative ${
                 pathname === '/dashboard/notifications' 
