@@ -233,6 +233,61 @@ button:focus {
   display: none;
 }
 
+/* Thin horizontal scrollbar for filter chips */
+.filter-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 250, 252, 0.4) rgba(148, 163, 184, 0.2);
+  scrollbar-gutter: stable;
+}
+
+.filter-scrollbar::-webkit-scrollbar {
+  height: 8px;
+}
+
+.filter-scrollbar::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+
+.filter-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(248, 250, 252, 0.6);
+  border-radius: 9999px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+}
+
+.filter-scroll-wrapper {
+  position: relative;
+}
+
+.filter-scroll-wrapper::before,
+.filter-scroll-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.filter-scroll-wrapper::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.filter-scroll-wrapper::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.dark .filter-scroll-wrapper::before {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0) 100%);
+}
+
+.dark .filter-scroll-wrapper::after {
+  background: linear-gradient(270deg, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0) 100%);
+}
+
 /* Glassmorphism background for modals */
 .modal-glassmorphism-bg {
   background: rgba(0, 0, 0, 0.4);

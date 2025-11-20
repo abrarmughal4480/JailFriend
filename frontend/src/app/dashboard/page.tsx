@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
 import AlbumDisplay from '@/components/AlbumDisplay';
 import SharePopup, { ShareOptions } from '@/components/SharePopup';
 import LatestProducts from '@/components/LatestProducts';
@@ -149,7 +148,6 @@ export default function Dashboard() {
   const [albums, setAlbums] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingAlbums, setLoadingAlbums] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'text' | 'photos' | 'videos' | 'sounds' | 'files' | 'maps'>('all');
   const [deletingComments, setDeletingComments] = useState<{ [key: string]: boolean }>({});
   const [showWatchModal, setShowWatchModal] = useState(false);
   const [selectedPostForWatch, setSelectedPostForWatch] = useState<any>(null);
@@ -166,31 +164,6 @@ export default function Dashboard() {
     setShowWatchModal(true);
   };
 
-  // Filter posts based on active filter
-  const getFilteredPosts = () => {
-    if (activeFilter === 'all') {
-      return posts;
-    }
-
-    return posts.filter(post => {
-      switch (activeFilter) {
-        case 'text':
-          return !post.media || post.media.length === 0;
-        case 'photos':
-          return post.media && post.media.some((media: any) => media.type === 'image');
-        case 'videos':
-          return post.media && post.media.some((media: any) => media.type === 'video');
-        case 'sounds':
-          return post.voice || (post.media && post.media.some((media: any) => media.type === 'audio'));
-        case 'files':
-          return post.media && post.media.some((media: any) => media.type === 'file' || media.type === 'application');
-        case 'maps':
-          return post.location;
-        default:
-          return true;
-      }
-    });
-  };
   const [newPost, setNewPost] = useState('');
   const [newPostTitle, setNewPostTitle] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
@@ -222,7 +195,8 @@ export default function Dashboard() {
   const [selectedUserStories, setSelectedUserStories] = useState<any[]>([]);
   const [stories, setStories] = useState<any[]>([]);
   const [loadingStories, setLoadingStories] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const storySizeClasses = 'w-24 h-36 xs:w-28 xs:h-40 sm:w-32 sm:h-48 md:w-36 md:h-56 lg:w-40 lg:h-64';
+  const storyRoundedClasses = 'rounded-2xl sm:rounded-3xl';
 
   const [popup, setPopup] = useState<PopupState>({
     isOpen: false,
@@ -1564,76 +1538,6 @@ export default function Dashboard() {
     window.location.href = `/dashboard/profile/${userId}`;
   };
 
-  // Filters array with all filter options
-  const filters = [
-    {
-      id: 'all',
-      label: 'All',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      )
-    },
-    {
-      id: 'text',
-      label: 'Text',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      )
-    },
-    {
-      id: 'photos',
-      label: 'Photos',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      )
-    },
-    {
-      id: 'videos',
-      label: 'Videos',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      )
-    },
-    {
-      id: 'sounds',
-      label: 'Sounds',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-        </svg>
-      )
-    },
-    {
-      id: 'files',
-      label: 'Files',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      )
-    },
-    {
-      id: 'maps',
-      label: 'Maps',
-      icon: (
-        <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
-        </svg>
-      )
-    }
-  ];
-
-
-
 
 
   // Modal media handlers
@@ -2285,20 +2189,6 @@ export default function Dashboard() {
 
       <div className="px-2 xs:px-3 sm:px-4 md:px-6 lg:px-8 w-full">
 
-        {/* Mobile Menu Button - Only visible on mobile */}
-        <div className="lg:hidden flex justify-end items-center pt-2 pb-2">
-          <button
-            onClick={() => setShowMobileMenu(true)}
-            className={`p-2 rounded-lg transition-colors ${
-              isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-            }`}
-          >
-            <Menu className={`w-6 h-6 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-600'
-            }`} />
-          </button>
-        </div>
-
         <div className="w-full pt-2 xs:pt-3 sm:pt-4 mb-3 xs:mb-4 sm:mb-6">
           <div className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-2 scrollbar-hide touch-pan-x">
             {/* Your Story */}
@@ -2317,18 +2207,18 @@ export default function Dashboard() {
                 userStory.startsWith('data:video') ? (
                   <video
                     src={userStory}
-                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform"
+                    className={`${storySizeClasses} ${storyRoundedClasses} border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform`}
                     controls
                   />
                 ) : (
                   <img
                     src={userStory}
-                    className="w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform"
+                    className={`${storySizeClasses} ${storyRoundedClasses} border-2 sm:border-4 border-blue-500 mb-2 sm:mb-3 shadow-lg sm:shadow-xl object-cover transition-transform`}
                     alt="Your Story"
                   />
                 )
               ) : (
-                <div className={`w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} mb-2 sm:mb-3 shadow-lg sm:shadow-xl relative overflow-hidden transition-transform ${isDarkMode ? 'bg-gray-200' : 'bg-gray-100'}`}>
+                <div className={`${storySizeClasses} ${storyRoundedClasses} border-2 sm:border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} mb-2 sm:mb-3 shadow-lg sm:shadow-xl relative overflow-hidden transition-transform ${isDarkMode ? 'bg-gray-200' : 'bg-gray-100'}`}>
                   {/* User Profile Picture */}
                   {(() => {
                     const avatarUrl = getUserAvatar();
@@ -2363,10 +2253,10 @@ export default function Dashboard() {
             {/* Other Users' Stories */}
             {loadingStories ? (
               // Loading skeleton
-              Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex-shrink-0 flex flex-col items-center">
-                  <div className={`w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl border-2 sm:border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gradient-to-br ${isDarkMode ? 'from-gray-700 to-gray-600' : 'from-gray-200 to-gray-300'} animate-pulse`} />
-                  <div className={`w-16 h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded animate-pulse`} />
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex-shrink-0 flex flex-col items-center">
+                      <div className={`${storySizeClasses} ${storyRoundedClasses} border-2 sm:border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gradient-to-br ${isDarkMode ? 'from-gray-700 to-gray-600' : 'from-gray-200 to-gray-300'} animate-pulse`} />
+                      <div className={`w-20 h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded animate-pulse`} />
                 </div>
               ))
             ) : (
@@ -2384,7 +2274,7 @@ export default function Dashboard() {
                   style={{ touchAction: 'manipulation' }}
                 >
                   {/* Story Container with Professional Styling */}
-                  <div className={`relative w-16 h-24 xs:w-20 xs:h-28 sm:w-24 sm:h-36 md:w-28 md:h-40 lg:w-32 lg:h-48 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg sm:shadow-xl border-2 transition-all duration-300 ${isDarkMode ? 'border-gray-700' : 'border-white'}`}>
+                  <div className={`relative ${storySizeClasses} ${storyRoundedClasses} overflow-hidden shadow-lg sm:shadow-xl border-2 transition-all duration-300 ${isDarkMode ? 'border-gray-700' : 'border-white'}`}>
                     {/* Media Content - Lazy Loading */}
                     {groupedStory.latestStory.mediaType === 'video' ? (
                       <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
@@ -2416,7 +2306,7 @@ export default function Dashboard() {
                     <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
                       <div className="flex items-center justify-center">
                         {/* User Avatar */}
-                        <div className="w-10 h-10 xs:w-12 xs:h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full border-2 border-white overflow-hidden flex-shrink-0">
+                        <div className="w-12 h-12 xs:w-14 xs:h-14 sm:w-16 sm:h-16 md:w-[4.5rem] md:h-[4.5rem] rounded-full border-2 border-white overflow-hidden flex-shrink-0">
                           {groupedStory.user.avatar ? (
                             <img
                               src={groupedStory.user.avatar}
@@ -2446,29 +2336,6 @@ export default function Dashboard() {
               ))
             )}
 
-          </div>
-        </div>
-
-        {/* Content Filter Bar */}
-        <div className="mb-3 sm:mb-4 transition-colors duration-200 w-full">
-          <div 
-            className="flex items-center justify-center gap-x-1 xs:gap-x-2 sm:gap-x-3 gap-y-2 xs:gap-y-3 sm:gap-y-4 flex-wrap py-2 sm:py-3"
-          >
-            {filters.map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id as 'all' | 'text' | 'photos' | 'videos' | 'sounds' | 'files' | 'maps')}
-                className={`flex-shrink-0 flex items-center gap-1 xs:gap-2 px-3 xs:px-4 py-2 xs:py-2.5 rounded-full border transition-colors whitespace-nowrap ${
-                  activeFilter === filter.id
-                    ? isDarkMode ? 'bg-red-900/20 text-red-300 border-red-700' : 'bg-red-100 text-red-700 border-red-200'
-                    : isDarkMode ? 'bg-gray-800 text-white border-gray-700 hover:bg-gray-700' : 'bg-gray-100 text-gray-900 border-gray-200 hover:bg-gray-200'
-                }`}
-                style={{ touchAction: 'manipulation' }}
-              >
-                {filter.icon}
-                <span className="text-xs xs:text-sm font-medium">{filter.label}</span>
-              </button>
-            ))}
           </div>
         </div>
 
@@ -2768,11 +2635,8 @@ export default function Dashboard() {
 
 
                     {(() => {
-                      // Get filtered posts based on active filter
-                      const filteredPosts = getFilteredPosts();
-
                       const combinedFeed = [
-                        ...filteredPosts.map((post: any) => ({ ...post, type: 'post' })),
+                        ...posts.map((post: any) => ({ ...post, type: 'post' })),
                         ...albums.map((album: any) => ({ ...album, type: 'album' }))
                       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -2781,15 +2645,15 @@ export default function Dashboard() {
                         let postCount = 0;
                         let peopleSuggestionsAdded = false;
 
-                        // Show message if no posts found for current filter
+                        // Show message if no posts available
                         if (combinedFeed.length === 0) {
                           return (
                             <div className="text-center py-8">
                               <div className={`text-lg mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                📭 No {activeFilter === 'all' ? '' : activeFilter} posts found
+                                📭 Nothing to show yet
                               </div>
                               <div className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                Try changing your filter or create a new post
+                                Create a new post to get the conversation going
                               </div>
                             </div>
                           );
@@ -3111,315 +2975,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay - Full Screen */}
-      {showMobileMenu && (
-        <div 
-          className="lg:hidden fixed inset-0 z-50"
-        >
-          <div 
-            className={`fixed inset-0 w-full h-full overflow-y-auto transition-colors duration-200 ${
-              isDarkMode ? 'bg-gray-900' : 'bg-white'
-            }`}
-            onClick={(e) => {
-              // Only close if clicking on the background, not on content
-              if (e.target === e.currentTarget) {
-                setShowMobileMenu(false);
-              }
-            }}
-          >
-            {/* Menu Header */}
-            <div className={`sticky top-0 z-10 p-4 border-b transition-colors duration-200 ${
-              isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
-              <div className="flex items-center justify-between">
-                <h2 className={`text-2xl font-bold transition-colors duration-200 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>Menu</h2>
-                <button
-                  onClick={() => setShowMobileMenu(false)}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <X className={`w-6 h-6 transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                  }`} />
-                </button>
-              </div>
-            </div>
-
-            {/* Menu Content - Sidebar Content */}
-            <div className="p-4 space-y-4">
-              {/* Pro Members Section */}
-              <div className={`rounded-lg shadow p-3 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <div className={`font-semibold mb-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Pro Members</div>
-                <button className="bg-orange-400 text-white px-3 py-2 rounded-full w-full mb-2 text-sm">Upgrade To Pro</button>
-              </div>
-
-              {/* Latest Products Section */}
-              <div className={`rounded-lg shadow p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <LatestProducts />
-              </div>
-
-              {/* Latest Pages Section */}
-              <div className={`rounded-lg shadow p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <div className={`font-semibold mb-3 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Latest Pages</div>
-
-                {loadingPages ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
-                        <div className="flex-1 space-y-2">
-                          <div className={`h-3 rounded animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
-                          <div className={`h-2 rounded w-2/3 animate-pulse ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : latestPages.length > 0 ? (
-                  <div className="space-y-3">
-                    {latestPages.slice(0, 3).map((page) => (
-                      <div
-                        key={page._id}
-                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => {
-                          router.push(`/dashboard/pages/${page._id}`);
-                          setShowMobileMenu(false);
-                        }}
-                      >
-                        {/* Page Avatar */}
-                        <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 transition-colors duration-200 ${
-                          isDarkMode ? 'border-gray-600' : 'border-gray-200'
-                        }`}>
-                          {page.profileImage ? (
-                            <img
-                              src={page.profileImage}
-                              alt={page.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/default-avatar.svg';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                              <span className="text-white text-sm font-bold">
-                                {page.name?.charAt(0) || 'P'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Page Info */}
-                        <div className="flex-1">
-                          <div className={`font-medium text-sm transition-colors ${isDarkMode ? 'text-white group-hover:text-blue-400' : 'text-gray-900 group-hover:text-blue-600'}`}>
-                            {page.name}
-                          </div>
-                          <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {page.category}
-                          </div>
-                        </div>
-
-                        {/* Followers Count */}
-                        <div className={`text-xs text-right ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          <div className="font-medium">{page.followers?.length || 0}</div>
-                          <div>followers</div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* View All Pages Button */}
-                    <button
-                      onClick={() => {
-                        router.push('/dashboard/pages');
-                        setShowMobileMenu(false);
-                      }}
-                      className={`w-full mt-3 text-sm font-medium py-2 rounded-lg transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' 
-                          : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                      }`}
-                    >
-                      View All Pages
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <div className={`text-2xl mb-2 transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`}>📄</div>
-                    <div className={`text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>No pages yet</div>
-                    <button
-                      onClick={() => {
-                        router.push('/dashboard/pages');
-                        setShowMobileMenu(false);
-                      }}
-                      className={`mt-2 text-xs font-medium transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'text-blue-400 hover:text-blue-300' 
-                          : 'text-blue-600 hover:text-blue-700'
-                      }`}
-                    >
-                      Create Page
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Suggested Pages Section */}
-              <div className={`rounded-lg shadow p-3 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <div className={`font-semibold mb-3 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Suggested Pages</div>
-
-                {loadingSuggestedPages ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full animate-pulse transition-colors duration-200 ${
-                          isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                        }`} />
-                        <div className="flex-1 space-y-2">
-                          <div className={`h-3 rounded animate-pulse transition-colors duration-200 ${
-                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          }`} />
-                          <div className={`h-2 rounded w-2/3 animate-pulse transition-colors duration-200 ${
-                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          }`} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : suggestedPages.length > 0 ? (
-                  <div className="space-y-3">
-                    {suggestedPages.slice(0, 5).map((page) => (
-                      <div
-                        key={page._id}
-                        className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${
-                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => {
-                          router.push(`/dashboard/pages/${page._id}`);
-                          setShowMobileMenu(false);
-                        }}
-                      >
-                        {/* Page Avatar */}
-                        <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 transition-colors duration-200 ${
-                          isDarkMode ? 'border-gray-600' : 'border-gray-200'
-                        }`}>
-                          {page.profileImage ? (
-                            <img
-                              src={page.profileImage}
-                              alt={page.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/default-avatar.svg';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                              <span className="text-white text-sm font-bold">
-                                {page.name?.charAt(0) || 'P'}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Page Info */}
-                        <div className="flex-1">
-                          <div className={`font-medium text-sm transition-colors duration-200 ${
-                            isDarkMode 
-                              ? 'text-white group-hover:text-blue-400' 
-                              : 'text-gray-900 group-hover:text-blue-600'
-                          }`}>
-                            {page.name}
-                          </div>
-                          <div className={`text-xs transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
-                            @{page.url}
-                          </div>
-                          <div className={`text-xs transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                          }`}>
-                            {page.category}
-                          </div>
-                        </div>
-
-                        {/* Followers Count */}
-                        <div className={`text-xs text-right transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`}>
-                          <div className="font-medium">{page.followers?.length || 0}</div>
-                          <div>followers</div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* View All Pages Button */}
-                    <button
-                      onClick={() => {
-                        router.push('/dashboard/pages');
-                        setShowMobileMenu(false);
-                      }}
-                      className={`w-full mt-3 text-sm font-medium py-2 rounded-lg transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' 
-                          : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                      }`}
-                    >
-                      View All Pages
-                    </button>
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <div className={`text-2xl mb-2 transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`}>📄</div>
-                    <div className={`text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>No pages yet</div>
-                    <button
-                      onClick={() => {
-                        router.push('/dashboard/pages');
-                        setShowMobileMenu(false);
-                      }}
-                      className={`mt-2 text-xs font-medium transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'text-blue-400 hover:text-blue-300' 
-                          : 'text-blue-600 hover:text-blue-700'
-                      }`}
-                    >
-                      Create Page
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Logout Button */}
-              <div className={`pt-4 border-t transition-colors duration-200 ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-                <button
-                  onClick={() => {
-                    logout();
-                    setShowMobileMenu(false);
-                  }}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  }`}
-                >
-                  Log out
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Popup
         popup={popup}
@@ -4075,9 +3630,11 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
- <div className={`flex items-center gap-2 sm:gap-3 mt-3 sm:mt-4 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <button
-                  onClick={() => {
+              <div className="block sm:hidden">
+                <div className={`flex items-center justify-between gap-3 mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
                     const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
                     if (textarea) {
                       const start = textarea.selectionStart;
@@ -4094,8 +3651,72 @@ export default function Dashboard() {
                   }}
                   className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
                   title="Add hashtag"
+                      >
+                        <span className="text-base font-bold">#</span>
+                      </button>
+
+                    <button
+                      onClick={() => {
+                    const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
+                    if (textarea) {
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const text = textarea.value;
+                      const before = text.substring(0, start);
+                      const selected = text.substring(start, end);
+                      const after = text.substring(end);
+                      textarea.value = before + '@' + selected + after;
+                      textarea.setSelectionRange(start + 1, start + 1 + selected.length);
+                      textarea.focus();
+                      setNewPost(textarea.value);
+                    }
+                  }}
+                  className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                  title="Mention user"
+                      >
+                        <span className="text-base font-bold">@</span>
+                      </button>
+
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className={`transition-colors p-1.5 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                      title="Add emoji"
+                    >
+                      <span className="text-base">😊</span>
+                    </button>
+                  </div>
+
+                  <div className={`flex items-center gap-2 p-2 rounded-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <span className="text-sm">🌐</span>
+                    <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Everyone</span>
+                    <svg className={`w-3 h-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className={`hidden sm:flex items-center gap-3 mt-4 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => {
+                    const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
+                    if (textarea) {
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const text = textarea.value;
+                      const before = text.substring(0, start);
+                      const selected = text.substring(start, end);
+                      const after = text.substring(end);
+                      textarea.value = before + '#' + selected + after;
+                      textarea.setSelectionRange(start + 1, start + 1 + selected.length);
+                      textarea.focus();
+                      setNewPost(textarea.value);
+                    }
+                  }}
+                  className={`transition-colors p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                  title="Add hashtag"
                 >
-                  <span className="text-base sm:text-lg font-bold">#</span>
+                  <span className="text-lg font-bold">#</span>
                 </button>
 
                 <button
@@ -4114,19 +3735,28 @@ export default function Dashboard() {
                       setNewPost(textarea.value);
                     }
                   }}
-                  className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                  className={`transition-colors p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
                   title="Mention user"
                 >
-                  <span className="text-base sm:text-lg font-bold">@</span>
+                  <span className="text-lg font-bold">@</span>
                 </button>
 
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                  className={`transition-colors p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
                   title="Add emoji"
                 >
-                  <span className="text-base sm:text-lg">😊</span>
+                  <span className="text-lg">😊</span>
                 </button>
+              </div>
+
+              {/* Audience Selector */}
+              <div className={`hidden sm:flex items-center gap-2 mt-3 p-3 rounded-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                <span className="text-base">🌐</span>
+                <span className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Everyone</span>
+                <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
             
               {showEmojiPicker && (
@@ -4160,94 +3790,52 @@ export default function Dashboard() {
                   ))}
                 </div>
               )}
-              {/* Audience Selector */}
-              <div className={`flex items-center gap-2 mt-3 sm:mt-4 p-2 sm:p-3 rounded-lg transition-colors duration-200 ${
-                isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-              }`}>
-                <span className="text-sm sm:text-base">🌐</span>
-                <span className={`text-xs sm:text-xs xs:text-sm font-medium transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Everyone</span>
-                <svg className={`w-3 h-3 sm:w-4 sm:h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+              {/* Action Buttons */}
+              <div className="block sm:hidden">
+                <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1">
+                  {[
+                    { icon: '📷', action: handleModalImageUpload, label: 'Add images' },
+                    { icon: '🎵', action: handleModalAudioUpload, label: 'Add audio' },
+                    { icon: '📄', action: handleModalFileUpload, label: 'Add files' },
+                    { icon: '🎭', action: handleModalGIF, label: 'Add GIF' },
+                    { icon: '🎤', action: handleModalVoice, label: 'Add voice note' },
+                    { icon: '😊', action: handleModalFeelings, label: 'Share feelings' },
+                    { icon: '🏪', action: handleModalSell, label: 'Sell something' },
+                    { icon: '📊', action: handleModalPoll, label: 'Create poll' },
+                    { icon: '📍', action: handleModalLocation, label: 'Add location' },
+                  ].map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={item.action}
+                      aria-label={item.label}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+                    >
+                      <span className="text-lg">{item.icon}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-
-
-
-              {/* Action Buttons Grid */}
-              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3 mt-3 sm:mt-4">
-                <button
-                  onClick={handleModalImageUpload}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">📷</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Images</span>
-                </button>
-
-                <button
-                  onClick={handleModalAudioUpload}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">🎵</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Audio</span>
-                </button>
-
-                <button
-                  onClick={handleModalFileUpload}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">📄</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Files</span>
-                </button>
-
-                <button
-                  onClick={handleModalGIF}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">🎭</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>GIF</span>
-                </button>
-
-                <button
-                  onClick={handleModalVoice}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">🎤</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Voice</span>
-                </button>
-
-                <button
-                  onClick={handleModalFeelings}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">😊</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Feelings</span>
-                </button>
-
-                <button
-                  onClick={handleModalSell}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">🏪</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Sell</span>
-                </button>
-
-                <button
-                  onClick={handleModalPoll}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">📊</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Poll</span>
-                </button>
-
-                <button
-                  onClick={handleModalLocation}
-                  className={`flex flex-col items-center gap-1 p-2 sm:p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
-                >
-                  <span className="text-lg sm:text-xl">📍</span>
-                  <span className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Location</span>
-                </button>
+              <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
+                {[
+                  { icon: '📷', label: 'Images', action: handleModalImageUpload },
+                  { icon: '🎵', label: 'Audio', action: handleModalAudioUpload },
+                  { icon: '📄', label: 'Files', action: handleModalFileUpload },
+                  { icon: '🎭', label: 'GIF', action: handleModalGIF },
+                  { icon: '🎤', label: 'Voice', action: handleModalVoice },
+                  { icon: '😊', label: 'Feelings', action: handleModalFeelings },
+                  { icon: '🏪', label: 'Sell', action: handleModalSell },
+                  { icon: '📊', label: 'Poll', action: handleModalPoll },
+                  { icon: '📍', label: 'Location', action: handleModalLocation },
+                ].map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={item.action}
+                    className={`flex flex-col items-center gap-1 p-3 rounded-lg transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}
+                  >
+                    <span className="text-xl">{item.icon}</span>
+                    <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{item.label}</span>
+                  </button>
+                ))}
               </div>
 
 

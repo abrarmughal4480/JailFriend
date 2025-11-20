@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import PostOptionsDropdown from './PostOptionsDropdown';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
 import { toggleCommentsApi, pinPostApi, boostPostApi } from '@/utils/api';
@@ -80,6 +80,11 @@ const FeedPost: React.FC<FeedPostProps> = ({
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
+
+  // Debug: Log when component renders to verify state
+  useEffect(() => {
+    console.log('🔍 FeedPost render - showComments:', showComments, 'postId:', post._id, 'comments count:', post.comments?.length || 0);
+  }, [showComments, post._id, post.comments?.length]);
 
   const getMediaUrl = (url: string) => {
     if (!url) return '/default-avatar.svg';
@@ -817,15 +822,13 @@ const FeedPost: React.FC<FeedPostProps> = ({
   };
 
   const renderContentWithVideos = (content: string) => {
- 
     if (content.includes('<pre')) {
- 
       const preMatch = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (preMatch) {
         const preContent = preMatch[1];
         return (
-          <div className={`whitespace-pre-wrap break-words font-sans ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-            {preContent}
+          <div className="whitespace-pre-wrap break-words font-sans">
+            {renderLinkifiedSegments(preContent)}
           </div>
         );
       }
@@ -894,60 +897,26 @@ const FeedPost: React.FC<FeedPostProps> = ({
   };
 
 
-  const renderContentWithLinks = (content: string) => {
-  
-    if (content.includes('<pre')) {
-   
-      const preMatch = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
-      if (preMatch) {
-        const preContent = preMatch[1];
-        return (
-          <div className={`whitespace-pre-wrap break-words font-sans ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} p-3 rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-            {preContent}
-          </div>
-        );
-      }
-    }
-    
+  const renderLinkifiedSegments = (text: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const parts = content.split(urlRegex);
-    
+    const parts = text.split(urlRegex);
+
     return parts.map((part, index) => {
-      if (urlRegex.test(part)) {
-   
-        if (extractVideoLinks(part).length > 0) {
-          return <span key={index}>{part}</span>;
-        }
-        
+      const trimmedPart = part.trim();
+      const isLinkSegment = /^https?:\/\//i.test(trimmedPart);
+      if (isLinkSegment) {
+        const urlValue = trimmedPart;
         return (
-          <div key={index} className="my-2">
-            <a
-              href={part}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline break-all"
-            >
-              {part}
-            </a>
-            <div className={`mt-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'} rounded-lg p-3 border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-              <div className="flex items-center gap-2">
-                <div className="text-lg">🔗</div>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
-                    {new URL(part).hostname}
-                  </div>
-                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Click to visit link
-                  </div>
-                </div>
-                <div className="text-xs text-gray-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
+          <a
+            key={index}
+            href={urlValue}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`font-medium hover:underline break-all ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}
+            style={{ color: isDarkMode ? '#60a5fa' : '#2563eb' }}
+          >
+            {urlValue}
+          </a>
         );
       }
 
@@ -994,8 +963,24 @@ const FeedPost: React.FC<FeedPostProps> = ({
     });
   };
 
+  const renderContentWithLinks = (content: string) => {
+    if (content.includes('<pre')) {
+      const preMatch = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
+      if (preMatch) {
+        const preContent = preMatch[1];
+        return (
+          <div className="whitespace-pre-wrap break-words font-sans">
+            {renderLinkifiedSegments(preContent)}
+          </div>
+        );
+      }
+    }
+
+    return renderLinkifiedSegments(content);
+  };
+
   return (
-    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} mb-3 sm:mb-4 transition-colors duration-200`}>
+    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} mb-3 sm:mb-4 transition-colors duration-200 relative overflow-visible`}>
       {/* Promoted Post Indicator - Show when post has reactions/likes */}
       {(() => {
         const hasReactions = post.reactions && post.reactions.length > 0;
@@ -1116,10 +1101,16 @@ const FeedPost: React.FC<FeedPostProps> = ({
           {isOwnPost && (
             <div className="relative">
               <button
-                onClick={() => setShowOptionsDropdown(!showOptionsDropdown)}
+                onClick={() => setShowOptionsDropdown(prev => !prev)}
                 className={`p-2 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-full transition-colors`}
+                aria-expanded={showOptionsDropdown}
+                aria-label={showOptionsDropdown ? 'Close post options' : 'Open post options'}
               >
-                <ChevronDown className="w-5 h-5 text-gray-500" />
+                {showOptionsDropdown ? (
+                  <ChevronUp className="w-5 h-5 text-blue-500 transition-transform duration-200" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-500 transition-transform duration-200" />
+                )}
               </button>
               
               <PostOptionsDropdown
@@ -1238,11 +1229,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
               const maxLines = 4; 
               const truncatedContentPlain = lines.slice(0, maxLines).join('\n');
               
+              const previewContent = isExpanded ? content : truncatedContentPlain;
               return (
                 <div className="relative">
-                  <div>{isExpanded ? renderContentWithVideos(content) : (
-                    <div className="break-words whitespace-pre-wrap">{truncatedContentPlain}</div>
-                  )}</div>
+                  <div className="break-words whitespace-pre-wrap">
+                    {renderContentWithVideos(previewContent)}
+                  </div>
                   {!isExpanded && (
                     <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>...</span>
                   )}
@@ -1551,26 +1543,26 @@ const FeedPost: React.FC<FeedPostProps> = ({
         {/* Top Section: Engagement Metrics */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-0 mb-3 sm:mb-4">
           {/* Right Side: Engagement Metrics */}
-          <div className={`flex items-center justify-center sm:justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+              {/* <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
-              </svg>
+              </svg> */}
               <span className="text-xs sm:text-sm">{post.comments?.length || 0} Comments</span>
             </div>
             
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
+              {/* <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
                 <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-              </svg>
+              </svg> */}
               <span className="text-xs sm:text-sm">{post.views?.length || 0} Views</span>
             </div>
             
             <div className="flex items-center space-x-1 sm:space-x-2">
-              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+              {/* <svg className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-              </svg>
+              </svg> */}
               <span className="text-xs sm:text-sm">{post.reviews?.length || 0} Reviews</span>
             </div>
           </div>
@@ -1609,8 +1601,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         )}
 
         {/* Bottom Section: Action Buttons */}
-        <div className="flex items-center justify-start md:justify-between py-3 sm:py-4 md:py-6 px-2 sm:px-4 md:px-6">
-          <div className="flex items-center space-x-4 sm:space-x-8 md:space-x-16">
+          <div className="flex justify-around  items-center ">
             {/* Reaction Button with ReactionPopup Component */}
             <div className="relative">
               <ReactionPopup
@@ -1712,9 +1703,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </button>
           </div>
           
-          {/* Right side - Empty for balance on desktop */}
-          <div className="hidden md:block w-16 sm:w-20"></div>
-        </div>
+        
 
         {/* Remove the old reaction popup section since we moved it above */}
 
@@ -1866,7 +1855,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
         )}
 
         {/* Comments Display - Only Show When Comments Are Visible - Hidden by default */}
-        {/* DEBUG: showComments = {String(showComments)}, comments count = {post.comments?.length || 0} */}
         {showComments === true && post.comments && Array.isArray(post.comments) && post.comments.length > 0 && (
           <div className="mt-4 space-y-4">
             {post.comments.slice(0, 3).map((comment: any, index: number) => (

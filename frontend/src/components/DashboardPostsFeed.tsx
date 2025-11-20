@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import FeedPost from './FeedPost';
 import AlbumDisplay from './AlbumDisplay';
-import PeopleYouMayKnow from './PeopleYouMayKnow';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface Post {
@@ -79,7 +78,6 @@ interface DashboardPostsFeedProps {
   onAlbumDelete: (albumId: string) => void;
   onAlbumSave: (albumId: string) => Promise<void>;
   onAlbumShare: (albumId: string, shareOptions?: any) => Promise<void>;
-  onFollow: (userId: string) => void;
 }
 
 const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
@@ -103,8 +101,7 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
   onAlbumComment,
   onAlbumDelete,
   onAlbumSave,
-  onAlbumShare,
-  onFollow
+  onAlbumShare
 }) => {
   const { isDarkMode } = useDarkMode();
   const getFilteredPosts = () => {
@@ -152,10 +149,6 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
   }, []);
 
   const renderFeed = useMemo(() => {
-    const feedItems: React.ReactNode[] = [];
-    let postCount = 0;
-    let peopleSuggestionsAdded = false;
-
     if (combinedFeed.length === 0) {
       return (
         <div className="text-center py-8">
@@ -173,10 +166,9 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
       );
     }
 
-    combinedFeed.forEach((item: any, index: number) => {
-      // Add post/album
+    return combinedFeed.map((item: any, index: number) => {
       if (item.type === 'album') {
-        feedItems.push(
+        return (
           <AlbumDisplay
             key={`album-${item._id}-${index}`}
             album={item}
@@ -185,53 +177,39 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
             onLike={onAlbumLike}
             onReaction={onAlbumReaction}
             onComment={onAlbumComment}
-            onDeleteComment={() => {}} // Handle delete comment if needed
+            onDeleteComment={() => {}}
             onSave={onAlbumSave}
             onShare={onAlbumShare}
             deletingComments={deletingComments}
             onWatch={onWatch}
           />
         );
-      } else {
-        const isOwnPost = item.user && (
-          item.user._id === currentUser._id ||
-          item.user.id === currentUser.id ||
-          item.user.userId === currentUser.id
-        );
-
-        feedItems.push(
-          <FeedPost
-            key={`post-${item._id || item.id}-${index}`}
-            post={item}
-            onLike={onLike}
-            onReaction={onReaction}
-            onComment={onComment}
-            onShare={onShare}
-            onSave={onSave}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            onPostUpdate={onPostUpdate}
-            isOwnPost={isOwnPost}
-            onWatch={onWatch}
-          />
-        );
-        postCount++;
       }
 
-      // Add "People you may know" component only once after the first 3 posts
-      if (postCount === 3 && !peopleSuggestionsAdded) {
-        feedItems.push(
-          <PeopleYouMayKnow
-            key="people-suggestions"
-            onFollow={onFollow}
-          />
-        );
-        peopleSuggestionsAdded = true;
-      }
+      const isOwnPost = item.user && (
+        item.user._id === currentUser._id ||
+        item.user.id === currentUser.id ||
+        item.user.userId === currentUser.id
+      );
+
+      return (
+        <FeedPost
+          key={`post-${item._id || item.id}-${index}`}
+          post={item}
+          onLike={onLike}
+          onReaction={onReaction}
+          onComment={onComment}
+          onShare={onShare}
+          onSave={onSave}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onPostUpdate={onPostUpdate}
+          isOwnPost={isOwnPost}
+          onWatch={onWatch}
+        />
+      );
     });
-
-    return feedItems;
-  }, [combinedFeed, currentUser, activeFilter, onLike, onReaction, onComment, onShare, onSave, onDelete, onEdit, onPostUpdate, onWatch, onAlbumLike, onAlbumReaction, onAlbumComment, onAlbumDelete, onAlbumSave, onAlbumShare, onFollow, deletingComments]);
+  }, [combinedFeed, currentUser, activeFilter, isDarkMode, onLike, onReaction, onComment, onShare, onSave, onDelete, onEdit, onPostUpdate, onWatch, onAlbumLike, onAlbumReaction, onAlbumComment, onAlbumDelete, onAlbumSave, onAlbumShare, deletingComments]);
 
   if (loadingPosts && loadingAlbums) {
     return (

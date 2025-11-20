@@ -242,6 +242,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   
   // Check if current route is admin
   const isAdminPage = pathname.startsWith('/dashboard/admin');
+  const mobileSidebarThemeClasses = isAdminPage
+    ? 'bg-gray-900 text-white'
+    : isDarkMode
+      ? 'bg-gray-900 text-white'
+      : 'bg-white text-gray-900';
   
   // Check if current route is messages
   const isMessagesPage = pathname.startsWith('/dashboard/messages');
@@ -1913,13 +1918,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {!isMessagesPage && !isVideoCallPage && (isMobile ? (
           <>
             {/* Main Sidebar */}
-            <aside className={`fixed left-0 top-0 ${isAdminPage ? 'w-48' : 'w-64'} h-screen flex flex-col z-[60] transform transition-transform duration-300 ${
+            <aside className={`fixed left-0 top-0 w-full h-screen flex flex-col z-[60] transform transition-transform duration-300 ${
               isMobile 
                 ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
                 : 'translate-x-0'
-            } ${isAdminPage ? 'bg-gray-900' : 'bg-white dark:bg-gray-800'}`} style={{
-              height: 'calc(100vh - 64px)',
-              top: '64px',
+            } ${mobileSidebarThemeClasses}`} style={{
+              height: '100vh',
+              top: '0',
               padding: '0',
               scrollbarWidth: 'thin',
               scrollbarColor: isAdminPage ? '#4A4A4A #2C2C2C' : isDarkMode ? '#4A4A4A #374151' : '#022e8a #f4f4f9',
@@ -1930,15 +1935,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             }}>
               <div className="px-1 py-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className={`font-bold text-lg ${isAdminPage ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                  <h2 className={`font-bold text-lg ${isAdminPage || isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                     {isSettingsPage ? 'Settings' : isAdminPage ? 'Admin' : 'Menu'}
                   </h2>
                   <button
                     onClick={() => setSidebarOpen(false)}
                       className={`w-8 h-8 rounded-full flex items-center justify-center hover:transition-colors ${
-                        isAdminPage 
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
-                          : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'
+                        isAdminPage || isDarkMode
+                          ? 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                       }`}
                       style={!isAdminPage ? {
                         boxShadow: isDarkMode ? '6px 6px 12px rgba(0, 0, 0, 0.3), -6px -6px 12px rgba(0, 0, 0, 0.1)' : '6px 6px 12px rgba(0, 0, 0, 0.1), -6px -6px 12px rgba(255, 255, 255, 0.9)'

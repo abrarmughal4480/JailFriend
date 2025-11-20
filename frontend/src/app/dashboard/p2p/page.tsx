@@ -953,20 +953,10 @@ export default function P2PPage() {
   return (
     <div className={`min-h-screen w-full transition-colors duration-200 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
       <div className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-            P2P Services
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
-            Connect with skilled professionals and offer your services
-          </p>
-        </div>
-
         {/* Tabs */}
         <div className="mb-6 sm:mb-8">
           <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex flex-wrap gap-2 sm:gap-0 sm:space-x-8 overflow-x-auto">
+            <nav className="-mb-px flex flex-nowrap gap-3 sm:gap-0 sm:space-x-8 overflow-x-auto w-full">
               {[
                 { key: 'browse', label: 'Browse Services' },
                 { key: 'bookings', label: 'My Bookings' },
@@ -1161,7 +1151,11 @@ export default function P2PPage() {
                     />
                     <button 
                       onClick={() => setActiveTab('create')}
-                      className="mt-4 bg-blue-500 text-white border-none px-4 py-2 rounded-[20px] text-sm cursor-pointer transition-all hover:bg-blue-600 mx-auto"
+                      className={`mt-4 border-none px-4 py-2 rounded-[20px] text-sm cursor-pointer transition-all mx-auto ${
+                        isDarkMode
+                          ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      }`}
                     >
                       Edit Profile
                     </button>

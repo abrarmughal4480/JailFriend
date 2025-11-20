@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, User } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface User {
   _id: string;
@@ -26,6 +27,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
   const [followedUsers, setFollowedUsers] = useState<Set<string>>(new Set());
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const router = useRouter();
+  const { isDarkMode } = useDarkMode();
 
   // Add custom styles for horizontal scrolling
   useEffect(() => {
@@ -222,25 +224,40 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
     return null;
   }
 
+  const containerClasses = isDarkMode
+    ? 'bg-[#0f1729] text-white border-gray-700'
+    : 'bg-white text-gray-900 border-gray-200';
+  const headerSubText = isDarkMode ? 'text-gray-400' : 'text-gray-500';
+  const cardClasses = isDarkMode
+    ? 'bg-[#182238] hover:bg-[#1f2c45]'
+    : 'bg-gray-50 hover:bg-gray-100';
+  const cardText = isDarkMode ? 'text-white' : 'text-gray-900';
+  const secondaryText = isDarkMode ? 'text-gray-400' : 'text-gray-500';
+  const tertiaryText = isDarkMode ? 'text-gray-300' : 'text-gray-600';
+  const followBtnDefault = 'bg-red-500 text-white hover:bg-red-600 shadow-md hover:shadow-lg';
+  const followBtnFollowing = isDarkMode
+    ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+    : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-4">
+    <div className={`rounded-xl shadow-sm border mb-4 transition-colors duration-200 ${containerClasses}`}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+      <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold">
             People You May Know
           </h3>
           <button
             onClick={fetchSuggestedUsers}
             disabled={loading}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className={`p-2 transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
             title="Refresh suggestions"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
         {lastUpdated && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className={`text-xs mt-1 ${headerSubText}`}>
             Updated {lastUpdated.toLocaleTimeString()}
           </p>
         )}
@@ -255,7 +272,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
             return (
               <div
                 key={user._id}
-                className="people-card flex-shrink-0 w-48 bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+                className={`people-card flex-shrink-0 w-48 rounded-lg p-4 transition-colors cursor-pointer ${cardClasses}`}
                 onClick={() => navigateToProfile(user._id)}
               >
                 {/* Avatar */}
@@ -278,7 +295,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
                 {/* User Info */}
                 <div className="text-center mb-3">
                   <div className="flex items-center justify-center space-x-1 mb-1">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                    <h4 className={`text-sm font-semibold truncate ${cardText}`}>
                       {user.name}
                     </h4>
                     {user.isVerified && (
@@ -287,10 +304,10 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  <p className={`text-xs truncate ${secondaryText}`}>
                     {user.username}
                   </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                  <p className={`text-xs mt-1 ${tertiaryText}`}>
                     {user.followers} followers
                   </p>
                 </div>
@@ -303,9 +320,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
                     }}
                   disabled={loading}
                   className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
-                    isFollowing
-                      ? 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
-                      : 'bg-red-500 text-white hover:bg-red-600 shadow-md hover:shadow-lg'
+                    isFollowing ? followBtnFollowing : followBtnDefault
                   }`}
                 >
                   {loading ? (

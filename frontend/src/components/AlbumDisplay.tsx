@@ -38,6 +38,7 @@ export default function AlbumDisplay({
   const { isDarkMode } = useDarkMode();
   const [showAllPhotos, setShowAllPhotos] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [showComments, setShowComments] = useState(false);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [showSharePopup, setShowSharePopup] = useState(false);
   const reactionButtonRef = useRef<HTMLButtonElement>(null);
@@ -461,8 +462,11 @@ export default function AlbumDisplay({
       return false;
     });
 
+  const mediaCount = album.media ? album.media.length : 0;
   const displayedMedia = showAllPhotos ? album.media : (album.media || []).slice(0, 3);
   const hasMoreMedia = (album.media || []).length > 3;
+  const mediaLabel = mediaCount === 1 ? 'photo' : 'photos';
+  const actionText = `added new ${mediaCount > 0 ? `${mediaCount} ${mediaLabel}` : 'media'} to ${album.name || 'an album'}`;
 
   return (
     <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow p-3 sm:p-4 mb-4 sm:mb-6 transition-colors duration-200 relative`}>
@@ -473,18 +477,23 @@ export default function AlbumDisplay({
           className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" 
         />
         <div className="flex-1 min-w-0">
-          {album.user?._id ? (
-            <a 
-              href={`/dashboard/profile/${String(album.user._id)}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className={`font-semibold text-sm sm:text-base hover:underline cursor-pointer truncate block transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              {album.user?.name || 'Unknown User'}
-            </a>
-          ) : (
-            <div className={`font-semibold text-sm sm:text-base truncate transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{album.user?.name || 'Unknown User'}</div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {album.user?._id ? (
+              <a 
+                href={`/dashboard/profile/${String(album.user._id)}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className={`font-semibold text-sm sm:text-base hover:underline cursor-pointer truncate inline-flex transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+              >
+                {album.user?.name || 'Unknown User'}
+              </a>
+            ) : (
+              <div className={`font-semibold text-sm sm:text-base truncate inline-flex transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{album.user?.name || 'Unknown User'}</div>
+            )}
+            <span className={`text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-blue-200' : 'text-blue-600'}`}>
+              {actionText}
+            </span>
+          </div>
           <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             {new Date(album.createdAt).toLocaleString()}
           </div>
@@ -503,13 +512,12 @@ export default function AlbumDisplay({
       <div className={`mb-3 cursor-pointer ${isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} rounded-lg p-2 transition-colors`} onClick={() => onWatch && onWatch(album)}>
         <div className="flex items-center gap-2 mb-2">
           <h3 className={`font-semibold text-lg transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>📸 {album.name}</h3>
-          <span className={`${isDarkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-800'} text-xs px-2 py-1 rounded-full font-medium transition-colors duration-200`}>
-            Album
-          </span>
         </div>
-        <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-          {album.media ? album.media.length : 0} media item{(album.media ? album.media.length : 0) !== 1 ? 's' : ''}
-        </div>
+        {album.description && (
+          <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            {album.description}
+          </div>
+        )}
       </div>
 
       {album.media && album.media.length > 0 && (
@@ -637,9 +645,58 @@ export default function AlbumDisplay({
         </button>
       )}
 
-      {/* Social Actions */}
-      <div className="flex items-center justify-between py-3 sm:py-4 md:py-6 px-2 sm:px-4 md:px-6">
-        <div className="flex items-center space-x-4 sm:space-x-8 md:space-x-16">
+      {/* Action Buttons - Matching FeedPost structure */}
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+        {/* Top Section: Engagement Metrics */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-0 mb-3 sm:mb-4">
+          {/* Right Side: Engagement Metrics */}
+          <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <span className="text-xs sm:text-sm">{album.comments?.length || 0} Comments</span>
+            </div>
+            
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <span className="text-xs sm:text-sm">{album.views?.length || 0} Views</span>
+            </div>
+            
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              <span className="text-xs sm:text-sm">{album.reviews?.length || 0} Reviews</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Single Reaction Display - Shows all reactions like FeedPost */}
+        {album.reactions && Array.isArray(album.reactions) && album.reactions.length > 0 && (
+          <div className={`px-4 py-2 border-b mb-3 sm:mb-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}>
+            <div className="flex flex-wrap gap-2">
+              {(() => {
+                const reactionCounts: { [key: string]: number } = {};
+                album.reactions.forEach((reaction: any) => {
+                  reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
+                });
+                
+                const reactionEmojis: { [key: string]: string } = {
+                  'like': '👍',
+                  'love': '❤️',
+                  'haha': '😂',
+                  'wow': '😮',
+                  'sad': '😢',
+                  'angry': '😠'
+                };
+                
+                return Object.entries(reactionCounts).map(([type, count]) => (
+                  <div key={type} className={`flex items-center space-x-1 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-full px-3 py-1 border`}>
+                    <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
+                    <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} font-medium`}>{count}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Section: Action Buttons */}
+        <div className="flex justify-around items-center">
           {/* Reaction Button with ReactionPopup Component */}
           <div className="relative">
             <ReactionPopup
@@ -672,8 +729,13 @@ export default function AlbumDisplay({
           </div>
           
           {/* Comment Button */}
-          <button 
-            onClick={() => setShowCommentInput(!showCommentInput)}
+            <button
+            onClick={() => {
+              setShowComments(!showComments);
+              if (!showComments) {
+                setShowCommentInput(true);
+              }
+            }}
             className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation ${isDarkMode ? 'text-gray-300 hover:text-blue-400' : 'text-gray-600 hover:text-blue-600'}`}
             style={{ touchAction: 'manipulation' }}
           >
@@ -730,13 +792,13 @@ export default function AlbumDisplay({
             </div>
             <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${isDarkMode ? 'text-white' : 'text-gray-600'}`}>{isSaved ? 'Saved' : 'Save'}</span>
         </button>
-        </div>
+      </div>
       </div>
       
       
 
-      {/* Comment Input */}
-      {showCommentInput && (
+      {/* Comment Input - Only Show When Comments Are Visible - Hidden by default */}
+      {showComments === true && (
         <div className={`mt-3 p-2 sm:p-3 rounded-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
           <div className="flex gap-2">
             <input
@@ -751,7 +813,8 @@ export default function AlbumDisplay({
                 if (commentText.trim() && onComment) {
                   onComment(album._id, commentText);
                   setCommentText('');
-                  setShowCommentInput(false);
+                  // Keep comments visible after posting
+                  setShowComments(true);
                 }
               }}
               disabled={!commentText.trim()}
@@ -764,8 +827,8 @@ export default function AlbumDisplay({
         </div>
       )}
 
-      {/* Comments Display */}
-      {album.comments && album.comments.length > 0 && (
+      {/* Comments Display - Only Show When Comments Are Visible - Hidden by default */}
+      {showComments === true && album.comments && album.comments.length > 0 && (
         <div className="mt-3 space-y-2">
           {album.comments.slice(0, 3).map((comment: any, index: number) => {
             // Check if current user is the comment author
