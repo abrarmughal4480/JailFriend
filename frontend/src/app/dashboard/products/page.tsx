@@ -3,6 +3,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hg
 import React, { useState, useEffect } from 'react';
 import { Package, ShoppingCart, Plus, Camera, Users, X, Upload, ArrowLeft, Menu, Search, Filter, Eye, Edit, Trash2, Star } from 'lucide-react';
 import { useDarkMode } from '@/contexts/DarkModeContext';
+import { getCurrentUserId } from '@/utils/auth';
 
 interface Tab {
   name: string;
@@ -48,7 +49,16 @@ const MarketplaceSeller: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'My Products') {
       setLoading(true);
-              fetch(`${API_URL}/api/products`)
+      const currentUserId = getCurrentUserId();
+      
+      if (!currentUserId) {
+        console.error('No current user ID found');
+        setError('Please login to view your products');
+        setLoading(false);
+        return;
+      }
+
+      fetch(`${API_URL}/api/products`)
         .then(res => {
           if (!res.ok) {
             throw new Error(`HTTP error! status: ${res.status}`);
@@ -58,16 +68,32 @@ const MarketplaceSeller: React.FC = () => {
         .then(data => {
           console.log('Products fetched:', data.length);
           console.log('Products data:', data);
+          
+          // Filter products to show only those created by the current user
+          const myProducts = data.filter((product: any) => {
+            // Check multiple possible fields for user ID
+            const productUserId = product.userId || product.user?.id || product.user?._id || product.sellerId || product.createdBy;
+            const normalizedProductUserId = productUserId ? String(productUserId).trim() : '';
+            const normalizedCurrentUserId = String(currentUserId).trim();
+            
+            return normalizedProductUserId === normalizedCurrentUserId;
+          });
+          
+          console.log('My products filtered:', myProducts.length);
+          console.log('Current user ID:', currentUserId);
+          
           // Log image information for each product
-          data.forEach((product: any, index: number) => {
+          myProducts.forEach((product: any, index: number) => {
             console.log(`Product ${index + 1}:`, {
               name: product.name,
               image: product.image,
               hasImage: !!product.image,
-              imageType: typeof product.image
+              imageType: typeof product.image,
+              userId: product.userId || product.user?.id || product.user?._id || product.sellerId || product.createdBy
             });
           });
-          setProducts(data);
+          
+          setProducts(myProducts);
           setLoading(false);
         })
         .catch((error) => {
@@ -80,8 +106,7 @@ const MarketplaceSeller: React.FC = () => {
 
   const tabs: Tab[] = [
     { name: 'My Products', active: true },
-    { name: 'Purchased', active: false },
-    { name: 'Market', active: false }
+    { name: 'Purchased', active: false }
   ];
 
   const currencies: string[] = ['USD ($)', 'EUR (€)', 'GBP (£)', 'CAD ($)', 'AUD ($)'];
@@ -198,14 +223,24 @@ const MarketplaceSeller: React.FC = () => {
         resetForm();
         
         // Refresh products list
-  fetch(`${API_URL}/api/products`)
-          .then(res => res.json())
-          .then(data => {
-            setProducts(data);
-          })
-          .catch(() => {
-            setError('Failed to refresh products');
-          });
+        const currentUserId = getCurrentUserId();
+        if (currentUserId) {
+          fetch(`${API_URL}/api/products`)
+            .then(res => res.json())
+            .then(data => {
+              // Filter products to show only those created by the current user
+              const myProducts = data.filter((product: any) => {
+                const productUserId = product.userId || product.user?.id || product.user?._id || product.sellerId || product.createdBy;
+                const normalizedProductUserId = productUserId ? String(productUserId).trim() : '';
+                const normalizedCurrentUserId = String(currentUserId).trim();
+                return normalizedProductUserId === normalizedCurrentUserId;
+              });
+              setProducts(myProducts);
+            })
+            .catch(() => {
+              setError('Failed to refresh products');
+            });
+        }
       } else {
         console.error('Server response error:', res.status, res.statusText);
         let errorMessage = `Server error: ${res.status} ${res.statusText}`;
@@ -584,31 +619,12 @@ const MarketplaceSeller: React.FC = () => {
     </div>
   );
 
-  // Market Page
-  const MarketPage: React.FC = () => (
-    <div className={`min-h-64 flex flex-col items-center justify-center p-6 sm:p-8 text-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center mb-3 sm:mb-4 transition-colors duration-200 ${isDarkMode ? 'bg-blue-900' : 'bg-blue-100'}`}>
-        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
-      </div>
-      <h3 className={`text-lg sm:text-xl font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Explore marketplace</h3>
-      <p className={`text-sm sm:text-base mb-4 sm:mb-6 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Discover products from other sellers.</p>
-      <button 
-        className="bg-blue-500 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors text-sm sm:text-base"
-        onClick={() => setActiveTab('Market')}
-      >
-        Browse Products
-      </button>
-    </div>
-  );
-
   const renderContent = (): React.ReactElement => {
     switch (activeTab) {
       case 'My Products':
         return <MyProductsPage />;
       case 'Purchased':
         return <PurchasedPage />;
-      case 'Market':
-        return <MarketPage />;
       default:
         return <MyProductsPage />;
     }

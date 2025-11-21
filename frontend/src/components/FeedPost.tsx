@@ -171,12 +171,16 @@ const FeedPost: React.FC<FeedPostProps> = ({
         const data = await response.json();
         console.log('Reaction updated successfully:', data);
         
-      
         if (onPostUpdate) {
           if (data.post) {
-            onPostUpdate(data.post);
+            // Ensure the post has the correct _id for matching
+            const postToUpdate = {
+              ...data.post,
+              _id: data.post._id || data.post.id || post._id,
+              id: data.post.id || data.post._id || post.id
+            };
+            onPostUpdate(postToUpdate);
           } else {
-        
             console.log('API response missing post data, refreshing page...');
             window.location.reload();
           }
@@ -1106,11 +1110,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 aria-expanded={showOptionsDropdown}
                 aria-label={showOptionsDropdown ? 'Close post options' : 'Open post options'}
               >
-                {showOptionsDropdown ? (
-                  <ChevronUp className="w-5 h-5 text-blue-500 transition-transform duration-200" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-500 transition-transform duration-200" />
-                )}
+                <MoreHorizontal className={`w-5 h-5 transition-colors duration-200 ${showOptionsDropdown ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
               </button>
               
               <PostOptionsDropdown

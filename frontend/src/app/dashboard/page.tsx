@@ -426,10 +426,35 @@ export default function Dashboard() {
     const handlePostUpdated = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail && customEvent.detail.postId && customEvent.detail.updatedPost) {
+        // Helper function to normalize IDs for comparison
+        const normalizeId = (id: any): string => {
+          if (!id) return '';
+          return String(id).trim();
+        };
+
+        const targetPostId = normalizeId(customEvent.detail.postId);
+        
         // Update specific post instead of refetching all data
-        setPosts(posts => posts.map(p =>
-          p._id === customEvent.detail.postId ? customEvent.detail.updatedPost : p
-        ));
+        setPosts(posts => {
+          // Check if post exists to prevent issues
+          const postExists = posts.some(p => {
+            const postId = normalizeId(p._id || p.id);
+            return postId === targetPostId;
+          });
+
+          if (!postExists) {
+            console.warn('handlePostUpdated: Post not found in array', targetPostId);
+            return posts;
+          }
+
+          return posts.map(p => {
+            const postId = normalizeId(p._id || p.id);
+            if (postId === targetPostId) {
+              return customEvent.detail.updatedPost;
+            }
+            return p;
+          });
+        });
       } else {
         // Fallback to refetching all data if no specific update info
         fetchFeedData();
@@ -632,11 +657,43 @@ export default function Dashboard() {
 
   // Handle post updates (for polls, reactions, etc.)
   const handlePostUpdate = (updatedPost: any) => {
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post._id === updatedPost._id || post.id === updatedPost.id ? updatedPost : post
-      )
-    );
+    if (!updatedPost || (!updatedPost._id && !updatedPost.id)) {
+      console.warn('handlePostUpdate: Invalid post data', updatedPost);
+      return;
+    }
+
+    setPosts(prevPosts => {
+      // Helper function to normalize IDs for comparison
+      const normalizeId = (id: any): string => {
+        if (!id) return '';
+        return String(id).trim();
+      };
+
+      const updatedPostId = normalizeId(updatedPost._id || updatedPost.id);
+      
+      // Check if post already exists to prevent duplicates
+      const postExists = prevPosts.some(post => {
+        const postId = normalizeId(post._id || post.id);
+        return postId === updatedPostId;
+      });
+
+      if (!postExists) {
+        console.warn('handlePostUpdate: Post not found in array, skipping update', {
+          updatedPostId,
+          existingIds: prevPosts.map(p => normalizeId(p._id || p.id))
+        });
+        return prevPosts;
+      }
+
+      // Map and replace the matching post
+      return prevPosts.map(post => {
+        const postId = normalizeId(post._id || post.id);
+        if (postId === updatedPostId) {
+          return updatedPost;
+        }
+        return post;
+      });
+    });
   };
 
   const handleToggleComments = async (postId: string) => {
@@ -2635,10 +2692,26 @@ export default function Dashboard() {
 
 
                     {(() => {
-                      const combinedFeed = [
-                        ...posts.map((post: any) => ({ ...post, type: 'post' })),
-                        ...albums.map((album: any) => ({ ...album, type: 'album' }))
-                      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                      // Helper to normalize IDs for deduplication
+                      const normalizeId = (id: any): string => {
+                        if (!id) return '';
+                        return String(id).trim();
+                      };
+
+                      // Create combined feed and remove duplicates
+                      const postsWithType = posts.map((post: any) => ({ ...post, type: 'post' }));
+                      const albumsWithType = albums.map((album: any) => ({ ...album, type: 'album' }));
+                      
+                      const combinedFeed = [...postsWithType, ...albumsWithType]
+                        .filter((item, index, self) => {
+                          // Remove duplicates based on ID
+                          const itemId = normalizeId(item._id || item.id);
+                          return index === self.findIndex((i) => {
+                            const otherId = normalizeId(i._id || i.id);
+                            return otherId === itemId && i.type === item.type;
+                          });
+                        })
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
                       const renderFeed = () => {
                         const feedItems: React.ReactNode[] = [];
@@ -2689,7 +2762,7 @@ export default function Dashboard() {
 
                             feedItems.push(
                               <FeedPost
-                                key={`post-${item._id || item.id}-${index}`}
+                                key={`post-${item._id || item.id}`}
                                 post={item}
                                 onLike={handleLike}
                                 onReaction={handleReaction}
