@@ -5,6 +5,7 @@ type P2PCategoryPayload = {
   title: string;
   description?: string;
   image?: string;
+  imageFile?: File | null;
   isActive?: boolean;
 };
 
@@ -198,13 +199,31 @@ export const adminApi = {
   createP2PCategory: async (payload: P2PCategoryPayload) => {
     const token = localStorage.getItem('token');
 
+    const formData = new FormData();
+    formData.append('title', payload.title);
+    
+    if (payload.description) {
+      formData.append('description', payload.description);
+    }
+    
+    if (payload.imageFile) {
+      formData.append('image', payload.imageFile);
+    } else if (payload.image) {
+      // Fallback to URL if no file is provided
+      formData.append('imageUrl', payload.image);
+    }
+    
+    if (payload.isActive !== undefined) {
+      formData.append('isActive', payload.isActive.toString());
+    }
+
     const response = await fetch(`${API_BASE_URL}/admin/p2p/categories`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
+        // Don't set Content-Type header - browser will set it with boundary for FormData
       },
-      body: JSON.stringify(payload)
+      body: formData
     });
 
     if (!response.ok) {
@@ -218,13 +237,33 @@ export const adminApi = {
   updateP2PCategory: async (categoryId: string, payload: P2PCategoryPayload) => {
     const token = localStorage.getItem('token');
 
+    const formData = new FormData();
+    formData.append('title', payload.title);
+    
+    if (payload.description !== undefined) {
+      formData.append('description', payload.description);
+    }
+    
+    // If a new file is uploaded, use it; otherwise preserve existing image URL
+    if (payload.imageFile) {
+      formData.append('image', payload.imageFile);
+    } else if (payload.image && !payload.image.startsWith('blob:')) {
+      // Only send imageUrl if it's not a blob URL (which is a preview)
+      // This preserves the existing image when editing without uploading a new file
+      formData.append('imageUrl', payload.image);
+    }
+    
+    if (payload.isActive !== undefined) {
+      formData.append('isActive', payload.isActive.toString());
+    }
+
     const response = await fetch(`${API_BASE_URL}/admin/p2p/categories/${categoryId}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
+        // Don't set Content-Type header - browser will set it with boundary for FormData
       },
-      body: JSON.stringify(payload)
+      body: formData
     });
 
     if (!response.ok) {

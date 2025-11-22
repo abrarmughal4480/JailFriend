@@ -2,8 +2,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { Settings, Mail, Users, Upload, Globe, MessageCircle, Info, Shield } from 'lucide-react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 const AdminSettingsPage = () => {
+  const { isDarkMode } = useDarkMode();
   const settingsCategories = [
     {
       title: 'General Settings',
@@ -57,15 +59,15 @@ const AdminSettingsPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'} p-6`}>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Settings</h1>
-        <div className="text-sm text-gray-600 flex items-center space-x-2">
-          <span className="text-red-500">🏠</span>
+        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>Admin Settings</h1>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} flex items-center space-x-2`}>
+          <span className={isDarkMode ? 'text-red-400' : 'text-red-500'}>🏠</span>
           <span>Home</span>
           <span>&gt;</span>
-          <span className="text-red-500">Settings</span>
+          <span className={isDarkMode ? 'text-red-400' : 'text-red-500'}>Settings</span>
         </div>
       </div>
 
@@ -77,15 +79,15 @@ const AdminSettingsPage = () => {
             <Link 
               key={index} 
               href={category.href}
-              className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
+              className={`${isDarkMode ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' : 'bg-white border-gray-200'} rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200 border`}
             >
               <div className="flex items-center mb-4">
                 <div className={`${category.color} p-3 rounded-lg mr-4`}>
                   <IconComponent className="w-6 h-6 text-white" />
               </div>
-                <h3 className="text-lg font-semibold text-gray-900">{category.title}</h3>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{category.title}</h3>
               </div>
-              <p className="text-gray-600 text-sm">{category.description}</p>
+              <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm`}>{category.description}</p>
             </Link>
           );
         })}

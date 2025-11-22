@@ -286,6 +286,28 @@ const resetToDefaults = async (req, res) => {
   }
 };
 
+// Get privacy policy and terms of service (public endpoint)
+const getLegalDocuments = async (req, res) => {
+  try {
+    const settings = await WebsiteSettings.getSettings();
+    
+    res.json({
+      success: true,
+      data: {
+        privacyPolicy: settings.privacyPolicy || '',
+        termsOfService: settings.termsOfService || ''
+      }
+    });
+  } catch (error) {
+    console.error('Error getting legal documents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get legal documents',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getWebsiteSettings,
   updateWebsiteSettings,
@@ -294,5 +316,6 @@ module.exports = {
   updateApiKey,
   toggleMaintenanceMode,
   getWebsiteMode,
-  resetToDefaults
+  resetToDefaults,
+  getLegalDocuments
 }; 

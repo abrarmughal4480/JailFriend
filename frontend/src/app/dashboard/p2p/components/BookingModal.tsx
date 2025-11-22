@@ -22,6 +22,7 @@ interface BookingModalProps {
     startTime: string;
     endTime: string;
     timezone?: string;
+    availableDays?: string[];
   };
   serviceProviderId: string;
   p2pProfileId: string;
@@ -85,6 +86,58 @@ const formatTimeDisplay = (time: string) => {
 
 const toDateInputValue = (date: Date) => date.toISOString().split('T')[0];
 
+/**
+ * Creates an ISO date string representing the given date and time in the specified timezone.
+ * This function finds the UTC time that, when converted to the target timezone, equals the desired time.
+ * 
+ * The approach: we iteratively adjust a UTC date until, when formatted in the target timezone,
+ * it matches the desired local time.
+ */
+const createDateInTimezone = (dateStr: string, timeStr: string, timezone: string): string => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  
+  // Create a date string in ISO format (interpreted as UTC initially)
+  const dateTimeStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  
+  // Start with a guess: create date assuming it's UTC
+  // This is our initial candidate
+  let candidateDate = new Date(dateTimeStr + 'Z');
+  
+  // Formatter to check what time our candidate represents in the target timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  
+  const desiredMinutes = hours * 60 + minutes;
+  let attempts = 0;
+  const maxAttempts = 20; // Increased for better accuracy
+  
+  while (attempts < maxAttempts) {
+    const parts = formatter.formatToParts(candidateDate);
+    const tzHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+    const tzMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
+    const actualMinutes = tzHour * 60 + tzMinute;
+    const diffMinutes = desiredMinutes - actualMinutes;
+    
+    // If we're within 1 minute, we're close enough (accounting for rounding)
+    if (Math.abs(diffMinutes) <= 1) {
+      break;
+    }
+    
+    // Adjust the candidate date by the difference
+    // If the timezone shows an earlier time, we need to add time to our UTC date
+    // If the timezone shows a later time, we need to subtract time from our UTC date
+    candidateDate = new Date(candidateDate.getTime() + diffMinutes * 60 * 1000);
+    attempts++;
+  }
+  
+  return candidateDate.toISOString();
+};
+
 const parseTimeToMinutes = (time: string | null | undefined): number | null => {
   if (!time) return null;
   const trimmed = time.trim();
@@ -138,8 +191,19 @@ const buildTimeSlots = (
   }
 
   const slots: string[] = [];
-  for (let cursor = startMinutes; cursor <= endMinutes; cursor += stepMinutes) {
-    slots.push(minutesToTimeString(cursor));
+  // Extract the minute component from the start time to preserve it for all slots
+  const startMinuteComponent = startMinutes % 60;
+  const startHour = Math.floor(startMinutes / 60);
+  const endHour = Math.floor(endMinutes / 60);
+  
+  // Generate slots every hour (60 minutes) at the same minute mark
+  // This gives us slots like 4:52, 5:52, 6:52, etc.
+  for (let hour = startHour; hour <= endHour; hour++) {
+    const slotMinutes = hour * 60 + startMinuteComponent;
+    // Only include slots that are within the time range
+    if (slotMinutes >= startMinutes && slotMinutes <= endMinutes) {
+      slots.push(minutesToTimeString(slotMinutes));
+    }
   }
   return slots;
 };
@@ -254,8 +318,22 @@ export function BookingModal({
       return;
     }
 
-    const scheduledDate = new Date(`${callDate}T${callTime}:00`);
-    if (Number.isNaN(scheduledDate.getTime())) {
+    // Create the scheduled date in the provider's timezone
+    const providerTimezone = availability.timezone || 'UTC';
+    let scheduledDateISO: string;
+    let scheduledDate: Date;
+    
+    try {
+      scheduledDateISO = createDateInTimezone(callDate, callTime, providerTimezone);
+      scheduledDate = new Date(scheduledDateISO);
+      
+      if (Number.isNaN(scheduledDate.getTime())) {
+        const message = 'Invalid date or time selection.';
+        setSubmissionError(message);
+        onBookingError?.(message);
+        return;
+      }
+    } catch (error) {
       const message = 'Invalid date or time selection.';
       setSubmissionError(message);
       onBookingError?.(message);
@@ -271,9 +349,10 @@ export function BookingModal({
       serviceProviderId,
       p2pProfileId,
       serviceType: 'hourly',
+      callType: callMode, // 'audio' or 'video'
       title: `Booking with ${expertName}`,
       description: `Auto-generated ${callMode === 'audio' ? 'audio' : 'video'} call booking for ${planSummary}.`,
-      scheduledDate: scheduledDate.toISOString(),
+      scheduledDate: scheduledDateISO,
       duration: activeMinutes,
       requirements: translateActive ? ['Real-time translation requested.'] : [],
       deliverables: [],
@@ -345,9 +424,31 @@ export function BookingModal({
   }, [availability.baseDate, availability.startTime, initialMode, open, timeOptions]);
 
   const dateSuggestions = useMemo(() => {
+    const availableDays = availability.availableDays || [];
+    const providerTimezone = availability.timezone || 'UTC';
+    
     return Array.from({ length: 5 }, (_, index) => {
       const date = new Date(baseDate);
       date.setDate(baseDate.getDate() + index);
+      
+      // If provider has specific available days, check if this date is available
+      if (availableDays.length > 0) {
+        // Get the weekday name in the provider's timezone
+        const weekdayName = new Intl.DateTimeFormat('en-US', {
+          timeZone: providerTimezone,
+          weekday: 'long'
+        }).format(date);
+        
+        // Check if this weekday is in the available days list
+        const isAvailable = availableDays.some(day => 
+          day.toLowerCase() === weekdayName.toLowerCase()
+        );
+        
+        if (!isAvailable) {
+          return null;
+        }
+      }
+      
       return {
         value: date.toISOString().split('T')[0],
         label:
@@ -359,8 +460,8 @@ export function BookingModal({
                 month: 'short',
               }),
       };
-    });
-  }, [baseDate]);
+    }).filter((item): item is { value: string; label: string } => item !== null);
+  }, [baseDate, availability.availableDays, availability.timezone]);
 
   const subscriptionDays = useMemo(() => {
     if (planCategory === 'single') return 1;
@@ -372,29 +473,65 @@ export function BookingModal({
   const bookedRanges = useMemo(() => {
     if (!providerBookings.length) return [];
 
-    return providerBookings.map((slot) => {
-      const start = new Date(slot.scheduledDate);
-      const end = new Date(start.getTime() + slot.duration * 60000);
-      return {
-        startMinutes: start.getHours() * 60 + start.getMinutes(),
-        endMinutes: end.getHours() * 60 + end.getMinutes(),
-      };
-    });
-  }, [providerBookings]);
+    // Parse the selected date string (YYYY-MM-DD) to avoid timezone issues
+    const [selectedYear, selectedMonth, selectedDay] = callDate.split('-').map(Number);
+
+    return providerBookings
+      .filter((slot) => {
+        // Only consider bookings on the selected date
+        const bookingDate = new Date(slot.scheduledDate);
+        // Compare date components directly to avoid timezone issues
+        return (
+          bookingDate.getFullYear() === selectedYear &&
+          bookingDate.getMonth() === selectedMonth - 1 && // getMonth() is 0-indexed
+          bookingDate.getDate() === selectedDay
+        );
+      })
+      .map((slot) => {
+        const start = new Date(slot.scheduledDate);
+        const end = new Date(start.getTime() + slot.duration * 60000);
+        return {
+          startMinutes: start.getHours() * 60 + start.getMinutes(),
+          endMinutes: end.getHours() * 60 + end.getMinutes(),
+        };
+      });
+  }, [providerBookings, callDate]);
 
   const availableTimeOptions = useMemo(() => {
-    if (!bookedRanges.length) return timeOptions;
+    const workingStartMinutes = parseTimeToMinutes(availability.startTime);
+    const workingEndMinutes = parseTimeToMinutes(availability.endTime);
+    
+    if (workingStartMinutes === null || workingEndMinutes === null) {
+      return timeOptions;
+    }
 
+    // Filter slots that are within working hours
+    // Don't filter by duration here - we'll show all slots and disable ones that don't fit
     return timeOptions.filter((slot) => {
       const slotStart = parseTimeToMinutes(slot);
       if (slotStart === null) return false;
-      const slotEnd = slotStart + activeMinutes;
+      
+      // Check if slot start is within working hours
+      if (slotStart < workingStartMinutes) return false;
+      if (slotStart > workingEndMinutes) return false;
 
-      return !bookedRanges.some(
-        (range) => slotStart < range.endMinutes && slotEnd > range.startMinutes
-      );
+      // Check if slot overlaps with booked ranges (considering the selected duration)
+      // Only filter out if there's an actual booking conflict
+      if (bookedRanges.length > 0) {
+        const slotEnd = slotStart + activeMinutes;
+        const overlaps = bookedRanges.some((range) => {
+          // Check if the slot overlaps with the booked range
+          // Overlap occurs if: slotStart < range.endMinutes AND slotEnd > range.startMinutes
+          // But we need to handle edge cases where they're exactly equal
+          return slotStart < range.endMinutes && slotEnd > range.startMinutes;
+        });
+        // If there's an overlap, filter this slot out
+        if (overlaps) return false;
+      }
+      
+      return true;
     });
-  }, [activeMinutes, bookedRanges, timeOptions]);
+  }, [activeMinutes, bookedRanges, timeOptions, availability.startTime, availability.endTime]);
 
   useEffect(() => {
     if (!availableTimeOptions.length) {
@@ -534,21 +671,32 @@ export function BookingModal({
               <h3 className={`mt-8 text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select time</h3>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <div className="flex flex-wrap gap-3">
-                  {availableTimeOptions.map((slot) => (
-                    <button
-                      key={slot}
-                      onClick={() => setCallTime(slot)}
-                      className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${
-                        callTime === slot
-                          ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                          : isDarkMode
-                          ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                          : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                      }`}
-                    >
-                      {formatTimeDisplay(slot)}
-                    </button>
-                  ))}
+                  {availableTimeOptions.map((slot) => {
+                    const slotStart = parseTimeToMinutes(slot);
+                    const workingEndMinutes = parseTimeToMinutes(availability.endTime);
+                    const slotEnd = slotStart !== null ? slotStart + activeMinutes : null;
+                    const wouldExceedEndTime = slotEnd !== null && workingEndMinutes !== null && slotEnd > workingEndMinutes;
+                    
+                    return (
+                      <button
+                        key={slot}
+                        onClick={() => setCallTime(slot)}
+                        disabled={wouldExceedEndTime}
+                        className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${
+                          callTime === slot
+                            ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                            : wouldExceedEndTime
+                            ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                            : isDarkMode
+                            ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
+                            : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
+                        }`}
+                        title={wouldExceedEndTime ? `This time slot would exceed the available end time (${formatTimeDisplay(availability.endTime)})` : ''}
+                      >
+                        {formatTimeDisplay(slot)}
+                      </button>
+                    );
+                  })}
                   {isLoadingAvailability && (
                     <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Checking availability...</span>
                   )}
@@ -563,7 +711,16 @@ export function BookingModal({
                   max={availability.endTime}
                   step={TIME_SLOT_STEP_MINUTES * 60}
                   disabled={!availableTimeOptions.length}
-                  onChange={(event) => setCallTime(event.target.value)}
+                  onChange={(event) => {
+                    const newTime = event.target.value;
+                    // Validate that the selected time is in available options
+                    if (availableTimeOptions.includes(newTime)) {
+                      setCallTime(newTime);
+                    } else if (availableTimeOptions.length > 0) {
+                      // If invalid, set to first available option
+                      setCallTime(availableTimeOptions[0]);
+                    }
+                  }}
                   className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
                     isDarkMode 
                       ? 'border-gray-600 bg-gray-700 text-white' 

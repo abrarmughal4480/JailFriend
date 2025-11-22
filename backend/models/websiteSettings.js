@@ -821,6 +821,16 @@ const websiteSettingsSchema = new mongoose.Schema({
         default: false
       }
     }
+  },
+  
+  // Legal Documents
+  privacyPolicy: {
+    type: String,
+    default: ''
+  },
+  termsOfService: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true

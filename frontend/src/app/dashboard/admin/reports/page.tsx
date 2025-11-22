@@ -11,25 +11,25 @@ const AdminReports = () => {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
           Report Management
         </h1>
-        <div className="text-sm text-gray-600">
-          Home {'>'} Admin {'>'} <span className="text-red-500 font-semibold">REPORTS</span>
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          Home {'>'} Admin {'>'} <span className="text-red-500 dark:text-red-400 font-semibold">REPORTS</span>
         </div>
       </div>
 
       {/* Reports Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {reportsItems.map((item, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer">
+          <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow cursor-pointer">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center text-2xl">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center text-2xl">
                 {item.icon}
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">{item.name}</h3>
-                <p className="text-sm text-gray-600">{item.description}</p>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{item.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{item.description}</p>
               </div>
             </div>
             <div className="flex justify-end">

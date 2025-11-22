@@ -31,6 +31,12 @@ interface PopupState {
   message: string;
 }
 
+interface LegalDocumentPopup {
+  isOpen: boolean;
+  type: 'privacy' | 'terms' | null;
+  content: string;
+}
+
 export default function Register(): React.ReactElement {
   const { isDarkMode } = useDarkMode();
   const [formData, setFormData] = useState<RegisterForm>({
@@ -53,15 +59,56 @@ export default function Register(): React.ReactElement {
     title: '',
     message: ''
   });
+  const [legalPopup, setLegalPopup] = useState<LegalDocumentPopup>({
+    isOpen: false,
+    type: null,
+    content: ''
+  });
+  const [privacyPolicy, setPrivacyPolicy] = useState('');
+  const [termsOfService, setTermsOfService] = useState('');
   const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
+    loadLegalDocuments();
   }, []);
+
+  const loadLegalDocuments = async () => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
+      const response = await fetch(`${API_URL}/api/website-settings/legal`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPrivacyPolicy(data.data.privacyPolicy || '');
+          setTermsOfService(data.data.termsOfService || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading legal documents:', error);
+    }
+  };
+
+  const openLegalPopup = (type: 'privacy' | 'terms') => {
+    const content = type === 'privacy' ? privacyPolicy : termsOfService;
+    setLegalPopup({
+      isOpen: true,
+      type,
+      content: content || 'No content available at this time.'
+    });
+  };
+
+  const closeLegalPopup = () => {
+    setLegalPopup({
+      isOpen: false,
+      type: null,
+      content: ''
+    });
+  };
 
   // Prevent background scrolling when popup is open
   useEffect(() => {
-    if (popup.isOpen) {
+    if (popup.isOpen || legalPopup.isOpen) {
       // Disable scrolling
       document.body.style.overflow = 'hidden';
       // Prevent scroll on mobile
@@ -80,7 +127,7 @@ export default function Register(): React.ReactElement {
       document.body.style.position = 'unset';
       document.body.style.width = 'unset';
     };
-  }, [popup.isOpen]);
+  }, [popup.isOpen, legalPopup.isOpen]);
 
   const showPopup = (type: 'success' | 'error', title: string, message: string) => {
     setPopup({
@@ -202,6 +249,63 @@ export default function Register(): React.ReactElement {
     <div className={`min-h-screen flex flex-col transition-colors duration-200 ${
       isDarkMode ? 'bg-gray-900' : 'bg-gradient-to-br from-blue-50 to-indigo-100'
     }`}>
+      {/* Legal Document Popup Modal */}
+      {legalPopup.isOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] mx-4 transform transition-all duration-300 scale-100 flex flex-col ${
+            isDarkMode ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            {/* Header */}
+            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} flex items-center justify-between`}>
+              <h3 className={`text-xl font-semibold ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+                {legalPopup.type === 'privacy' ? 'Privacy Policy' : 'Terms of Use'}
+              </h3>
+              <button
+                onClick={closeLegalPopup}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDarkMode 
+                    ? 'hover:bg-gray-700 text-gray-400 hover:text-white' 
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className={`prose prose-sm max-w-none ${
+                isDarkMode 
+                  ? 'prose-invert text-gray-300' 
+                  : 'text-gray-700'
+              }`}>
+                <div className="whitespace-pre-wrap">
+                  {legalPopup.content}
+                </div>
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className={`p-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button
+                onClick={closeLegalPopup}
+                className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+                  isDarkMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Popup Modal */}
       {popup.isOpen && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -603,21 +707,35 @@ export default function Register(): React.ReactElement {
                     isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     By creating your account, you agree to our{' '}
-                    <a href="#" className={`font-medium underline transition-colors ${
-                      isDarkMode 
-                        ? 'text-blue-400 hover:text-blue-300' 
-                        : 'text-blue-600 hover:text-blue-700'
-                    }`}>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openLegalPopup('terms');
+                      }}
+                      className={`font-medium underline transition-colors ${
+                        isDarkMode 
+                          ? 'text-blue-400 hover:text-blue-300' 
+                          : 'text-blue-600 hover:text-blue-700'
+                      }`}
+                    >
                       Terms of Use
-                    </a>{' '}
+                    </button>{' '}
                     &{' '}
-                    <a href="#" className={`font-medium underline transition-colors ${
-                      isDarkMode 
-                        ? 'text-blue-400 hover:text-blue-300' 
-                        : 'text-blue-600 hover:text-blue-700'
-                    }`}>
+                    <button 
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openLegalPopup('privacy');
+                      }}
+                      className={`font-medium underline transition-colors ${
+                        isDarkMode 
+                          ? 'text-blue-400 hover:text-blue-300' 
+                          : 'text-blue-600 hover:text-blue-700'
+                      }`}
+                    >
                       Privacy Policy
-                    </a>
+                    </button>
                   </label>
                 </div>
                 {errors.agreeToTerms && <p className="text-red-500 text-xs flex items-center">

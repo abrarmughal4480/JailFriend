@@ -95,7 +95,7 @@ const messageSchema = new mongoose.Schema({
     },
     source: {
       type: String,
-      enum: ['p2p_browse', 'p2p_booking', 'p2p_contact', 'regular_message'],
+      enum: ['p2p_browse', 'p2p_booking', 'p2p_contact', 'regular_message', 'booking_time_change'],
       default: 'regular_message'
     }
   }

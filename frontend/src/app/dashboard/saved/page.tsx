@@ -438,7 +438,7 @@ export default function SavedPosts() {
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto scrollbar-hide">
+    <div className={`w-full h-full overflow-y-auto scrollbar-hide ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
               <div className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
@@ -500,7 +500,7 @@ export default function SavedPosts() {
             <div className="flex items-center gap-4">
               <span>{filteredAlbums.length + filteredPosts.length} items</span>
               {searchQuery && (
-                <span className="text-blue-600">
+                <span className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}>
                   Results for "{searchQuery}"
                 </span>
               )}
@@ -521,22 +521,22 @@ export default function SavedPosts() {
             <div className="flex items-center justify-center min-h-64">
               <div className="text-center">
                 <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading saved posts...</p>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading saved posts...</p>
               </div>
             </div>
           ) : filteredAlbums.length === 0 && filteredPosts.length === 0 ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <div className={`w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-gradient-to-br ${isDarkMode ? 'from-blue-900/20 to-purple-900/20' : 'from-blue-100 to-purple-100'} rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6`}>
                 {searchQuery ? (
-                  <Search className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-gray-400" />
+                  <Search className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
                 ) : (
                   <Bookmark className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-blue-500" />
                 )}
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+              <h3 className={`text-lg sm:text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {searchQuery ? 'No results found' : 'No saved posts yet'}
               </h3>
-              <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6 max-w-md mx-auto">
+              <p className={`text-sm sm:text-base mb-4 sm:mb-6 max-w-md mx-auto ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 {searchQuery 
                   ? 'Try adjusting your search terms or browse all saved content.'
                   : 'When you save albums or posts, they\'ll appear here for easy access.'
@@ -570,12 +570,12 @@ export default function SavedPosts() {
                 <div className={viewMode === 'grid' ? 'sm:col-span-full' : ''}>
                   {viewMode === 'list' && (
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
-                      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                      <h2 className={`text-lg sm:text-xl font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         <Grid className="w-5 h-5 text-purple-500" />
                         Saved Albums ({filteredAlbums.length})
                       </h2>
                       {filteredAlbums.length > 5 && (
-                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                        <button className={`text-sm font-medium ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}>
                           View all
                         </button>
                       )}
@@ -583,7 +583,7 @@ export default function SavedPosts() {
                   )}
                   <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6' : 'space-y-4 sm:space-y-6'}`}>
                     {filteredAlbums.map((album) => (
-                      <div key={album._id} className={viewMode === 'grid' ? 'bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow' : ''}>
+                      <div key={album._id} className={viewMode === 'grid' ? `${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg border overflow-hidden hover:shadow-md transition-shadow` : ''}>
                         <AlbumDisplay
                           album={album}
                           isOwner={false}
@@ -603,12 +603,12 @@ export default function SavedPosts() {
                 <div className={viewMode === 'grid' ? 'sm:col-span-full' : ''}>
                   {viewMode === 'list' && (
                     <div className="flex items-center justify-between mb-4 sm:mb-6">
-                      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                      <h2 className={`text-lg sm:text-xl font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         <MessageCircle className="w-5 h-5 text-green-500" />
                         Saved Posts ({filteredPosts.length})
                       </h2>
                       {filteredPosts.length > 5 && (
-                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                        <button className={`text-sm font-medium ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}>
                           View all
                         </button>
                       )}
@@ -617,7 +617,7 @@ export default function SavedPosts() {
                   <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6' : 'space-y-4 sm:space-y-6'}`}>
                     {filteredPosts.map((post) => {
                       return (
-                        <div key={post._id} className={viewMode === 'grid' ? 'bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow' : ''}>
+                        <div key={post._id} className={viewMode === 'grid' ? `${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg border overflow-hidden hover:shadow-md transition-shadow` : ''}>
                           <FeedPost
                             post={post}
                             onLike={handlePostLike}
@@ -642,11 +642,11 @@ export default function SavedPosts() {
 
       {/* Floating Action Buttons */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 flex flex-col gap-3 z-20">
-        <button className="w-12 h-12 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group">
-          <Download className="w-5 h-5 text-gray-600 group-hover:text-blue-500" />
+        <button className={`w-12 h-12 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
+          <Download className={`w-5 h-5 group-hover:text-blue-500 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
         </button>
-        <button className="w-12 h-12 bg-white border border-gray-200 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group">
-          <Share2 className="w-5 h-5 text-gray-600 group-hover:text-green-500" />
+        <button className={`w-12 h-12 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border`}>
+          <Share2 className={`w-5 h-5 group-hover:text-green-500 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
         </button>
       </div>
 

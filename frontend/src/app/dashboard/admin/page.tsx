@@ -1,8 +1,10 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../../utils/adminApi';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 const AdminDashboard = () => {
+  const { isDarkMode } = useDarkMode();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalPosts: 0,
@@ -113,9 +115,9 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${isDarkMode ? 'border-blue-400' : 'border-blue-500'}`}></div>
         </div>
       </div>
     );
@@ -123,11 +125,11 @@ const AdminDashboard = () => {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="bg-red-100 border border-red-200 rounded-lg p-4">
+      <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`${isDarkMode ? 'bg-red-900/20 border-red-800' : 'bg-red-100 border-red-200'} border rounded-lg p-4`}>
           <div className="flex items-center gap-2">
-            <span className="text-red-500 text-lg">⚠️</span>
-            <span className="text-red-700 font-medium">
+            <span className={`text-red-500 ${isDarkMode ? 'text-red-400' : ''} text-lg`}>⚠️</span>
+            <span className={`${isDarkMode ? 'text-red-400' : 'text-red-700'} font-medium`}>
               Error: {error}
             </span>
           </div>
@@ -137,22 +139,22 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className={`p-6 min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Welcome Message */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'} mb-2`}>
           Welcome back, Admin
         </h1>
-        <div className="text-sm text-gray-600">
-          Home {'>'} <span className="text-red-500 font-semibold">DASHBOARD</span>
+        <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          Home {'>'} <span className={`${isDarkMode ? 'text-red-400' : 'text-red-500'} font-semibold`}>DASHBOARD</span>
         </div>
       </div>
 
       {/* System Alert */}
-      <div className="bg-pink-100 border border-pink-200 rounded-lg p-4 mb-6">
+      <div className={`${isDarkMode ? 'bg-pink-900/20 border-pink-800' : 'bg-pink-100 border-pink-200'} border rounded-lg p-4 mb-6`}>
         <div className="flex items-center gap-2">
-          <span className="text-red-500 text-lg">⚠️</span>
-          <span className="text-red-700 font-medium">
+          <span className={`text-red-500 ${isDarkMode ? 'text-red-400' : ''} text-lg`}>⚠️</span>
+          <span className={`${isDarkMode ? 'text-red-400' : 'text-red-700'} font-medium`}>
             Important! There are some errors found on your system, please review System Status.
           </span>
         </div>
@@ -161,16 +163,16 @@ const AdminDashboard = () => {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {statsCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div key={index} className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg shadow-sm border p-6`}>
             <div className="flex items-center justify-between mb-4">
               <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center text-white text-xl`}>
                 {stat.icon}
               </div>
-              <div className={`text-2xl font-bold ${stat.textColor}`}>
+              <div className={`text-2xl font-bold ${isDarkMode ? 'text-white' : stat.textColor}`}>
                 {stat.value}
               </div>
             </div>
-            <h3 className="text-gray-600 font-medium text-sm">
+            <h3 className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} font-medium text-sm`}>
               {stat.title}
             </h3>
           </div>
@@ -178,20 +180,20 @@ const AdminDashboard = () => {
       </div>
 
       {/* Statistics Chart Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-lg shadow-sm border p-6`}>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-800">STATISTICS</h2>
+          <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>STATISTICS</h2>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">This Year</span>
-            <div className="w-3 h-3 bg-gray-300 rounded"></div>
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>This Year</span>
+            <div className={`w-3 h-3 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'} rounded`}></div>
           </div>
         </div>
         
         {/* Chart */}
-        <div className="h-64 bg-gray-50 rounded-lg p-4">
+        <div className={`h-64 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg p-4`}>
           {/* Y-axis labels */}
           <div className="flex h-full">
-            <div className="flex flex-col justify-between text-xs text-gray-500 mr-2 w-8">
+            <div className={`flex flex-col justify-between text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mr-2 w-8`}>
               <span>{getMaxValue().toLocaleString()}</span>
               <span>{Math.round(getMaxValue() * 0.8).toLocaleString()}</span>
               <span>{Math.round(getMaxValue() * 0.6).toLocaleString()}</span>
@@ -217,7 +219,7 @@ const AdminDashboard = () => {
                       className="w-8 bg-red-500 rounded-t" 
                       style={{height: `${postsHeight}px`}}
                     ></div>
-                    <span className="text-xs text-gray-600">{monthNames[index]}</span>
+                    <span className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{monthNames[index]}</span>
                   </div>
                 );
               })}
@@ -228,19 +230,19 @@ const AdminDashboard = () => {
           <div className="flex justify-center gap-6 mt-4 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-green-500 rounded"></div>
-              <span className="text-gray-600">Users</span>
+              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Users</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded"></div>
-              <span className="text-gray-600">Posts</span>
+              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Posts</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-yellow-500 rounded"></div>
-              <span className="text-gray-600">Pages</span>
+              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Pages</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-pink-500 rounded"></div>
-              <span className="text-gray-600">Groups</span>
+              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>Groups</span>
             </div>
           </div>
         </div>

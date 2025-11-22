@@ -21,7 +21,12 @@ import {
   FaVideo, 
   FaComments,
   FaCopy,
-  FaLightbulb
+  FaLightbulb,
+  FaGithub,
+  FaBehance,
+  FaGlobe,
+  FaYoutube,
+  FaFacebook
 } from 'react-icons/fa';
 import { HiDotsVertical } from 'react-icons/hi';
 
@@ -33,8 +38,8 @@ const SHOW_WORTH_EXPLORING = true;
 const SHOW_TRENDING_SHORTS = true;
 const SHOW_TOP_RATED_PROFILES = true;
 const SHOW_FIND_BY_EXPERTS = true;
-const SHOW_FEATURE_CARDS = true;
-const SHOW_BANNER_CAROUSEL = true;
+const SHOW_FEATURE_CARDS = false;
+const SHOW_BANNER_CAROUSEL = false;
 const SHOW_FIND_BY_CATEGORY = true;
 
 const CATEGORY_PLACEHOLDERS = [
@@ -127,6 +132,11 @@ interface Booking {
   updatedAt: string;
 }
 
+interface SocialLinkItem {
+  name: string;
+  url: string;
+}
+
 interface CreateProfileData {
   occupation: string;
   hourlyRate: number;
@@ -145,20 +155,8 @@ interface CreateProfileData {
   certifications: { name: string; issuer: string; date: string; credentialId: string; }[];
   responseTime: string;
   tags: string[];
-  socialLinks: Record<string, string>;
+  socialLinks: SocialLinkItem[];
   categoryId?: string;
-}
-
-interface CreateBookingData {
-  serviceProviderId: string;
-  p2pProfileId: string;
-  serviceType: string;
-  title: string;
-  description: string;
-  scheduledDate: string;
-  duration: number;
-  requirements: string[];
-  deliverables: string[];
 }
 
 interface ToastData { id: string; type: ToastType; title: string; message: string; duration?: number; }
@@ -173,6 +171,7 @@ export default function P2PPage() {
   const [currentUser, setCurrentUser] = useState<ExtendedUser | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [providerBookings, setProviderBookings] = useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedBookingForPayment, setSelectedBookingForPayment] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
@@ -180,14 +179,10 @@ export default function P2PPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ occupation: '', minRate: '', maxRate: '', skills: '' });
   const [selectedProfileDetail, setSelectedProfileDetail] = useState<P2PProfile | null>(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<P2PProfile | null>(null);
-  const [selectedServiceType, setSelectedServiceType] = useState<string>('consultation');
-  const [bookingSubmitting, setBookingSubmitting] = useState(false);
-  const [bookingForm, setBookingForm] = useState<CreateBookingData>({
-    serviceProviderId: '', p2pProfileId: '', serviceType: 'consultation',
-    title: '', description: '', scheduledDate: '', duration: 60, requirements: [], deliverables: []
-  });
+  const [showTimeChangeModal, setShowTimeChangeModal] = useState(false);
+  const [selectedBookingForTimeChange, setSelectedBookingForTimeChange] = useState<Booking | null>(null);
+  const [newTime, setNewTime] = useState('');
+  const [updatingTime, setUpdatingTime] = useState(false);
 
   const [profileForm, setProfileForm] = useState<CreateProfileData>({
     occupation: '', hourlyRate: 0, currency: 'USD',
@@ -197,7 +192,7 @@ export default function P2PPage() {
     workingHours: { start: '09:00', end: '17:00' },
     timezone: 'UTC', languages: [{ language: '', proficiency: 'Intermediate' }],
     portfolio: [], certifications: [], responseTime: 'Within 24 hours', tags: [],
-    socialLinks: { website: '', linkedin: '', github: '', behance: '' },
+    socialLinks: [],
     categoryId: ''
   });
   const [newSkill, setNewSkill] = useState('');
@@ -266,25 +261,88 @@ export default function P2PPage() {
   const getTopExpertsProfiles = (): P2PProfile[] => {
     const allProfiles = featuredProfiles.length > 0 ? featuredProfiles : profiles;
     
-    // Filter profiles with 80% or more completion
-    const completeProfiles = allProfiles.filter(profile => {
-      const completion = calculateProfileCompletion(profile);
-      return completion >= 80;
+    // Get logged-in user's category
+    const userCategoryId = myProfile?.category?._id || myProfile?.categoryId;
+    
+    // If user doesn't have a category, return empty array
+    if (!userCategoryId) {
+      return [];
+    }
+    
+    // Filter profiles with same category as logged-in user
+    const sameCategoryProfiles = allProfiles.filter(profile => {
+      const profileCategoryId = profile.category?._id || profile.categoryId;
+      return profileCategoryId && profileCategoryId.toString() === userCategoryId.toString();
     });
+    
+    // Count bookings for each profile - use completedJobs if available, otherwise count from all bookings
+    // Combine all bookings and remove duplicates
+    const allBookingsMap = new Map<string, Booking>();
+    [...bookings, ...providerBookings, ...allBookings].forEach(booking => {
+      if (booking._id) {
+        allBookingsMap.set(booking._id, booking);
+      }
+    });
+    const allBookingsForCounting = Array.from(allBookingsMap.values());
+    
+    const profilesWithBookingCount = sameCategoryProfiles.map(profile => {
+      // Use completedJobs if available, otherwise count from bookings
+      let bookingCount = profile.completedJobs || 0;
+      
+      if (bookingCount === 0) {
+        // Count bookings from available data
+        bookingCount = allBookingsForCounting.filter(booking => {
+          const bookingProfileId = booking.p2pProfileId?._id || booking.p2pProfileId;
+          return bookingProfileId && bookingProfileId.toString() === profile._id.toString();
+        }).length;
+      }
+      
+      return { profile, bookingCount };
+    });
+    
+    // Sort by booking count (most bookings first), then by rating
+    return profilesWithBookingCount.sort((a, b) => {
+      if (b.bookingCount !== a.bookingCount) {
+        return b.bookingCount - a.bookingCount;
+      }
+      // If booking counts are equal, sort by rating
+      const ratingA = a.profile.rating?.average || 0;
+      const ratingB = b.profile.rating?.average || 0;
+      return ratingB - ratingA;
+    }).map(item => item.profile);
+  };
 
-    // Sort by rating (stars) first, then by creation time (oldest first)
-    return completeProfiles.sort((a, b) => {
-      // First sort by rating (higher rating first)
+  // Get filtered and sorted profiles for "Top Rated Profiles"
+  const getTopRatedProfiles = (): P2PProfile[] => {
+    const allProfiles = featuredProfiles.length > 0 ? featuredProfiles : profiles;
+    
+    // Get logged-in user's category
+    const userCategoryId = myProfile?.category?._id || myProfile?.categoryId;
+    
+    // If user doesn't have a category, return empty array or all profiles
+    if (!userCategoryId) {
+      return [];
+    }
+    
+    // Filter profiles with same category as logged-in user
+    const sameCategoryProfiles = allProfiles.filter(profile => {
+      const profileCategoryId = profile.category?._id || profile.categoryId;
+      return profileCategoryId && profileCategoryId.toString() === userCategoryId.toString();
+    });
+    
+    // Sort by rating (highest rating first), then by number of reviews
+    return sameCategoryProfiles.sort((a, b) => {
       const ratingA = a.rating?.average || 0;
       const ratingB = b.rating?.average || 0;
+      
       if (ratingB !== ratingA) {
         return ratingB - ratingA;
       }
       
-      // If ratings are equal, sort by creation time (oldest first)
-      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
-      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
-      return timeA - timeB;
+      // If ratings are equal, sort by number of reviews
+      const reviewsA = a.rating?.count || 0;
+      const reviewsB = b.rating?.count || 0;
+      return reviewsB - reviewsA;
     });
   };
 
@@ -342,37 +400,39 @@ export default function P2PPage() {
     return `${getCurrencySymbol(currency)}${numericValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
   };
 
-  const getServiceMultiplier = (profile: P2PProfile | null, serviceType: string) => {
-    if (!profile) return null;
-    switch (serviceType) {
-      case 'audio_call':
-        return parseNumericValue(profile.audioCallRate ?? profile.audioCallPrice ?? null);
-      case 'video_call':
-        return parseNumericValue(profile.videoCallRate ?? profile.videoCallPrice ?? null);
-      case 'chat':
-        return parseNumericValue(profile.chatRate ?? profile.chatPrice ?? null);
-      default:
-        return null;
-    }
+
+  // Convert social links object to array format
+  const convertSocialLinksToArray = (socialLinks: Record<string, string> | undefined): SocialLinkItem[] => {
+    if (!socialLinks || typeof socialLinks !== 'object') return [];
+    return Object.entries(socialLinks)
+      .filter(([_, url]) => url && url.trim() !== '')
+      .map(([name, url]) => ({ name, url }));
   };
 
-  const estimatedCost = useMemo(() => {
-    if (!selectedProfile) return null;
-    const hours = (bookingForm.duration || 0) / 60;
-    if (hours <= 0 || !selectedProfile.hourlyRate) return null;
+  // Convert social links array to object format for backend
+  const convertSocialLinksToObject = (socialLinks: SocialLinkItem[]): Record<string, string> => {
+    const result: Record<string, string> = {};
+    socialLinks.forEach(link => {
+      if (link.name && link.name.trim() && link.url && link.url.trim()) {
+        result[link.name.trim()] = link.url.trim();
+      }
+    });
+    return result;
+  };
 
-    const multiplier = getServiceMultiplier(selectedProfile, bookingForm.serviceType);
-
-    if (multiplier && bookingForm.serviceType !== 'fixed_price') {
-      return multiplier * selectedProfile.hourlyRate * hours;
-    }
-
-    if (bookingForm.serviceType === 'fixed_price') {
-      return selectedProfile.hourlyRate;
-    }
-
-    return selectedProfile.hourlyRate * hours;
-  }, [bookingForm.duration, bookingForm.serviceType, selectedProfile]);
+  // Get icon component for social link platform
+  const getSocialLinkIcon = (platformName: string) => {
+    const name = platformName.toLowerCase().trim();
+    if (name.includes('twitter') || name.includes('x.com')) return FaTwitter;
+    if (name.includes('linkedin') || name.includes('linked')) return FaLinkedin;
+    if (name.includes('instagram') || name.includes('insta')) return FaInstagram;
+    if (name.includes('github') || name.includes('git')) return FaGithub;
+    if (name.includes('behance')) return FaBehance;
+    if (name.includes('youtube') || name.includes('yt')) return FaYoutube;
+    if (name.includes('facebook') || name.includes('fb')) return FaFacebook;
+    if (name.includes('website') || name.includes('web') || name.includes('site')) return FaGlobe;
+    return FaGlobe; // Default icon
+  };
 
   const loadData = async () => {
     try {
@@ -426,13 +486,13 @@ export default function P2PPage() {
             languages: profile.languages || [{ language: '', proficiency: 'Intermediate' }],
             portfolio: profile.portfolio || [], certifications: profile.certifications || [],
             responseTime: profile.responseTime || 'Within 24 hours', tags: profile.tags || [],
-            socialLinks: profile.socialLinks || { website: '', linkedin: '', github: '', behance: '' },
+            socialLinks: convertSocialLinksToArray(profile.socialLinks),
             categoryId: profile.category?._id || ''
           });
         }
       }
 
-      await Promise.all([loadBookings(), loadProviderBookings()]);
+      await Promise.all([loadBookings(), loadProviderBookings(), loadAllBookings()]);
     } catch (error) {
       setError('Failed to load data');
     } finally {
@@ -460,6 +520,19 @@ export default function P2PPage() {
   };
 
   const loadProviderBookings = async () => loadBookings();
+
+  const loadAllBookings = async () => {
+    try {
+      // Fetch all bookings with a high limit to get booking counts
+      const response = await apiCall('/api/bookings?limit=1000');
+      if (response.ok) {
+        const data = await response.json();
+        setAllBookings(data.bookings || []);
+      }
+    } catch (error) {
+      // Silent error
+    }
+  };
 
   const loadProfiles = async () => {
     try {
@@ -501,62 +574,6 @@ export default function P2PPage() {
     }
   };
 
-  const handleBookService = async (profile: P2PProfile, serviceType: string = 'consultation') => {
-    let profileToUse = profile;
-
-    try {
-      const latestProfile = await fetchProfileDetails(profile._id);
-      if (latestProfile) {
-        profileToUse = latestProfile;
-      } else {
-        addToast('info', 'Latest profile unavailable', 'Showing cached profile details while we refresh the provider information.');
-      }
-    } catch (error) {
-      addToast('warning', 'Unable to refresh profile', 'Using cached profile details for now.');
-    }
-
-    const now = new Date();
-    setSelectedProfile(profileToUse);
-    setSelectedServiceType(serviceType);
-    setBookingForm({
-      serviceProviderId: profileToUse.userId._id, p2pProfileId: profileToUse._id,
-      serviceType: serviceType, title: '', description: '',
-      scheduledDate: now.toISOString().slice(0, 16), duration: 60,
-      requirements: [], deliverables: []
-    });
-    setShowBookingModal(true);
-  };
-
-  const createBooking = async () => {
-    const { title, description, scheduledDate } = bookingForm;
-    if (!title.trim() || !description.trim() || !scheduledDate) {
-      return addToast('warning', 'Missing Information', 'Please fill in all required fields');
-    }
-
-    if (new Date(scheduledDate) < new Date()) {
-      return addToast('error', 'Scheduling Error', 'Meeting cannot be scheduled in the past. Please select a future date and time.');
-    }
-
-    setBookingSubmitting(true);
-
-    try {
-      const response = await apiCall('/api/bookings', { method: 'POST', body: JSON.stringify(bookingForm) });
-      const data = await response.json();
-      
-      if (response.ok) {
-        setShowBookingModal(false);
-        setSelectedProfile(null);
-        await loadBookings();
-        addToast('success', 'Booking Request Sent!', 'Your booking request has been sent successfully');
-      } else {
-        addToast('error', 'Booking Failed', data.message || 'Failed to create booking');
-      }
-    } catch (error) {
-      addToast('error', 'Network Error', 'Failed to create booking. Please check your connection');
-    } finally {
-      setBookingSubmitting(false);
-    }
-  };
 
   const acceptBooking = async (bookingId: string) => {
     try {
@@ -594,6 +611,28 @@ export default function P2PPage() {
     }
   };
 
+  const updateBookingTime = async (bookingId: string, newTime: string) => {
+    try {
+      const response = await apiCall(`/api/bookings/${bookingId}/update-time`, { 
+        method: 'PUT', 
+        body: JSON.stringify({ newTime }) 
+      });
+      
+      if (response.ok) {
+        await loadBookings();
+        addToast('success', 'Time Updated!', 'Booking time has been updated and message sent to client');
+        return true;
+      } else {
+        const data = await response.json();
+        addToast('error', 'Update Failed', data.message || 'Failed to update booking time');
+        return false;
+      }
+    } catch (error) {
+      addToast('error', 'Network Error', 'Failed to update booking time. Please check your connection');
+      return false;
+    }
+  };
+
   const startVideoCall = async (bookingId: string) => {
     try {
       const response = await apiCall(`/api/bookings/${bookingId}/start`, { method: 'PUT' });
@@ -625,7 +664,12 @@ export default function P2PPage() {
     if (error) return addToast('warning', 'Validation Error', error.message);
 
     try {
-      const response = await apiCall('/api/p2p/profile', { method: 'POST', body: JSON.stringify(profileForm) });
+      // Convert social links array to object format for backend
+      const profileDataToSend = {
+        ...profileForm,
+        socialLinks: convertSocialLinksToObject(profileForm.socialLinks)
+      };
+      const response = await apiCall('/api/p2p/profile', { method: 'POST', body: JSON.stringify(profileDataToSend) });
       const data = await response.json();
       
       if (response.ok) {
@@ -746,12 +790,11 @@ export default function P2PPage() {
   const ProfileCard = ({ profile }: { profile: P2PProfile }) => {
     const handlers = {
       contact: () => handleContact(profile),
-      view: () => handleViewProfile(profile),
-      book: () => handleBookService(profile)
+      view: () => handleViewProfile(profile)
     };
 
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow duration-200">
+      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-3 sm:p-4 lg:p-6 border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-lg transition-shadow duration-200`}>
         {/* Mobile Layout */}
         <div className="sm:hidden">
           <div className="flex items-start space-x-3 mb-3">
@@ -762,7 +805,7 @@ export default function P2PPage() {
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2 mb-1">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
                   {profile.userId.name}
                 </h3>
                 {profile.isVerified && (
@@ -774,18 +817,18 @@ export default function P2PPage() {
                   </span>
                 )}
               </div>
-              <p className="text-gray-600 dark:text-gray-300 text-xs truncate">
+              <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-xs truncate`}>
                 @{profile.userId.username}
               </p>
             </div>
           </div>
           
-          <p className="text-gray-700 dark:text-gray-200 font-medium text-sm mb-2">
+          <p className={`${isDarkMode ? 'text-gray-200' : 'text-gray-700'} font-medium text-sm mb-2`}>
             {profile.occupation}
           </p>
           
           <div className="flex items-center justify-between mb-2">
-            <span className="text-green-600 dark:text-green-400 font-bold text-sm">
+            <span className={`${isDarkMode ? 'text-green-400' : 'text-green-600'} font-bold text-sm`}>
               ${profile.hourlyRate}/{profile.currency}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs ${
@@ -815,7 +858,7 @@ export default function P2PPage() {
             )}
           </div>
           
-          <p className="text-gray-600 dark:text-gray-300 text-xs mb-3 line-clamp-2">
+          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-xs mb-3 line-clamp-2`}>
             {profile.experience}
           </p>
           
@@ -846,14 +889,14 @@ export default function P2PPage() {
               className="w-16 h-16 lg:w-20 lg:h-20 rounded-full object-cover mx-auto mb-3"
             />
             <div className="flex items-center justify-center space-x-2 mb-1">
-              <h3 className="text-base lg:text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className={`text-base lg:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 {profile.userId.name}
               </h3>
               {profile.isVerified && (
                 <span className="text-blue-500 text-sm">✓</span>
               )}
             </div>
-            <p className="text-gray-600 dark:text-gray-300 text-sm mb-1">
+            <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm mb-1`}>
               @{profile.userId.username}
             </p>
             {profile.featured && (
@@ -864,16 +907,16 @@ export default function P2PPage() {
           </div>
           
           <div className="text-center mb-3">
-            <p className="text-gray-700 dark:text-gray-200 font-medium text-sm lg:text-base mb-2">
+            <p className={`${isDarkMode ? 'text-gray-200' : 'text-gray-700'} font-medium text-sm lg:text-base mb-2`}>
               {profile.occupation}
             </p>
-            <span className="text-green-600 dark:text-green-400 font-bold text-sm lg:text-base">
+            <span className={`${isDarkMode ? 'text-green-400' : 'text-green-600'} font-bold text-sm lg:text-base`}>
               ${profile.hourlyRate}/{profile.currency}
             </span>
           </div>
           
           <div className="flex items-center justify-center mb-3">
-            <span className="text-gray-500 dark:text-gray-400 text-xs lg:text-sm">
+            <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-xs lg:text-sm`}>
               ⭐ {profile.rating.average.toFixed(1)} ({profile.rating.count} reviews)
             </span>
           </div>
@@ -906,7 +949,7 @@ export default function P2PPage() {
             )}
           </div>
           
-          <p className="text-gray-600 dark:text-gray-300 text-xs lg:text-sm text-center mb-4 line-clamp-2">
+          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-xs lg:text-sm text-center mb-4 line-clamp-2`}>
             {profile.experience}
           </p>
           
@@ -955,7 +998,7 @@ export default function P2PPage() {
       <div className="w-full px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
         {/* Tabs */}
         <div className="mb-6 sm:mb-8">
-          <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             <nav className="-mb-px flex flex-nowrap gap-3 sm:gap-0 sm:space-x-8 overflow-x-auto w-full">
               {[
                 { key: 'browse', label: 'Browse Services' },
@@ -968,8 +1011,8 @@ export default function P2PPage() {
                   onClick={() => setActiveTab(key as any)}
                   className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                     activeTab === key
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                      ? `border-blue-500 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`
+                      : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'} hover:border-gray-300`
                   }`}
                 >
                   {label}
@@ -981,13 +1024,13 @@ export default function P2PPage() {
 
         {activeTab === 'bookings' && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>
               My Bookings
             </h2>
             
             {bookings.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-4>
                   You don't have any bookings yet.
                 </p>
                 <button
@@ -1000,7 +1043,7 @@ export default function P2PPage() {
             ) : (
               <div className="space-y-4 sm:space-y-6">
                 {bookings.map((booking) => (
-                  <div key={booking._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                  <div key={booking._id} className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-4 sm:p-6 border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between space-y-4 lg:space-y-0">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 sm:space-x-4 mb-3 sm:mb-4">
@@ -1010,39 +1053,39 @@ export default function P2PPage() {
                             className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
                           />
                           <div className="min-w-0 flex-1">
-                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
+                            <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
                               {booking.title}
                             </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 truncate">
+                            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} truncate`}>
                               with {booking.serviceProviderId.name} (@{booking.serviceProviderId.username})
                             </p>
-                            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            <p className={`text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                               {booking.p2pProfileId.occupation}
                             </p>
                           </div>
                         </div>
                         
-                        <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 mb-3 sm:mb-4 line-clamp-2">
+                        <p className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-3 sm:mb-4 line-clamp-2`}>
                           {booking.description}
                         </p>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
                           <div>
-                            <span className="text-gray-500 dark:text-gray-400">Scheduled:</span>
-                            <p className="text-gray-900 dark:text-white font-medium">
+                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Scheduled:</span>
+                            <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-medium`}>
                               {new Date(booking.scheduledDate).toLocaleDateString()}
                             </p>
-                            <p className="text-gray-600 dark:text-gray-300">
+                            <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
                               {new Date(booking.scheduledDate).toLocaleTimeString()}
                             </p>
                           </div>
                           <div>
-                            <span className="text-gray-500 dark:text-gray-400">Duration:</span>
-                            <p className="text-gray-900 dark:text-white font-medium">{booking.duration} minutes</p>
+                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Duration:</span>
+                            <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-medium`}>{booking.duration} minutes</p>
                           </div>
                           <div>
-                            <span className="text-gray-500 dark:text-gray-400">Amount:</span>
-                            <p className="text-green-600 dark:text-green-400 font-bold">
+                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Amount:</span>
+                            <p className={`${isDarkMode ? 'text-green-400' : 'text-green-600'} font-bold`}>
                               ${booking.totalAmount} {booking.currency}
                             </p>
                           </div>
@@ -1109,27 +1152,27 @@ export default function P2PPage() {
             {/* Main Container: Profile Section (Left) + Banner Section (Right) */}
             <div className="w-full flex flex-col lg:flex-row gap-4 mb-8">
               {/* Profile Container (Left Side - 50%) */}
-              <div className="w-full lg:w-[60%] bg-white dark:bg-gray-800 rounded-[20px] p-5 shadow-lg border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
+              <div className={`w-full lg:w-[60%] ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[20px] p-5 shadow-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} backdrop-blur-sm`}>
                 {/* Header */}
-                <div className="flex justify-between items-center pb-5 border-b border-gray-200 dark:border-gray-700 mb-5">
+                <div className={`flex justify-between items-center pb-5 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} mb-5`}>
                   <div className="flex gap-2 mt-2 text-xl font-medium"></div>
                   <div className="flex gap-4 items-center">
                     {myProfile?.rating && (
-                      <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-500/10 dark:bg-blue-500/20 rounded-full">
-                        <FaStar className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      <div className={`flex items-center gap-1.5 px-3 py-1 ${isDarkMode ? 'bg-blue-500/20' : 'bg-blue-500/10'} rounded-full`}>
+                        <FaStar className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-500'}`} />
+                        <span className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {(myProfile.rating.average ?? 0).toFixed(1)}
                         </span>
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                        <span className={`text-[11px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           ({myProfile.rating.count ?? 0})
                         </span>
                       </div>
                     )}
                     <FaShareAlt 
-                      className="w-6 h-6 cursor-pointer text-gray-900 dark:text-white"
+                      className={`w-6 h-6 cursor-pointer ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                     />
                     <HiDotsVertical 
-                      className="w-6 h-6 cursor-pointer text-gray-900 dark:text-white"
+                      className={`w-6 h-6 cursor-pointer ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                     />
                   </div>
                 </div>
@@ -1163,12 +1206,12 @@ export default function P2PPage() {
 
                   {/* Profile Info */}
                   <div className="text-center w-full">
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2.5">
+                    <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2.5`}>
                       {user.fullName || user.name}
                     </h1>
                     
                     {/* Title/Organization */}
-                    <h3 className="text-base text-[#CCCCCC] dark:text-gray-300 mb-5">
+                    <h3 className={`text-base ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mb-5`}>
                       {(() => {
                         if (myProfile) {
                           const parts = [];
@@ -1197,7 +1240,7 @@ export default function P2PPage() {
                           return uniqueTags.length > 0 ? uniqueTags.map((tag: string, idx: number) => (
                             <div 
                               key={idx}
-                              className="px-3 py-1.5 rounded-[20px] bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs border border-blue-200 dark:border-blue-800"
+                              className={`px-3 py-1.5 rounded-[20px] ${isDarkMode ? 'bg-blue-900/20' : 'bg-blue-50'} ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} text-xs border ${isDarkMode ? 'border-blue-800' : 'border-blue-200'}`}
                             >
                               {tag}
                             </div>
@@ -1208,7 +1251,7 @@ export default function P2PPage() {
                     </div>
                     
                     {/* Description */}
-                    <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mb-5 text-center">
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mb-5 text-center`}>
                       {myProfile?.description || myProfile?.experience || user.bio || 'No description available.'}
                     </p>
                   </div>
@@ -1217,11 +1260,11 @@ export default function P2PPage() {
                   {myProfile && (
                     <div className="flex  justify-center gap-2 mt-5 w-full">
                       {/* Audio Call */}
-                      <div className="w-[220px] h-[220px] bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 px-1 py-7 flex flex-col items-center text-center">
+                      <div className={`w-[220px] h-[220px] ${isDarkMode ? 'bg-gray-700/50' : 'bg-[rgba(51,51,51,0.5)]'} rounded-2xl border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} px-1 py-7 flex flex-col items-center text-center`}>
                         <div className="mb-6">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Audio Call</h3>
+                          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Audio Call</h3>
                           <div className="w-12 h-1 bg-blue-500 mx-auto mt-2 rounded-full"></div>
-                          <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mt-3">
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mt-3`}>
                             {myProfile.audioCallPrice 
                               ? `₹${myProfile.audioCallPrice}`
                               : myProfile.hourlyRate 
@@ -1238,11 +1281,11 @@ export default function P2PPage() {
                       </div>
                       
                       {/* Video Call */}
-                      <div className="w-[220px] h-[220px] bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 px-6 py-7 flex flex-col items-center text-center">
+                      <div className={`w-[220px] h-[220px] ${isDarkMode ? 'bg-gray-700/50' : 'bg-[rgba(51,51,51,0.5)]'} rounded-2xl border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} px-6 py-7 flex flex-col items-center text-center`}>
                         <div className="mb-6">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Video Call</h3>
+                          <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Video Call</h3>
                           <div className="w-12 h-1 bg-blue-500 mx-auto mt-2 rounded-full"></div>
-                          <p className="text-sm text-[#CCCCCC] dark:text-gray-300 mt-3">
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mt-3`}>
                             {myProfile.videoCallPrice 
                               ? `₹${myProfile.videoCallPrice}`
                               : myProfile.hourlyRate 
@@ -1259,11 +1302,11 @@ export default function P2PPage() {
                       </div>
                       
                       {/* Next Available */}
-                      <div className="w-[220px] h-[220px] bg-[rgba(51,51,51,0.5)] dark:bg-gray-700/50 rounded-2xl border border-gray-200 dark:border-gray-600 px-6 py-7 flex flex-col items-center text-center">
+                      <div className={`w-[220px] h-[220px] ${isDarkMode ? 'bg-gray-700/50' : 'bg-[rgba(51,51,51,0.5)]'} rounded-2xl border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} px-6 py-7 flex flex-col items-center text-center`}>
                         <div className="mb-6">
-                          <h2 className="text-base font-medium text-gray-900 dark:text-white">Next Available at</h2>
+                          <h2 className={`text-base font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Next Available at</h2>
                           <div className="w-12 h-1 bg-blue-500 mx-auto mt-2 rounded-full"></div>
-                          <p className="text-xs text-[#CCCCCC] dark:text-gray-300 mt-3">
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mt-3`}>
                             {(() => {
                               const startTime = myProfile.workingHours?.start || myProfile.availableFromTime || '09:00';
                               const endTime = myProfile.workingHours?.end || myProfile.availableToTime || '17:00';
@@ -1291,25 +1334,25 @@ export default function P2PPage() {
                   )}
                   
                   {myProfile && myProfile.rating && myProfile.rating.count > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-600">
+                    <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 ${isDarkMode ? 'bg-gray-700/30' : 'bg-gray-50'} rounded-xl border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
                       <div className="text-center">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Rating</p>
-                        <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>Rating</p>
+                        <p className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           ⭐ {myProfile.rating.average.toFixed(1)} ({myProfile.rating.count})
                         </p>
                       </div>
                       {myProfile.completedJobs > 0 && (
                         <div className="text-center">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Completed Jobs</p>
-                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>Completed Jobs</p>
+                          <p className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {myProfile.completedJobs}
                           </p>
                         </div>
                       )}
                       {myProfile.responseTime && (
                         <div className="text-center">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Response Time</p>
-                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>Response Time</p>
+                          <p className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {myProfile.responseTime}
                           </p>
                         </div>
@@ -1317,43 +1360,25 @@ export default function P2PPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-center gap-2.5 mt-5">
-                    {myProfile?.socialLinks?.twitterLink && (
-                      <a 
-                        href={myProfile.socialLinks.twitterLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[rgba(51,51,51,0.5)] dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        <FaTwitter 
-                          className="w-5 h-5 text-gray-900 dark:text-white"
-                        />
-                      </a>
-                    )}
-                    {myProfile?.socialLinks?.linkedInLink && (
-                      <a 
-                        href={myProfile.socialLinks.linkedInLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[rgba(51,51,51,0.5)] dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        <FaLinkedin 
-                          className="w-5 h-5 text-gray-900 dark:text-white"
-                        />
-                      </a>
-                    )}
-                    {myProfile?.socialLinks?.instagramLink && (
-                      <a 
-                        href={myProfile.socialLinks.instagramLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full bg-[rgba(51,51,51,0.5)] dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        <FaInstagram 
-                          className="w-5 h-5 text-gray-900 dark:text-white"
-                        />
-                      </a>
-                    )}
+                  <div className="flex justify-center gap-2.5 mt-5 flex-wrap">
+                    {myProfile?.socialLinks && Object.entries(myProfile.socialLinks).map(([platformName, url]) => {
+                      if (!url || !url.trim()) return null;
+                      const IconComponent = getSocialLinkIcon(platformName);
+                      return (
+                        <a 
+                          key={platformName}
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className={`w-10 h-10 rounded-full ${isDarkMode ? 'bg-gray-700' : 'bg-[rgba(51,51,51,0.5)]'} flex items-center justify-center border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'} transition-colors`}
+                          title={platformName}
+                        >
+                          <IconComponent 
+                            className={`w-5 h-5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                          />
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
                   ) : null;
@@ -1363,14 +1388,14 @@ export default function P2PPage() {
                   if (!user && loading) {
                     return (
                       <div className="text-center py-12">
-                        <p className="text-gray-500 dark:text-gray-400">Loading profile...</p>
+                        <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Loading profile...</p>
                       </div>
                     );
                   }
                   if (!user && !loading) {
                     return (
                       <div className="text-center py-12">
-                        <p className="text-gray-500 dark:text-gray-400">Unable to load profile. Please refresh the page.</p>
+                        <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>Unable to load profile. Please refresh the page.</p>
                       </div>
                     );
                   }
@@ -1422,7 +1447,7 @@ export default function P2PPage() {
 
             {SHOW_FIND_BY_CATEGORY && (
               <div className={`pt-10 pb-5 transition-colors ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                <h3 className="text-[28px] font-semibold text-center mb-5 text-gray-900 dark:text-white relative inline-block w-full">
+                <h3 className={`text-[28px] font-semibold text-center mb-5 ${isDarkMode ? 'text-white' : 'text-gray-900'} relative inline-block w-full`}>
                   Find experts by category
                   <span className="absolute left-1/2 bottom-[-10px] w-[60px] h-1 bg-gradient-to-r from-[#FF7F7F] to-[#FF4D4D] transform -translate-x-1/2 rounded"></span>
                 </h3>
@@ -1464,18 +1489,18 @@ export default function P2PPage() {
                       return (
                         <SwiperSlide key={category.id}>
                           <div
-                            className={`bg-white dark:bg-gray-800 rounded-[15px] p-5 h-[200px] flex flex-col justify-between items-center border shadow-md transition-all ${
+                            className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[15px] p-5 h-[200px] flex flex-col justify-between items-center border shadow-md transition-all ${
                               isSelectable ? 'cursor-pointer hover:-translate-y-2.5 hover:shadow-lg' : 'cursor-default'
-                            } ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 dark:border-gray-700'}`}
+                            } ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
                             role={isSelectable ? 'button' : undefined}
                             aria-pressed={isSelected}
                             onClick={() => isSelectable && handleCategorySelect(category.id)}
                           >
-                            <h5 className="text-base font-bold text-gray-900 dark:text-white mb-2.5 text-center leading-tight">
+                            <h5 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2.5 text-center leading-tight`}>
                               {category.title}
                             </h5>
                             <img src={category.image} alt={category.title} className="w-[100px] h-[62px] object-cover drop-shadow-md rounded-md" />
-                            <p className="text-xs text-gray-600 dark:text-gray-400 text-center leading-snug">
+                            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-center leading-snug`}>
                               {category.description}
                             </p>
                             {isSelected && (
@@ -1503,30 +1528,30 @@ export default function P2PPage() {
               </div>
             )}
 
-          <div className="w-full mx-auto mt-[60px] mb-5 p-6 bg-white dark:bg-gray-800 shadow-md rounded-xl">
+          <div className={`w-full mx-auto mt-[60px] mb-5 p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md rounded-xl`}>
             <table className="w-full">
               <tbody>
                 <tr>
                   <td className="w-1/2 align-top">
-                    <h3 className="text-[35px] font-semibold leading-[40px] text-[#1A1A1A] dark:text-white mb-3">
+                    <h3 className={`text-[35px] font-semibold leading-[40px] ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'} mb-3`}>
                       Top experts for you
                     </h3>
-                    <p className="text-base font-light leading-6 text-gray-600 dark:text-gray-400 mt-3">
+                    <p className={`text-base font-light leading-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-3`}>
                       Connect with trusted and verified professionals across various fields of expertise
                     </p>
                   </td>
                   <td className="w-1/2 align-top text-right">
                     <div className="flex gap-3 justify-end">
-                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                      <button className={`px-4 py-2 text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5`}>
                         Instantly available
                       </button>
-                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                      <button className={`px-4 py-2 text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5`}>
                         Verified profiles
                       </button>
-                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                      <button className={`px-4 py-2 text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5`}>
                         Top rated
                       </button>
-                      <button className="px-4 py-2 text-sm font-medium border border-[#E0E0E0] dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-[#F5F5F5] dark:hover:bg-gray-700 transition-all hover:-translate-y-0.5">
+                      <button className={`px-4 py-2 text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5`}>
                         Sort by
                       </button>
                     </div>
@@ -1540,7 +1565,7 @@ export default function P2PPage() {
             <div className="grid w-full gap-6 sm:grid-cols-2 xl:grid-cols-3 justify-items-center">{getTopExpertsProfiles().slice(0, 6).map((profile) => (
                 <div 
                   key={profile._id}
-                  className="w-full max-w-[360px] bg-white dark:bg-gray-800 rounded-[20px] p-5 shadow-lg text-center border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all"
+                  className={`w-full max-w-[360px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[20px] p-5 shadow-lg text-center border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-xl transition-all`}
                 >
                   <div 
                     onClick={() => handleViewProfile(profile)}
@@ -1552,7 +1577,7 @@ export default function P2PPage() {
                         alt={profile.userId.fullName || profile.userId.name} 
                         width={100}
                         height={100}
-                        className="w-full h-full rounded-full border-4 border-[#f0f0f0] dark:border-gray-600 object-cover"
+                        className={`w-full h-full rounded-full border-4 ${isDarkMode ? 'border-gray-600' : 'border-[#f0f0f0]'} object-cover`}
                         unoptimized
                       />
                       <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
@@ -1572,10 +1597,10 @@ export default function P2PPage() {
                       </div>
                     )}
                     <div className="mb-4">
-                      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                      <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
                         {profile.userId.fullName || profile.userId.name}
                       </h1>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {(() => {
                           const parts = [];
                           if (profile.currentOrganisation) parts.push(profile.currentOrganisation);
@@ -1586,7 +1611,7 @@ export default function P2PPage() {
                         })()}
                       </p>
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4 break-words">
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} leading-relaxed mb-4 line-clamp-3 overflow-hidden text-ellipsis break-words`}>
                       {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
                     </p>
                     <div className="flex flex-wrap gap-2 justify-center mb-6">
@@ -1600,7 +1625,7 @@ export default function P2PPage() {
                         return uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
                           <div 
                             key={idx}
-                            className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all"
+                            className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all`}
                           >
                             {tag}
                           </div>
@@ -1614,7 +1639,7 @@ export default function P2PPage() {
                         ];
                         const uniqueTags = Array.from(new Set(allTags));
                         return uniqueTags.length > 5 ? (
-                          <div className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px]">
+                          <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px]`}>
                             +{uniqueTags.length - 5} more
                           </div>
                         ) : null;
@@ -1623,8 +1648,8 @@ export default function P2PPage() {
                   </div>
 
                   {/* Pricing & Services Section */}
-                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">
+                  <div className={`mt-6 pt-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4 text-center`}>
                       Available Services & Pricing
                     </h3>
                     
@@ -1635,20 +1660,19 @@ export default function P2PPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleBookService(profile, 'audio_call');
                           }}
-                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
+                          className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
                         >
                           <div className=" items-center gap-1.5">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaPhone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
+                              <FaPhone className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                             </div>
                             <div className="text-left">
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Audio Call</p>
-                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                              <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Audio Call</p>
+                              <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                 ₹{profile.audioCallPrice || profile.hourlyRate}
                               </p>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                              <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                 {profile.audioCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
                               </p>
                             </div>
@@ -1661,18 +1685,18 @@ export default function P2PPage() {
                       {(profile.videoCallPrice || profile.hourlyRate) && (
                         <button
                         
-                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
+                          className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
                         >
                           <div className=" items-center gap-1.5">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaVideo className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
+                              <FaVideo className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                             </div>
                             <div className="text-left">
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Video Call</p>
-                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                              <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Video Call</p>
+                              <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                 ₹{profile.videoCallPrice || profile.hourlyRate}
                               </p>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                              <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                 {profile.videoCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
                               </p>
                             </div>
@@ -1684,18 +1708,18 @@ export default function P2PPage() {
                       {profile.chatPrice && (
                         <button
                          
-                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
+                          className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
                         >
                           <div className=" items-start gap-1.5">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaComments className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
+                              <FaComments className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                             </div>
                             <div className="text-left">
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Chat</p>
-                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                              <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Chat</p>
+                              <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                 ₹{profile.chatPrice}
                               </p>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">per message</p>
+                              <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>per message</p>
                             </div>
                           </div>
                         </button>
@@ -1708,19 +1732,19 @@ export default function P2PPage() {
                           //   e.stopPropagation();
                           //   handleBookService(profile, 'consultation');
                           // }}
-                          className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 transition-all cursor-pointer text-sm"
+                          className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
                         >
                           <div className=" items-center gap-1.5">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                              <FaStar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
+                              <FaStar className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                             </div>
                             <div className="text-left">
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Hourly Rate</p>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">Consultation services</p>
-                              <p className="text-base font-bold text-gray-900 dark:text-white">
+                              <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Hourly Rate</p>
+                              <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Consultation services</p>
+                              <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                 ₹{profile.hourlyRate}
                               </p>
-                              <p className="text-[10px] text-gray-500 dark:text-gray-400">/{profile.currency || 'hour'}</p>
+                              <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>/{profile.currency || 'hour'}</p>
                             </div>
                           </div>
                         </button>
@@ -1760,7 +1784,7 @@ export default function P2PPage() {
                   ].map((feature, idx) => (
                     <div 
                       key={idx}
-                      className="flex flex-col items-center justify-center p-2.5 bg-[#F5F5F5] dark:bg-gray-700 rounded-xl cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg text-center"
+                      className={`flex flex-col items-center justify-center p-2.5 ${isDarkMode ? 'bg-gray-700' : 'bg-[#F5F5F5]'} rounded-xl cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg text-center`}
                     >
                       {feature.isShare ? (
                         <div className="w-10 h-10 p-0.5 relative mb-2">
@@ -1771,18 +1795,18 @@ export default function P2PPage() {
                       ) : (
                         <img src={feature.img} alt={feature.title} className="w-10 h-10 mb-2" />
                       )}
-                      <h5 className="text-sm font-semibold text-[#1A1A1A] dark:text-white mb-1">
+                      <h5 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'} mb-1`}>
                         {feature.title}
                       </h5>
                       {feature.desc && (
-                        <div className="flex items-center justify-start text-xs cursor-pointer text-blue-600 dark:text-blue-400">
+                        <div className={`flex items-center justify-start text-xs cursor-pointer ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                           {feature.isShare ? (
                             <>
                               <FaCopy className="mr-1 w-3 h-3" />
                               {feature.desc}
                             </>
                           ) : (
-                            <p className="text-[10px] font-light text-gray-600 dark:text-gray-400">{feature.desc}</p>
+                            <p className={`text-[10px] font-light ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{feature.desc}</p>
                           )}
                         </div>
                       )}
@@ -1823,12 +1847,12 @@ export default function P2PPage() {
             </div>
           )}
 
-          <div className="relative py-10 px-5 overflow-hidden bg-white dark:bg-gray-900 mb-5">
+          <div className={`relative py-10 px-5 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'} mb-5`}>
             {SHOW_WORTH_EXPLORING && (
               <>
                 <div className="absolute top-[60%] right-[10%] transform -translate-y-1/2 w-[525px] h-[425px] z-[-1] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(17,214,190,0.15)_23%,rgba(10,7,11,0.15)_100%)] blur-[40px]"></div>
                 <div className="text-center">
-                  <h3 className="text-[35px] font-semibold text-[#1A1A1A] dark:text-white leading-[35px] mb-12">
+                  <h3 className={`text-[35px] font-semibold ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'} leading-[35px] mb-12`}>
                     Worth Exploring
                   </h3>
                   <div className="flex flex-wrap gap-3 justify-center">
@@ -1843,7 +1867,9 @@ export default function P2PPage() {
                           className={`px-[18px] py-2 rounded-[100px] border text-sm font-medium transition-all ${
                             isActive
                               ? 'bg-blue-500 border-blue-500 text-white'
-                              : 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-[#1A1A1A] dark:text-white hover:bg-blue-500 hover:text-white'
+                              : isDarkMode 
+                                ? 'border-blue-700 bg-blue-900/20 text-white hover:bg-blue-500 hover:text-white'
+                                : 'border-blue-300 bg-blue-50 text-[#1A1A1A] hover:bg-blue-500 hover:text-white'
                           } ${item.isSelectable ? 'cursor-pointer hover:-translate-y-0.5' : 'opacity-70 cursor-default'}`}
                         >
                           {item.label}
@@ -1852,7 +1878,7 @@ export default function P2PPage() {
                     })}
                   </div>
                   {!categories.length && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-4`}>
                       Sample categories shown until admins publish the real list.
                     </p>
                   )}
@@ -1862,14 +1888,14 @@ export default function P2PPage() {
           </div>
 
           {SHOW_TRENDING_SHORTS && (
-            <div className="py-20 bg-[rgba(255,255,255,0.15)] dark:bg-gray-800/50 mt-[60px] w-full mb-5">
+            <div className={`py-20 ${isDarkMode ? 'bg-gray-800/50' : 'bg-[rgba(255,255,255,0.15)]'} mt-[60px] w-full mb-5`}>
               <div className="w-[90%] mx-auto">
                 <div className="mb-10">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[35px] font-semibold leading-[35px] text-[#1A1A1A] dark:text-white">
+                    <h3 className={`text-[35px] font-semibold leading-[35px] ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'}`}>
                       Trending JFshorts
                     </h3>
-                    <button className="flex items-center gap-1 text-base font-semibold text-blue-600 dark:text-blue-400 cursor-pointer bg-none border-none hover:underline">
+                    <button className={`flex items-center gap-1 text-base font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} cursor-pointer bg-none border-none hover:underline`}>
                       View all
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arrow-icon">
                         <path d="M5 12h14"></path>
@@ -1877,7 +1903,7 @@ export default function P2PPage() {
                       </svg>
                     </button>
                   </div>
-                  <h5 className="text-base font-light text-gray-600 dark:text-gray-400">
+                  <h5 className={`text-base font-light ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Watch the latest clips from trending sessions. Click to view the full session and gain expert insights.
                   </h5>
                 </div>
@@ -1937,15 +1963,15 @@ export default function P2PPage() {
           )}
 
           {SHOW_TOP_RATED_PROFILES && (
-            <div className="w-full mx-auto mb-5 p-6 bg-white dark:bg-gray-800 shadow-md rounded-xl">
+            <div className={`w-full mx-auto mb-5 p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md rounded-xl`}>
               <table className="w-full">
                 <tbody>
                   <tr>
                     <td className="w-full align-top">
-                      <h3 className="text-[35px] font-semibold leading-[40px] text-[#1A1A1A] dark:text-white mb-3">
+                      <h3 className={`text-[35px] font-semibold leading-[40px] ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'} mb-3`}>
                         Top Rated Profiles
                       </h3>
-                      <p className="text-base font-light leading-6 text-gray-600 dark:text-gray-400 mt-3">
+                      <p className={`text-base font-light leading-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-3`}>
                         Browse highly-rated experts with 4.5+ reviews from users for exceptional guidance
                       </p>
                     </td>
@@ -1956,11 +1982,11 @@ export default function P2PPage() {
           )}
 
           <div className="flex flex-col gap-5 w-full mx-auto mb-5 px-5">
-            <div className="flex justify-around items-center w-full flex-wrap gap-5">{(featuredProfiles.length > 0 ? featuredProfiles : profiles).slice(6, 12).map((profile) => (
+            <div className="flex justify-around items-center w-full flex-wrap gap-5">{getTopRatedProfiles().slice(0, 6).map((profile) => (
                 <div 
                   key={profile._id}
                   onClick={() => handleViewProfile(profile)}
-                  className="w-full max-w-[400px] bg-white dark:bg-gray-800 rounded-[20px] p-6 shadow-lg text-center border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-xl transition-all"
+                  className={`w-full max-w-[400px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[20px] p-6 shadow-lg text-center border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} cursor-pointer hover:shadow-xl transition-all`}
                 >
                   <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
                     <Image 
@@ -1968,7 +1994,7 @@ export default function P2PPage() {
                       alt={profile.userId.fullName || profile.userId.name} 
                       width={100}
                       height={100}
-                      className="w-full h-full rounded-full border-4 border-[#f0f0f0] dark:border-gray-600 object-cover"
+                      className={`w-full h-full rounded-full border-4 ${isDarkMode ? 'border-gray-600' : 'border-[#f0f0f0]'} object-cover`}
                       unoptimized
                     />
                     <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
@@ -1981,10 +2007,10 @@ export default function P2PPage() {
                     </div>
                   </div>
                   <div className="mb-4">
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                    <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
                       {profile.userId.fullName || profile.userId.name}
                     </h1>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       {(() => {
                         const parts = [];
                         if (profile.currentOrganisation) parts.push(profile.currentOrganisation);
@@ -1995,7 +2021,7 @@ export default function P2PPage() {
                       })()}
                     </p>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4">
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} leading-relaxed mb-4 line-clamp-3 overflow-hidden text-ellipsis break-words`}>
                     {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
                   </p>
                   <div className="flex flex-wrap gap-2 justify-center mb-6">
@@ -2009,7 +2035,7 @@ export default function P2PPage() {
                       return uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
                         <div 
                           key={idx}
-                          className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all"
+                          className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all`}
                         >
                           {tag}
                         </div>
@@ -2023,7 +2049,7 @@ export default function P2PPage() {
                       ];
                       const uniqueTags = Array.from(new Set(allTags));
                       return uniqueTags.length > 5 ? (
-                        <div className="bg-[#f0f0f0] dark:bg-gray-700 text-gray-900 dark:text-gray-200 text-xs px-3 py-1.5 rounded-[20px]">
+                        <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px]`}>
                           +{uniqueTags.length - 5} more
                         </div>
                       ) : null;
@@ -2088,13 +2114,13 @@ export default function P2PPage() {
         {/* Provider Bookings Tab */}
         {activeTab === 'provider-bookings' && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>
               Provider Bookings
             </h2>
             
             {providerBookings.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-4>
                   You haven't received any booking requests yet.
                 </p>
                 <button
@@ -2106,111 +2132,199 @@ export default function P2PPage() {
               </div>
             ) : (
               <div className="space-y-4 sm:space-y-6">
-                {providerBookings.map((booking) => (
-                  <div key={booking._id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between space-y-4 lg:space-y-0">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 sm:space-x-3 mb-3 sm:mb-4">
-                          <img
-                            src={booking.clientId.avatar || '/default-avatar.svg'}
-                            alt={booking.clientId.name}
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
-                              {booking.clientId.name}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 truncate">
-                              @{booking.clientId.username}
+                {providerBookings.map((booking) => {
+                  const scheduledDate = new Date(booking.scheduledDate);
+                  const now = new Date();
+                  const timeDiff = scheduledDate.getTime() - now.getTime();
+                  const daysUntil = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+                  const hoursUntil = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                  const minutesUntil = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+                  const isUpcoming = timeDiff > 0;
+                  
+                  const dateStr = scheduledDate.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  });
+                  const timeStr = scheduledDate.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  });
+                  const endTime = new Date(scheduledDate.getTime() + booking.duration * 60000);
+                  const endTimeStr = endTime.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  });
+
+                  return (
+                    <div key={booking._id} className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-4 sm:p-6 border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between space-y-4 lg:space-y-0">
+                        <div className="flex-1">
+                          {/* Requester Info */}
+                          <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
+                            <img
+                              src={booking.clientId.avatar || '/default-avatar.svg'}
+                              alt={booking.clientId.name}
+                              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover flex-shrink-0 border-2 border-blue-500"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  {booking.clientId.name}
+                                </h3>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  booking.status === 'pending' 
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' 
+                                    : booking.status === 'accepted'
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    : booking.status === 'rejected'
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                }`}>
+                                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                                </span>
+                              </div>
+                              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                @{booking.clientId.username} • Requested this meeting
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Booking Details */}
+                          <div className="mb-4">
+                            <h4 className={`text-base sm:text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+                              {booking.title}
+                            </h4>
+                            <p className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-3`}>
+                              {booking.description}
                             </p>
                           </div>
-                        </div>
-                        
-                        <div className="mb-3 sm:mb-4">
-                          <h4 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2">
-                            {booking.title}
-                          </h4>
-                          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
-                            {booking.description}
-                          </p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4 text-xs sm:text-sm">
-                          <div>
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Service Type:</span>
-                            <p className="text-gray-900 dark:text-white capitalize">{booking.serviceType}</p>
+
+                          {/* Time and Date Display */}
+                          <div className={`rounded-lg p-4 mb-4 ${isDarkMode ? 'bg-gray-700/50' : 'bg-blue-50'} border ${isDarkMode ? 'border-gray-600' : 'border-blue-200'}`}>
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <p className={`text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  Meeting Date & Time
+                                </p>
+                                <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  {dateStr}
+                                </p>
+                                <p className={`text-base font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                                  {timeStr} - {endTimeStr} ({booking.duration} minutes)
+                                </p>
+                              </div>
+                              {isUpcoming && (
+                                <div className="text-right">
+                                  <p className={`text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    Meeting in
+                                  </p>
+                                  <p className={`text-sm font-semibold ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
+                                    {daysUntil > 0 ? `${daysUntil}d ` : ''}{hoursUntil > 0 ? `${hoursUntil}h ` : ''}{minutesUntil}m
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Timeline Bar */}
+                            {isUpcoming && (
+                              <div className="mt-3">
+                                <div className={`h-2 rounded-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                                  <div 
+                                    className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-green-500 transition-all"
+                                    style={{ 
+                                      width: `${Math.min(100, Math.max(0, (1 - timeDiff / (7 * 24 * 60 * 60 * 1000)) * 100))}%` 
+                                    }}
+                                  />
+                                </div>
+                                <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  Timeline: Meeting scheduled for {dateStr}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Scheduled:</span>
-                            <p className="text-gray-900 dark:text-white">
-                              {new Date(booking.scheduledDate).toLocaleDateString()}
-                            </p>
-                            <p className="text-gray-600 dark:text-gray-300">
-                              {new Date(booking.scheduledDate).toLocaleTimeString()}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Duration:</span>
-                            <p className="text-gray-900 dark:text-white">{booking.duration} minutes</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500 dark:text-gray-400 font-medium">Amount:</span>
-                            <p className="text-gray-900 dark:text-white font-semibold">
-                              ${booking.totalAmount} {booking.currency}
-                            </p>
+                          
+                          {/* Additional Info */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm">
+                            <div>
+                              <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Service Type:</span>
+                              <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} capitalize mt-1`}>{booking.serviceType}</p>
+                            </div>
+                            <div>
+                              <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Duration:</span>
+                              <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} mt-1`}>{booking.duration} minutes</p>
+                            </div>
+                            <div>
+                              <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} font-medium`}>Amount:</span>
+                              <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold mt-1`}>
+                                ${booking.totalAmount} {booking.currency}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center space-x-2 mb-3 sm:mb-4">
-                          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                            booking.status === 'pending' 
-                              ? 'bg-yellow-100 text-yellow-800' 
-                              : booking.status === 'accepted'
-                              ? 'bg-green-100 text-green-800'
-                              : booking.status === 'rejected'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                          </span>
-                        </div>
-                      </div>
                       
-                      <div className="flex flex-col sm:flex-row lg:flex-col space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-0 lg:space-y-2">
-                        {booking.status === 'pending' && (
-                          <>
+                        {/* Action Buttons */}
+                        <div className="flex flex-col sm:flex-row lg:flex-col space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-0 lg:space-y-2 mt-4 lg:mt-0">
+                          {booking.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => acceptBooking(booking._id)}
+                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedBookingForTimeChange(booking);
+                                  const currentTime = scheduledDate.toTimeString().slice(0, 5);
+                                  setNewTime(currentTime);
+                                  setShowTimeChangeModal(true);
+                                }}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Change Time
+                              </button>
+                              <button
+                                onClick={() => rejectBooking(booking._id)}
+                                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {(booking.status === 'accepted' || booking.status === 'In_progress' || booking.status === 'in_progress') && (
                             <button
-                              onClick={() => acceptBooking(booking._id)}
-                              className="bg-green-500 hover:bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                              onClick={() => startVideoCall(booking._id)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                             >
-                              Accept
+                              <FaVideo className="w-4 h-4" />
+                              Start Call
                             </button>
-                            <button
-                              onClick={() => rejectBooking(booking._id)}
-                              className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        {(booking.status === 'accepted' || booking.status === 'In_progress' || booking.status === 'in_progress') && (
+                          )}
                           <button
-                            onClick={() => startVideoCall(booking._id)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
+                            onClick={() => router.push(`/dashboard/messages?userId=${booking.clientId._id}`)}
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                           >
-                            Start Call
+                            <FaComments className="w-4 h-4" />
+                            Chat
                           </button>
-                        )}
-                        <button
-                          onClick={() => router.push(`/dashboard/messages?userId=${booking.clientId._id}`)}
-                          className="bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                        >
-                          Chat
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2219,7 +2333,7 @@ export default function P2PPage() {
         {activeTab === 'my-profile' && (
           <div>
             {myProfile ? (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-6`}>
                 <div className="flex items-start space-x-4">
                   <img
                     src={myProfile.userId.avatar || '/default-avatar.svg'}
@@ -2227,10 +2341,10 @@ export default function P2PPage() {
                     className="w-20 h-20 rounded-full object-cover"
                   />
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    <h2 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {myProfile.userId.name}
                     </h2>
-                    <p className="text-gray-600 dark:text-gray-300">
+                    <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
                       @{myProfile.userId.username}
                     </p>
                     {myProfile.category?.title && (
@@ -2238,14 +2352,14 @@ export default function P2PPage() {
                         {myProfile.category.title}
                       </span>
                     )}
-                    <p className="text-gray-700 dark:text-gray-200 font-medium text-lg">
+                    <p className={`${isDarkMode ? 'text-gray-200' : 'text-gray-700'} font-medium text-lg`}>
                       {myProfile.occupation}
                     </p>
                     <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-green-600 dark:text-green-400 font-bold text-lg">
+                      <span className={`${isDarkMode ? 'text-green-400' : 'text-green-600'} font-bold text-lg`}>
                         ${myProfile.hourlyRate}/{myProfile.currency}
                       </span>
-                      <span className="text-gray-500 dark:text-gray-400">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
                         ⭐ {myProfile.rating.average.toFixed(1)} ({myProfile.rating.count} reviews)
                       </span>
                       <span className={`px-3 py-1 rounded-full text-sm ${
@@ -2262,16 +2376,16 @@ export default function P2PPage() {
                 </div>
                 
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3`}>
                     Experience
                   </h3>
-                  <p className="text-gray-700 dark:text-gray-300">
+                  <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
                     {myProfile.experience}
                   </p>
                 </div>
 
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3`}>
                     Skills
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -2287,16 +2401,16 @@ export default function P2PPage() {
                 </div>
 
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3`}>
                     Languages
                   </h3>
                   <div className="space-y-2">
                     {myProfile.languages.map((lang, index) => (
                       <div key={index} className="flex justify-between items-center">
-                        <span className="text-gray-700 dark:text-gray-300">
+                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
                           {lang.language}
                         </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           {lang.proficiency}
                         </span>
                       </div>
@@ -2305,16 +2419,16 @@ export default function P2PPage() {
                 </div>
 
                 <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3`}>
                     Portfolio
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myProfile.portfolio.map((item, index) => (
-                      <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                        <h4 className="font-medium text-gray-900 dark:text-white">
+                      <div key={index} className={`border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} rounded-lg p-4`}>
+                        <h4 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {item.title}
                         </h4>
-                        <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
+                        <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm mt-1`}>
                           {item.description}
                         </p>
                         {item.url && (
@@ -2334,7 +2448,7 @@ export default function P2PPage() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-4>
                   You haven't created a P2P profile yet.
                 </p>
                 <button
@@ -2349,19 +2463,19 @@ export default function P2PPage() {
         )}
 
         {activeTab === 'create' && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">
+          <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-4 sm:p-6`}>
+            <h2 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4 sm:mb-6`}>
               {myProfile ? 'Edit Profile' : 'Create P2P Profile'}
             </h2>
 
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
                   Basic Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       Occupation *
                     </label>
                     <input
@@ -2369,7 +2483,7 @@ export default function P2PPage() {
                       value={profileForm.occupation}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, occupation: e.target.value }))}
                       placeholder="e.g., Web Developer, Graphic Designer"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                       required
                     />
                     {!profileForm.occupation.trim() && (
@@ -2377,7 +2491,7 @@ export default function P2PPage() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       Hourly Rate *
                     </label>
                     <div className="flex">
@@ -2386,13 +2500,13 @@ export default function P2PPage() {
                         value={profileForm.hourlyRate}
                         onChange={(e) => setProfileForm(prev => ({ ...prev, hourlyRate: parseFloat(e.target.value) || 0 }))}
                         placeholder="50"
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                         required
                       />
                       <select
                         value={profileForm.currency}
                         onChange={(e) => setProfileForm(prev => ({ ...prev, currency: e.target.value }))}
-                        className="ml-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className={`ml-2 px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                       >
                         <option value="USD">USD</option>
                         <option value="INR">INR</option>
@@ -2406,13 +2520,13 @@ export default function P2PPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Category
                 </label>
                 <select
                   value={profileForm.categoryId}
                   onChange={(e) => setProfileForm(prev => ({ ...prev, categoryId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   disabled={!categories.length}
                 >
                   <option value="">
@@ -2425,19 +2539,19 @@ export default function P2PPage() {
                   ))}
                 </select>
                 {!categories.length && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
                     Categories are managed by admins. Please check back later.
                   </p>
                 )}
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-3`}>
                   Call & Chat Rates
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       Audio Call Rate (multiplier)
                     </label>
                     <input
@@ -2445,11 +2559,11 @@ export default function P2PPage() {
                       value={profileForm.audioCallPrice}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, audioCallPrice: e.target.value }))}
                       placeholder="e.g., 12"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400"
+                      className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       Video Call Rate (multiplier)
                     </label>
                     <input
@@ -2457,11 +2571,11 @@ export default function P2PPage() {
                       value={profileForm.videoCallPrice}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, videoCallPrice: e.target.value }))}
                       placeholder="e.g., 15"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400"
+                      className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                       Chat Rate (multiplier)
                     </label>
                     <input
@@ -2469,17 +2583,17 @@ export default function P2PPage() {
                       value={profileForm.chatPrice}
                       onChange={(e) => setProfileForm(prev => ({ ...prev, chatPrice: e.target.value }))}
                       placeholder="e.g., 10"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-400"
+                      className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400`}
                     />
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-2`}>
                   Multipliers are applied to your hourly rate to derive session pricing for each medium.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Experience * (Minimum 10 characters)
                 </label>
                 <textarea
@@ -2487,7 +2601,7 @@ export default function P2PPage() {
                   onChange={(e) => setProfileForm(prev => ({ ...prev, experience: e.target.value }))}
                   placeholder="Describe your experience, background, and what makes you unique..."
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   required
                 />
                 <div className="flex justify-between items-center mt-1">
@@ -2501,7 +2615,7 @@ export default function P2PPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Skills
                 </label>
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -2526,7 +2640,7 @@ export default function P2PPage() {
                     value={newSkill}
                     onChange={(e) => setNewSkill(e.target.value)}
                     placeholder="Add a skill"
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className={`flex-1 px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                     onKeyPress={(e) => e.key === 'Enter' && addSkill()}
                   />
                   <button
@@ -2539,13 +2653,13 @@ export default function P2PPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Availability
                 </label>
                 <select
                   value={profileForm.availability}
                   onChange={(e) => setProfileForm(prev => ({ ...prev, availability: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 >
                   <option value="Available">Available</option>
                   <option value="Busy">Busy</option>
@@ -2554,12 +2668,12 @@ export default function P2PPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Working Hours
                 </label>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    <label className={`block text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
                       Start Time
                     </label>
                     <input
@@ -2569,11 +2683,11 @@ export default function P2PPage() {
                         ...prev, 
                         workingHours: { ...prev.workingHours, start: e.target.value }
                       }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    <label className={`block text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
                       End Time
                     </label>
                     <input
@@ -2583,14 +2697,14 @@ export default function P2PPage() {
                         ...prev, 
                         workingHours: { ...prev.workingHours, end: e.target.value }
                       }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Available Days
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -2604,7 +2718,9 @@ export default function P2PPage() {
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                           isSelected
                             ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            : isDarkMode 
+                              ? 'bg-gray-700 text-gray-300'
+                              : 'bg-gray-200 text-gray-700'
                         }`}
                       >
                         {day.slice(0, 3)}
@@ -2612,13 +2728,13 @@ export default function P2PPage() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
                   These help clients know which days you are generally available.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
                   Languages
                 </label>
                 <div className="space-y-2 mb-3">
@@ -2634,7 +2750,7 @@ export default function P2PPage() {
                           )
                         }))}
                         placeholder="Language"
-                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className={`flex-1 px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                       />
                       <select
                         value={lang.proficiency}
@@ -2644,7 +2760,7 @@ export default function P2PPage() {
                             i === index ? { ...l, proficiency: e.target.value } : l
                           )
                         }))}
-                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className={`px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                       >
                         <option value="Beginner">Beginner</option>
                         <option value="Intermediate">Intermediate</option>
@@ -2666,7 +2782,7 @@ export default function P2PPage() {
                     value={newLanguage}
                     onChange={(e) => setNewLanguage(e.target.value)}
                     placeholder="Add a language"
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    className={`flex-1 px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                     onKeyPress={(e) => e.key === 'Enter' && addLanguage()}
                   />
                   <button
@@ -2680,7 +2796,7 @@ export default function P2PPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Portfolio
                   </label>
                   <button
@@ -2692,10 +2808,10 @@ export default function P2PPage() {
                 </div>
                 <div className="space-y-4">
                   {profileForm.portfolio.map((item, index) => (
-                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div key={index} className={`border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} rounded-lg p-4`}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <label className={`block text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
                             Project Title
                           </label>
                           <input
@@ -2703,11 +2819,11 @@ export default function P2PPage() {
                             value={item.title}
                             onChange={(e) => updatePortfolioItem(index, 'title', e.target.value)}
                             placeholder="Project title"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                            className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <label className={`block text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
                             Project URL
                           </label>
                           <input
@@ -2715,12 +2831,12 @@ export default function P2PPage() {
                             value={item.url}
                             onChange={(e) => updatePortfolioItem(index, 'url', e.target.value)}
                             placeholder="https://example.com"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                            className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                           />
                         </div>
                       </div>
                       <div className="mt-3">
-                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        <label className={`block text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-1`}>
                           Description
                         </label>
                         <textarea
@@ -2728,7 +2844,7 @@ export default function P2PPage() {
                           onChange={(e) => updatePortfolioItem(index, 'description', e.target.value)}
                           placeholder="Describe your project..."
                           rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                          className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                         />
                       </div>
                       <button
@@ -2743,77 +2859,78 @@ export default function P2PPage() {
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-4`}>
                   Social Links
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Website
-                    </label>
-                    <input
-                      type="url"
-                      value={profileForm.socialLinks.website}
-                      onChange={(e) => setProfileForm(prev => ({
+                <div className="space-y-4">
+                  {profileForm.socialLinks.map((link, index) => (
+                    <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                      <div className="md:col-span-4">
+                        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                          Platform Name
+                        </label>
+                        <input
+                          type="text"
+                          value={link.name}
+                          onChange={(e) => {
+                            const newLinks = [...profileForm.socialLinks];
+                            newLinks[index].name = e.target.value;
+                            setProfileForm(prev => ({ ...prev, socialLinks: newLinks }));
+                          }}
+                          placeholder="e.g., Website, LinkedIn, GitHub"
+                          className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        />
+                      </div>
+                      <div className="md:col-span-7">
+                        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2`}>
+                          URL
+                        </label>
+                        <input
+                          type="url"
+                          value={link.url}
+                          onChange={(e) => {
+                            const newLinks = [...profileForm.socialLinks];
+                            newLinks[index].url = e.target.value;
+                            setProfileForm(prev => ({ ...prev, socialLinks: newLinks }));
+                          }}
+                          placeholder="https://example.com/yourprofile"
+                          className={`w-full px-3 py-2 border ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newLinks = profileForm.socialLinks.filter((_, i) => i !== index);
+                            setProfileForm(prev => ({ ...prev, socialLinks: newLinks }));
+                          }}
+                          className={`w-full px-3 py-2 border ${isDarkMode ? 'border-red-600 hover:bg-red-700 text-red-400' : 'border-red-300 hover:bg-red-50 text-red-600'} rounded-lg font-medium transition-colors`}
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileForm(prev => ({
                         ...prev,
-                        socialLinks: { ...prev.socialLinks, website: e.target.value }
-                      }))}
-                      placeholder="https://yourwebsite.com"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      LinkedIn
-                    </label>
-                    <input
-                      type="url"
-                      value={profileForm.socialLinks.linkedin}
-                      onChange={(e) => setProfileForm(prev => ({
-                        ...prev,
-                        socialLinks: { ...prev.socialLinks, linkedin: e.target.value }
-                      }))}
-                      placeholder="https://linkedin.com/in/yourprofile"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      GitHub
-                    </label>
-                    <input
-                      type="url"
-                      value={profileForm.socialLinks.github}
-                      onChange={(e) => setProfileForm(prev => ({
-                        ...prev,
-                        socialLinks: { ...prev.socialLinks, github: e.target.value }
-                      }))}
-                      placeholder="https://github.com/yourusername"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Behance
-                    </label>
-                    <input
-                      type="url"
-                      value={profileForm.socialLinks.behance}
-                      onChange={(e) => setProfileForm(prev => ({
-                        ...prev,
-                        socialLinks: { ...prev.socialLinks, behance: e.target.value }
-                      }))}
-                      placeholder="https://behance.net/yourprofile"
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
+                        socialLinks: [...prev.socialLinks, { name: '', url: '' }]
+                      }));
+                    }}
+                    className="text-blue-500 hover:text-blue-600 font-medium flex items-center gap-2"
+                  >
+                    + Add Social Link
+                  </button>
                 </div>
               </div>
 
               <div className="flex justify-end space-x-4">
                 <button
                   onClick={() => setActiveTab('browse')}
-                  className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-lg font-medium transition-colors"
+                  className={`border ${isDarkMode ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700'} px-6 py-3 rounded-lg font-medium transition-colors`}
                 >
                   Cancel
                 </button>
@@ -2822,212 +2939,6 @@ export default function P2PPage() {
                   className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
                   {myProfile ? 'Update Profile' : 'Create Profile'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showBookingModal && selectedProfile && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto scrollbar-hide">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                  Book Service
-                </h2>
-                <button
-                  onClick={() => setShowBookingModal(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-xl sm:text-2xl"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center space-x-3 sm:space-x-4">
-                  <img
-                    src={selectedProfile.userId.avatar || '/default-avatar.svg'}
-                    alt={selectedProfile.userId.name}
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover flex-shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                      {selectedProfile.userId.name}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm truncate">
-                      {selectedProfile.occupation} • {getCurrencySymbol(selectedProfile.currency)}
-                      {selectedProfile.hourlyRate}/{selectedProfile.currency}/hour
-                    </p>
-                    {selectedProfile.category?.title && (
-                      <p className="text-[11px] uppercase tracking-wide text-blue-500 font-semibold mt-1">
-                        {selectedProfile.category.title}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {/* Selected Service Display */}
-                {selectedServiceType && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {selectedServiceType === 'audio_call' && (
-                        <>
-                          <FaPhone className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                          <div>
-                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Audio Call Selected</p>
-                            <p className="text-xs text-blue-700 dark:text-blue-400">
-                              {formatAmountDisplay(selectedProfile.audioCallPrice || selectedProfile.hourlyRate, selectedProfile.currency)}{' '}
-                              {selectedProfile.audioCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      {selectedServiceType === 'video_call' && (
-                        <>
-                          <FaVideo className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                          <div>
-                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Video Call Selected</p>
-                            <p className="text-xs text-blue-700 dark:text-blue-400">
-                              {formatAmountDisplay(selectedProfile.videoCallPrice || selectedProfile.hourlyRate, selectedProfile.currency)}{' '}
-                              {selectedProfile.videoCallPrice ? 'per call' : `/${selectedProfile.currency || 'hour'}`}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      {selectedServiceType === 'chat' && (
-                        <>
-                          <FaComments className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                          <div>
-                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Chat Selected</p>
-                            <p className="text-xs text-blue-700 dark:text-blue-400">
-                              {formatAmountDisplay(selectedProfile.chatPrice || selectedProfile.hourlyRate, selectedProfile.currency)} per message
-                            </p>
-                          </div>
-                        </>
-                      )}
-                      {(selectedServiceType === 'consultation' || (!selectedServiceType || (selectedServiceType !== 'audio_call' && selectedServiceType !== 'video_call' && selectedServiceType !== 'chat'))) && (
-                        <>
-                          <FaStar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                          <div>
-                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Consultation Selected</p>
-                            <p className="text-xs text-blue-700 dark:text-blue-400">
-                              {formatAmountDisplay(selectedProfile.hourlyRate, selectedProfile.currency)}/{selectedProfile.currency || 'hour'}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Service Type *
-                  </label>
-                  <select
-                    value={bookingForm.serviceType}
-                    onChange={(e) => {
-                      setBookingForm(prev => ({ ...prev, serviceType: e.target.value }));
-                      setSelectedServiceType(e.target.value);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  >
-                    <option value="consultation">Consultation</option>
-                    <option value="audio_call">Audio Call</option>
-                    <option value="video_call">Video Call</option>
-                    <option value="chat">Chat</option>
-                    <option value="project">Project</option>
-                    <option value="hourly">Hourly Work</option>
-                    <option value="fixed_price">Fixed Price</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={bookingForm.title}
-                    onChange={(e) => setBookingForm(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Brief title for your service request"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Description *
-                  </label>
-                  <textarea
-                    value={bookingForm.description}
-                    onChange={(e) => setBookingForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Describe what you need help with..."
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                      Scheduled Date & Time *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={bookingForm.scheduledDate}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                      min={new Date().toISOString().slice(0, 16)}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      ⏰ Select any future date and time for your meeting
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
-                      Duration (minutes) *
-                    </label>
-                    <input
-                      type="number"
-                      value={bookingForm.duration}
-                      onChange={(e) => setBookingForm(prev => ({ ...prev, duration: parseInt(e.target.value) || 60 }))}
-                      min="15"
-                      max="480"
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                    Estimated Cost
-                  </h4>
-                  <p className="text-blue-800 dark:text-blue-200">
-                    {estimatedCost !== null ? formatAmountDisplay(estimatedCost, selectedProfile.currency) : '—'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-6">
-                <button
-                  onClick={() => setShowBookingModal(false)}
-                  className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={createBooking}
-                  disabled={bookingSubmitting}
-                  className={`px-4 sm:px-6 py-2 rounded-lg text-sm sm:text-base font-medium transition-colors ${
-                    bookingSubmitting
-                      ? 'bg-blue-300 cursor-not-allowed text-white'
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
-                  }`}
-                >
-                  {bookingSubmitting ? 'Sending...' : 'Send Booking Request'}
                 </button>
               </div>
             </div>
@@ -3111,6 +3022,95 @@ export default function P2PPage() {
       )}
 
       <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      {/* Time Change Modal */}
+      {showTimeChangeModal && selectedBookingForTimeChange && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-xl max-w-md w-full p-6`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Change Meeting Time
+            </h3>
+            
+            <div className="mb-4">
+              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
+                Current Date: <span className="font-semibold">
+                  {new Date(selectedBookingForTimeChange.scheduledDate).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </span>
+              </p>
+              <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
+                Current Time: <span className="font-semibold">
+                  {new Date(selectedBookingForTimeChange.scheduledDate).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </span>
+              </p>
+              <p className={`text-xs ${isDarkMode ? 'text-yellow-300' : 'text-yellow-600'} mb-4 p-2 rounded bg-yellow-50 dark:bg-yellow-900/20`}>
+                ⚠️ Note: You can only change the time, not the date. A message will be sent to the requester automatically.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                New Time (HH:MM format)
+              </label>
+              <input
+                type="time"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                required
+              />
+              <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Example: 14:30 (2:30 PM)
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowTimeChangeModal(false);
+                  setSelectedBookingForTimeChange(null);
+                  setNewTime('');
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!newTime) {
+                    addToast('error', 'Invalid Time', 'Please select a valid time');
+                    return;
+                  }
+                  
+                  setUpdatingTime(true);
+                  const success = await updateBookingTime(selectedBookingForTimeChange._id, newTime);
+                  setUpdatingTime(false);
+                  
+                  if (success) {
+                    setShowTimeChangeModal(false);
+                    setSelectedBookingForTimeChange(null);
+                    setNewTime('');
+                  }
+                }}
+                disabled={updatingTime || !newTime}
+                className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+              >
+                {updatingTime ? 'Updating...' : 'Update Time'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .scrollbar-hide {

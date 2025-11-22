@@ -823,6 +823,200 @@ const getBookingByVideoCallId = async (req, res) => {
   }
 };
 
+// Update booking time (date locked)
+const updateBookingTime = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { bookingId } = req.params;
+    const { newTime } = req.body; // Format: "HH:MM" (e.g., "14:30")
+
+    if (!newTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'New time is required (format: HH:MM)'
+      });
+    }
+
+    // Validate time format
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(newTime)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid time format. Please use HH:MM format (e.g., 14:30)'
+      });
+    }
+
+    const booking = await Booking.findById(bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if user is the service provider
+    if (booking.serviceProviderId.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to update this booking'
+      });
+    }
+
+    // Check if booking can be updated
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending bookings can have their time changed'
+      });
+    }
+
+    // Get the original scheduled date
+    const originalDate = new Date(booking.scheduledDate);
+    const [hours, minutes] = newTime.split(':').map(Number);
+
+    // Create new scheduled date with same date but new time
+    const newScheduledDate = new Date(originalDate);
+    newScheduledDate.setHours(hours, minutes, 0, 0);
+
+    // Validate the new time is not in the past
+    if (newScheduledDate < new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'New time cannot be in the past'
+      });
+    }
+
+    // Check for conflicts with other bookings
+    const requestedEnd = new Date(newScheduledDate.getTime() + booking.duration * 60000);
+    const bufferWindowStart = new Date(newScheduledDate.getTime() - 12 * 60 * 60 * 1000);
+    const bufferWindowEnd = new Date(requestedEnd.getTime() + 12 * 60 * 60 * 1000);
+
+    const conflictingBookings = await Booking.find({
+      serviceProviderId: booking.serviceProviderId,
+      _id: { $ne: booking._id }, // Exclude current booking
+      status: { $in: BLOCKING_BOOKING_STATUSES },
+      scheduledDate: { $lt: bufferWindowEnd, $gt: bufferWindowStart }
+    }).select('scheduledDate duration');
+
+    if (hasBookingConflict(newScheduledDate, requestedEnd, conflictingBookings)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Selected time overlaps with another booking'
+      });
+    }
+
+    // Store old time for message
+    const oldTime = originalDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+
+    // Update booking time
+    booking.scheduledDate = newScheduledDate;
+    await booking.save();
+
+    // Send message to client about time change
+    const Message = require('../models/message');
+    const Conversation = require('../models/conversation');
+    
+    const newTimeFormatted = newScheduledDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    const dateFormatted = newScheduledDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const messageContent = `I've updated the meeting time from ${oldTime} to ${newTimeFormatted} on ${dateFormatted}. The date remains the same.`;
+
+    // Create message
+    const message = new Message({
+      senderId: userId,
+      receiverId: booking.clientId,
+      content: messageContent,
+      messageType: 'text',
+      conversationContext: {
+        type: 'p2p_booking',
+        bookingId: booking._id,
+        source: 'booking_time_change'
+      }
+    });
+
+    await message.save();
+
+    // Create or update conversation
+    const sortedIds = [userId, booking.clientId.toString()].sort();
+    const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
+    
+    await Conversation.findOneAndUpdate(
+      { conversationId },
+      {
+        $set: {
+          participants: sortedIds,
+          lastMessage: message._id,
+          lastMessageAt: new Date(),
+          updatedAt: new Date(),
+          conversationType: 'p2p_booking',
+          p2pContext: {
+            bookingId: booking._id,
+            serviceProviderId: booking.serviceProviderId,
+            clientId: booking.clientId,
+            source: 'booking_time_change'
+          }
+        },
+        $setOnInsert: {
+          conversationId,
+          isP2PUser: true,
+          p2pUserId: booking.clientId,
+          unreadCount: new Map(),
+          isPinned: false,
+          isArchived: false,
+          createdAt: new Date()
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    // Send socket notification
+    const socketService = require('../services/socketService');
+    const clientRoom = `user_${booking.clientId}`;
+    socketService.io.to(clientRoom).emit('new_message', {
+      _id: message._id,
+      senderId: userId,
+      receiverId: booking.clientId,
+      content: messageContent,
+      timestamp: new Date().toISOString(),
+      conversationId: conversationId
+    });
+
+    // Populate booking for response
+    await booking.populate([
+      { path: 'clientId', select: 'name username avatar' },
+      { path: 'serviceProviderId', select: 'name username avatar' },
+      { path: 'p2pProfileId', select: 'occupation hourlyRate currency' }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking time updated successfully and message sent to client',
+      booking
+    });
+  } catch (error) {
+    console.error('Error updating booking time:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getUserBookings,
@@ -835,5 +1029,6 @@ module.exports = {
   getBookingById,
   getBookingStats,
   getBookingByVideoCallId,
-  getProviderDailyBookings
+  getProviderDailyBookings,
+  updateBookingTime
 };

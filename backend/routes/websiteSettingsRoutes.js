@@ -9,7 +9,8 @@ const {
   updateApiKey,
   toggleMaintenanceMode,
   getWebsiteMode,
-  resetToDefaults
+  resetToDefaults,
+  getLegalDocuments
 } = require('../controllers/websiteSettingsController');
 
 // Get all website settings (admin only)
@@ -32,6 +33,9 @@ router.put('/maintenance', authMiddleware, toggleMaintenanceMode);
 
 // Get website mode status (public - no auth required)
 router.get('/mode', getWebsiteMode);
+
+// Get privacy policy and terms of service (public - no auth required)
+router.get('/legal', getLegalDocuments);
 
 // Reset settings to defaults (admin only)
 router.post('/reset', authMiddleware, resetToDefaults);

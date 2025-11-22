@@ -88,7 +88,23 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
   const getMediaUrl = (url: string) => {
     if (!url) return '/default-avatar.svg';
-    if (/^(https?:)?\/\//i.test(url) || /^(data:|blob:)/i.test(url)) return url;
+    
+    // Handle absolute URLs (http, https, data, blob)
+    if (/^(https?:)?\/\//i.test(url) || /^(data:|blob:)/i.test(url)) {
+      return url;
+    }
+    
+    // Handle Cloudinary URLs (they might not have protocol)
+    if (url.includes('cloudinary.com') || url.includes('res.cloudinary.com')) {
+      // If it's already a full Cloudinary URL, return as is
+      if (url.startsWith('http')) {
+        return url;
+      }
+      // Otherwise, add https://
+      return `https://${url}`;
+    }
+    
+    // Handle relative paths
     const api = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
     const normalized = (url.startsWith('/') ? url.slice(1) : url).replace(/\\/g, '/');
     return `${api}/${normalized}`.replace(/\s/g, '%20');
@@ -1440,6 +1456,18 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 ? media 
                 : (media?.secure_url || media?.url || media?.path || '');
               const resolvedUrl = getMediaUrl(rawUrl);
+              
+              // Debug logging for album posts
+              if (post.originalAlbum || post.sharedFrom?.albumId) {
+                console.log('Album post media:', {
+                  index,
+                  rawUrl,
+                  resolvedUrl,
+                  media,
+                  postId: post._id,
+                  originalAlbum: post.originalAlbum
+                });
+              }
               return (
               <div key={index} className={`mb-2 ${index < post.media.length - 1 ? 'mb-3' : ''} cursor-pointer ${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`} onClick={() => onWatch && onWatch(post)}>
                 {media.type === 'video' ? (
@@ -1526,7 +1554,34 @@ const FeedPost: React.FC<FeedPostProps> = ({
                       style={{ maxHeight: '80vh' }}
                       loading="lazy"
                       onError={(e) => {
-                        if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
+                        const img = e.currentTarget;
+                        console.error('Image failed to load:', {
+                          resolvedUrl,
+                          rawUrl,
+                          mediaItem: media,
+                          postId: post._id,
+                          isShared: post.isShared,
+                          originalAlbum: post.originalAlbum
+                        });
+                        
+                        // Try fallback to rawUrl if different
+                        if (rawUrl && img.src !== rawUrl && rawUrl !== resolvedUrl) {
+                          img.src = rawUrl;
+                          return;
+                        }
+                        
+                        // If still failing, show error placeholder
+                        img.style.display = 'none';
+                        const fallback = document.createElement('div');
+                        fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
+                        fallback.innerHTML = `
+                          <div class="text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}">
+                            <div class="text-4xl mb-2">🖼️</div>
+                            <div class="text-sm">Image could not be loaded</div>
+                            <div class="text-xs mt-1 opacity-75">Check your connection</div>
+                          </div>
+                        `;
+                        img.parentNode?.appendChild(fallback);
                       }}
                     />
                   </div>

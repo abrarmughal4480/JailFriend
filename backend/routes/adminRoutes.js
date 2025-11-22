@@ -8,6 +8,7 @@ const {
   updateCategory: updateP2PCategory,
   deleteCategory: deleteP2PCategory
 } = require('../controllers/p2pCategoryController');
+const { upload } = require('../config/cloudinary');
 
 // Admin dashboard statistics
 router.get('/stats', authMiddleware, adminController.getDashboardStats);
@@ -32,8 +33,8 @@ router.get('/users/online', authMiddleware, adminController.getOnlineUsers);
 
 // P2P categories management
 router.get('/p2p/categories', authMiddleware, getP2PCategories);
-router.post('/p2p/categories', authMiddleware, createP2PCategory);
-router.put('/p2p/categories/:categoryId', authMiddleware, updateP2PCategory);
+router.post('/p2p/categories', authMiddleware, upload.single('image'), createP2PCategory);
+router.put('/p2p/categories/:categoryId', authMiddleware, upload.single('image'), updateP2PCategory);
 router.delete('/p2p/categories/:categoryId', authMiddleware, deleteP2PCategory);
 
 module.exports = router; 

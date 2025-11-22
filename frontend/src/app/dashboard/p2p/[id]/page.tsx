@@ -245,6 +245,7 @@ export default function ExpertDetailPage() {
       startTime: start,
       endTime: end,
       timezone: profile.timezone || fallbackTimezone,
+      availableDays: profile.availableDays || [],
     };
   }, [profile]);
 
@@ -688,7 +689,7 @@ export default function ExpertDetailPage() {
                   />
                 </div>
               </div>
-              <div className="w-full md:w-[75%] md:pl-5">
+              <div className="w-full md:w-[75%] md:pl-5 min-w-0">
                 <h1 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   {expertName}
                 </h1>
@@ -710,7 +711,7 @@ export default function ExpertDetailPage() {
                     </div>
                   ))}
                 </div>
-                <p className={`text-sm mb-5 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <p className={`text-sm mb-5 break-all overflow-hidden max-w-full ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                   {profile.description || profile.userId.bio || 'Expert professional ready to help you.'}
                 </p>
               </div>
@@ -757,46 +758,87 @@ export default function ExpertDetailPage() {
             </div>
 
             {/* Social Links */}
-            <div className="flex justify-center gap-2.5 mt-5">
-              {profile.socialLinks?.twitter && (
-                <a href={profile.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/>
-                  </svg>
-                </a>
-              )}
-              {profile.socialLinks?.facebook && (
-                <a href={profile.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
-                  </svg>
-                </a>
-              )}
-              {profile.socialLinks?.instagram && (
-                <a href={profile.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-                    <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/>
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-                  </svg>
-                </a>
-              )}
-              {profile.socialLinks?.linkedin && (
-                <a href={profile.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
-                    <circle cx="4" cy="4" r="2"/>
-                  </svg>
-                </a>
-              )}
-              {profile.socialLinks?.youtube && (
-                <a href={profile.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600">
-                  <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.33z"/>
-                    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
-                  </svg>
-                </a>
-              )}
+            <div className="flex justify-center gap-2.5 mt-5 flex-wrap">
+              {profile.socialLinks && Object.entries(profile.socialLinks).map(([platformName, url]) => {
+                if (!url || !url.trim()) return null;
+                
+                // Get icon based on platform name
+                const getIcon = () => {
+                  const name = platformName.toLowerCase().trim();
+                  if (name.includes('twitter') || name.includes('x.com')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/>
+                      </svg>
+                    );
+                  }
+                  if (name.includes('linkedin') || name.includes('linked')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/>
+                        <circle cx="4" cy="4" r="2"/>
+                      </svg>
+                    );
+                  }
+                  if (name.includes('instagram') || name.includes('insta')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                      </svg>
+                    );
+                  }
+                  if (name.includes('facebook') || name.includes('fb')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
+                      </svg>
+                    );
+                  }
+                  if (name.includes('youtube') || name.includes('yt')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.33z"/>
+                        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/>
+                      </svg>
+                    );
+                  }
+                  if (name.includes('github') || name.includes('git')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23 1.957-.545 4.059-.545 6.115 0 2.293-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                      </svg>
+                    );
+                  }
+                  if (name.includes('behance')) {
+                    return (
+                      <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M22 7h-7v-2h7v2zm1.726 10c-.442 1.297-2.029 3-5.101 3-3.074 0-5.564-1.729-5.564-5.675 0-3.91 2.325-5.92 5.466-5.92 3.082 0 4.964 1.782 5.375 4.426.078.506.109 1.188.109 1.268h-8.027c.13 3.211 3.483 3.312 4.588 2.029h3.168zm-7.686-4.258c0-2.572-.161-3.611 2.515-3.611 2.575 0 2.486 1.044 2.486 3.611h-5.001zm-9.04 0c0 3.2.746 4.478 2.104 5.412.637.5 1.701.73 2.59.73 1.933 0 3.133-.465 3.133-2.002 0-1.021-.649-1.482-1.936-1.482h-1.849v-1.649h1.849c1.21 0 1.771-.481 1.771-1.38 0-1.356-.987-1.846-2.602-1.846-1.021 0-2.023.247-2.666.721-.609.443-1.193 1.204-1.193 2.538h-2.248zm-7.5 0c0 3.2.746 4.478 2.104 5.412.637.5 1.701.73 2.59.73 1.933 0 3.133-.465 3.133-2.002 0-1.021-.649-1.482-1.936-1.482h-1.849v-1.649h1.849c1.21 0 1.771-.481 1.771-1.38 0-1.356-.987-1.846-2.602-1.846-1.021 0-2.023.247-2.666.721-.609.443-1.193 1.204-1.193 2.538h-2.248z"/>
+                      </svg>
+                    );
+                  }
+                  // Default globe icon for website or unknown platforms
+                  return (
+                    <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                  );
+                };
+                
+                return (
+                  <a 
+                    key={platformName}
+                    href={url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    title={platformName}
+                  >
+                    {getIcon()}
+                  </a>
+                );
+              })}
             </div>
           </div>
 
@@ -995,7 +1037,7 @@ export default function ExpertDetailPage() {
             <h1 className={`text-2xl font-bold mb-2 truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {expertName}
             </h1>
-            <p className={`text-sm mb-4 line-clamp-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-sm mb-4 line-clamp-2 break-all overflow-hidden max-w-full ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               {profile.description || profile.userId.bio || expertTitle || 'Expert professional'}
             </p>
             <div className="flex flex-wrap gap-2 justify-center mb-6">

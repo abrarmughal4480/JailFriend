@@ -1562,7 +1562,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               ? 'bg-gray-900 border-l border-gray-700' 
               : 'bg-white border-l border-gray-200'
           }`} style={{ top: '64px', height: 'calc(100vh - 64px)' }}>
-            <div className={`p-4 border-b flex items-center justify-between ${
+            <div className={`px-3 py-2 border-b flex items-center justify-between ${
               isDarkMode 
                 ? 'border-gray-700' 
                 : 'border-gray-200'
@@ -1584,9 +1584,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               </button>
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 px-3 pt-2 pb-3 overflow-y-auto">
               {/* Profile Section */}
-              <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg ${
+              <div className={`flex items-center gap-2 mb-2 p-2 rounded-lg ${
                 isDarkMode 
                   ? 'bg-gray-800' 
                   : 'bg-gray-50'
@@ -2344,7 +2344,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             } ${isDarkMode ? 'bg-gray-900 border-r border-gray-700' : 'bg-white border-r border-gray-200'}`}>
               {profileSidebarOpen && (
                 <>
-                  <div className={`p-4 border-b flex items-center justify-between ${
+                  <div className={`px-3 py-2 border-b flex items-center justify-between ${
                     isDarkMode 
                       ? 'border-gray-700' 
                       : 'border-gray-200'
@@ -2366,9 +2366,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     </button>
                   </div>
 
-                  <div className="flex-1 p-4 overflow-y-auto scrollbar-hide">
+                  <div className="flex-1 px-3 pt-2 pb-3 overflow-y-auto scrollbar-hide">
                     {/* Profile Section */}
-                    <div className={`flex items-center gap-2 mb-4 p-3 rounded-lg ${
+                    <div className={`flex items-center gap-2 mb-2 p-2 rounded-lg ${
                       isDarkMode 
                         ? 'bg-gray-800' 
                         : 'bg-gray-50'
@@ -2713,7 +2713,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   : 'ml-64'
           }
           ${!isMessagesPage && !isVideoCallPage && 'md:mr-20'}
-          ${!isMobile && !isMessagesPage && !isVideoCallPage && profileSidebarOpen ? 'ml-96' : ''}
+          ${!isMobile && !isMessagesPage && !isVideoCallPage && profileSidebarOpen ? 'ml-64' : ''}
           ${!isMessagesPage && !isVideoCallPage && 'pt-16'}
         `} style={{ 
           paddingLeft: '0', 

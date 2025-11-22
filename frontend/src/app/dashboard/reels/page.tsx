@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import ReelsCreationModal from '@/components/ReelsCreationModal';
 import { getReels, Reel, ReelsResponse } from '@/utils/reelsApi';
 import { Heart, MessageCircle, Share, Bookmark, MoreHorizontal, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -47,6 +48,7 @@ const getVideoUrl = (url: string): string => {
 };
 
 export default function ReelsPage() {
+  const { isDarkMode } = useDarkMode();
   const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('general');
@@ -455,10 +457,10 @@ export default function ReelsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading reels...</p>
+          <div className={`animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4 ${isDarkMode ? 'border-gray-300' : 'border-white'}`}></div>
+          <p className={isDarkMode ? 'text-gray-300 text-lg' : 'text-white text-lg'}>Loading reels...</p>
         </div>
       </div>
     );
@@ -466,7 +468,7 @@ export default function ReelsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
         <div className="text-center">
           <p className="text-red-400 text-lg mb-4">Error: {error}</p>
           <button 
@@ -482,12 +484,12 @@ export default function ReelsPage() {
 
   if (reels.length === 0) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
         <div className="text-center">
           <div className="text-6xl mb-4">🎬</div>
-          <h2 className="text-white text-2xl font-bold mb-2">No reels found</h2>
-          <p className="text-gray-400 mb-6">Be the first to create a reel in this category!</p>
-          <div className="text-white text-sm mb-4">
+          <h2 className={isDarkMode ? 'text-gray-100 text-2xl font-bold mb-2' : 'text-white text-2xl font-bold mb-2'}>No reels found</h2>
+          <p className={isDarkMode ? 'text-gray-400 mb-6' : 'text-gray-400 mb-6'}>Be the first to create a reel in this category!</p>
+          <div className={isDarkMode ? 'text-gray-300 text-sm mb-4' : 'text-white text-sm mb-4'}>
             Modal State: {showCreateModal ? 'OPEN' : 'CLOSED'}
           </div>
           <button
@@ -506,22 +508,22 @@ export default function ReelsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
       {/* Header with three distinct sections */}
-      <div className="bg-black border-b border-gray-800 sticky top-0 z-50">
+      <div className={`${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-black border-gray-800'} border-b sticky top-0 z-50`}>
         <div className="px-4 py-4">
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
             {/* Left Section - Back button and title */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
-                className="text-white hover:text-gray-300 transition-colors"
+                className={isDarkMode ? 'text-gray-300 hover:text-gray-100 transition-colors' : 'text-white hover:text-gray-300 transition-colors'}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <h1 className="text-xl font-bold text-white">Reels</h1>
+              <h1 className={isDarkMode ? 'text-xl font-bold text-gray-100' : 'text-xl font-bold text-white'}>Reels</h1>
             </div>
 
             {/* Center Section - Category filters with limited width and overflow scroll */}
@@ -543,7 +545,9 @@ export default function ReelsPage() {
                   className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${
                     showTrending
                       ? 'bg-red-500 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                   }`}
                 >
                   🔥 Trending
@@ -557,7 +561,9 @@ export default function ReelsPage() {
                     className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${
                       !showTrending && selectedCategory === category.id
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50'
+                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50'
                     }`}
                   >
                     {category.icon} {category.name}
@@ -581,7 +587,9 @@ export default function ReelsPage() {
 
       {/* Reels Container - Full height minus header with enhanced touch */}
       <div 
-        className={`relative h-[calc(100vh-120px)] flex items-center bg-black touch-pan-y transition-all duration-300 ${
+        className={`relative h-[calc(100vh-120px)] flex items-center touch-pan-y transition-all duration-300 ${
+          isDarkMode ? 'bg-gray-900' : 'bg-black'
+        } ${
           showComments ? 'justify-start sm:justify-start' : 'justify-center'
         }`}
         style={{ touchAction: 'pan-y' }}
@@ -592,7 +600,9 @@ export default function ReelsPage() {
         {/* Reel Video Container - Fit within available height */}
         {currentReel && (
           <div 
-            className={`relative bg-black transition-all duration-300 ${
+            className={`relative transition-all duration-300 ${
+              isDarkMode ? 'bg-gray-900' : 'bg-black'
+            } ${
               showComments 
                 ? 'w-full sm:w-[calc(100%-24rem)] md:w-[calc(100%-420px)] max-w-none mx-0 h-[calc(100vh-120px)]' 
                 : 'w-full max-w-[350px] h-[calc(100vh-140px)] mx-auto sm:max-w-[380px] sm:h-[calc(100vh-140px)] md:max-w-[400px] md:h-[calc(100vh-160px)]'
@@ -624,12 +634,12 @@ export default function ReelsPage() {
             >
               <source src={getVideoUrl(currentReel.videoUrl)} type="video/mp4" />
               {/* Fallback content when video fails to load */}
-              <div className="w-full h-full bg-gray-900 flex items-center justify-center">
-                <div className="text-center text-white">
+              <div className={`w-full h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-800' : 'bg-gray-900'}`}>
+                <div className={`text-center ${isDarkMode ? 'text-gray-200' : 'text-white'}`}>
                   <div className="text-6xl mb-4">🎬</div>
                   <p className="text-lg mb-2">Video Unavailable</p>
-                  <p className="text-sm text-gray-400">This video could not be loaded</p>
-                  <p className="text-xs text-gray-500 mt-2">URL: {getVideoUrl(currentReel.videoUrl)}</p>
+                  <p className={isDarkMode ? 'text-sm text-gray-400' : 'text-sm text-gray-400'}>This video could not be loaded</p>
+                  <p className={isDarkMode ? 'text-xs text-gray-500 mt-2' : 'text-xs text-gray-500 mt-2'}>URL: {getVideoUrl(currentReel.videoUrl)}</p>
                 </div>
               </div>
             </video>
@@ -806,16 +816,16 @@ export default function ReelsPage() {
       {/* Comments Panel - Right Side */}
       {showComments && (
         <div 
-          className="fixed right-0 top-[120px] bottom-0 w-full sm:w-96 md:w-[420px] bg-white dark:bg-gray-900 z-40 flex flex-col shadow-2xl sm:rounded-l-3xl p-4 sm:p-6"
+          className={`fixed right-0 top-[120px] bottom-0 w-full sm:w-96 md:w-[420px] z-40 flex flex-col shadow-2xl sm:rounded-l-3xl p-4 sm:p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}
         >
             {/* Header */}
-            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+            <div className={`flex items-center justify-between mb-4 pb-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Comments ({currentReel?.comments?.length || 0})
               </h3>
               <button
                 onClick={() => setShowComments(null)}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -827,33 +837,33 @@ export default function ReelsPage() {
             <div className="flex-1 overflow-y-auto space-y-4 mb-4 scrollbar-hide min-h-0">
               {currentReel?.comments && currentReel.comments.length > 0 ? (
                 currentReel.comments.map((comment: any, index: number) => (
-                  <div key={index} className="flex items-start gap-3 pb-4 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                  <div key={index} className={`flex items-start gap-3 pb-4 border-b last:border-0 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
                     <img
                       src={comment.user?.avatar || '/default-avatar.svg'}
                       alt={comment.user?.name || 'User'}
-                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-gray-200 dark:border-gray-700 flex-shrink-0 object-cover"
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex-shrink-0 object-cover ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
                       onError={(e) => {
                         e.currentTarget.src = '/default-avatar.svg';
                       }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white">
+                        <span className={`font-semibold text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {comment.user?.name || comment.user?.username || 'User'}
                         </span>
-                        <span className="text-gray-500 dark:text-gray-400 text-xs">
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ''}
                         </span>
                       </div>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base leading-relaxed break-words">
+                      <p className={`text-sm sm:text-base leading-relaxed break-words ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                         {comment.text || comment.content || ''}
                       </p>
                       <div className="flex items-center gap-4 mt-2">
-                        <button className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-xs sm:text-sm font-medium transition-colors">
+                        <button className={`flex items-center gap-1 text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'}`}>
                           <Heart className="w-4 h-4" />
                           <span>{comment.likes?.length || 0}</span>
                         </button>
-                        <button className="text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 text-xs sm:text-sm font-medium transition-colors">
+                        <button className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}>
                           Reply
                         </button>
                       </div>
@@ -863,10 +873,10 @@ export default function ReelsPage() {
               ) : (
                 <div className="text-center py-12">
                   <div className="text-6xl mb-4">💬</div>
-                  <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg font-medium">
+                  <p className={`text-base sm:text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     No comments yet
                   </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">
+                  <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                     Be the first to comment!
                   </p>
                 </div>
@@ -874,7 +884,7 @@ export default function ReelsPage() {
             </div>
             
             {/* Comment Input - Enhanced */}
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <div className={`flex items-center gap-3 pt-4 border-t flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <img
                 src={(() => {
                   try {
@@ -885,7 +895,7 @@ export default function ReelsPage() {
                   }
                 })()}
                 alt="Your avatar"
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-gray-200 dark:border-gray-700 flex-shrink-0 object-cover"
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex-shrink-0 object-cover ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
                 onError={(e) => {
                   e.currentTarget.src = '/default-avatar.svg';
                 }}
@@ -903,7 +913,11 @@ export default function ReelsPage() {
                       setCommentText('');
                     }
                   }}
-                  className="flex-1 px-4 py-2.5 sm:py-3 border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-all"
+                  className={`flex-1 px-4 py-2.5 sm:py-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-all ${
+                    isDarkMode 
+                      ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400' 
+                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                  }`}
                 />
                 <button 
                   onClick={() => {
@@ -912,7 +926,11 @@ export default function ReelsPage() {
                       setCommentText('');
                     }
                   }}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base transition-colors"
+                  className={`text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base transition-colors ${
+                    isDarkMode 
+                      ? 'bg-blue-500 hover:bg-blue-600' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                   disabled={!commentText.trim()}
                 >
                   Post
