@@ -208,6 +208,8 @@ export interface WebsiteSettings {
     autoTagging: { enabled: boolean };
     smartRecommendations: { enabled: boolean };
   };
+  privacyPolicy: string;
+  termsOfService: string;
 }
 
 export const websiteSettingsApi = {

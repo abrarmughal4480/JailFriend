@@ -262,7 +262,7 @@ export default function P2PPage() {
     const allProfiles = featuredProfiles.length > 0 ? featuredProfiles : profiles;
     
     // Get logged-in user's category
-    const userCategoryId = myProfile?.category?._id || myProfile?.categoryId;
+    const userCategoryId = myProfile?.category?._id;
     
     // If user doesn't have a category, return empty array
     if (!userCategoryId) {
@@ -271,7 +271,7 @@ export default function P2PPage() {
     
     // Filter profiles with same category as logged-in user
     const sameCategoryProfiles = allProfiles.filter(profile => {
-      const profileCategoryId = profile.category?._id || profile.categoryId;
+      const profileCategoryId = profile.category?._id;
       return profileCategoryId && profileCategoryId.toString() === userCategoryId.toString();
     });
     
@@ -317,7 +317,7 @@ export default function P2PPage() {
     const allProfiles = featuredProfiles.length > 0 ? featuredProfiles : profiles;
     
     // Get logged-in user's category
-    const userCategoryId = myProfile?.category?._id || myProfile?.categoryId;
+    const userCategoryId = myProfile?.category?._id;
     
     // If user doesn't have a category, return empty array or all profiles
     if (!userCategoryId) {
@@ -326,7 +326,7 @@ export default function P2PPage() {
     
     // Filter profiles with same category as logged-in user
     const sameCategoryProfiles = allProfiles.filter(profile => {
-      const profileCategoryId = profile.category?._id || profile.categoryId;
+      const profileCategoryId = profile.category?._id;
       return profileCategoryId && profileCategoryId.toString() === userCategoryId.toString();
     });
     
@@ -790,7 +790,8 @@ export default function P2PPage() {
   const ProfileCard = ({ profile }: { profile: P2PProfile }) => {
     const handlers = {
       contact: () => handleContact(profile),
-      view: () => handleViewProfile(profile)
+      view: () => handleViewProfile(profile),
+      book: () => handleViewProfile(profile)
     };
 
     return (
@@ -2061,8 +2062,7 @@ export default function P2PPage() {
                         href="#" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedProfile(profile);
-                          setShowBookingModal(true);
+                          handleViewProfile(profile);
                         }}
                         className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
                       >
@@ -2077,8 +2077,7 @@ export default function P2PPage() {
                         href="#" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedProfile(profile);
-                          setShowBookingModal(true);
+                          handleViewProfile(profile);
                         }}
                         className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
                       >

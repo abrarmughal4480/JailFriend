@@ -300,7 +300,7 @@ export function BookingModal({
       isMounted = false;
     };
   }, [open, callDate, serviceProviderId]);
-
+//hi
   const handlePayNow = async () => {
     if (isSubmitting) return;
     if (!callTime || !availableTimeOptions.includes(callTime)) {

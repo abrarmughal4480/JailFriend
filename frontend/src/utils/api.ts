@@ -33,6 +33,7 @@ export const setupUserApi = async (
     availableToTime?: string;
     stepNumber: number;
     skipped?: boolean;
+    categoryId?: string;
   }
 ) => {
   console.log('API URL:', `${API_URL}/api/auth/setup`);
