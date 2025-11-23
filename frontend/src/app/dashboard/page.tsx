@@ -151,16 +151,33 @@ export default function Dashboard() {
   const [deletingComments, setDeletingComments] = useState<{ [key: string]: boolean }>({});
   const [showWatchModal, setShowWatchModal] = useState(false);
   const [selectedPostForWatch, setSelectedPostForWatch] = useState<any>(null);
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
 
   // Open watch view for post/album
   const openWatchView = (post: any) => {
-    // Set the type based on whether it's a post or album
+    // Only open modal for albums, not for regular posts
+    const isAlbum = post.type === 'album';
+    
+    if (!isAlbum) {
+      // Regular posts should not open modal
+      return;
+    }
+    
     const itemWithType = {
       ...post,
-      type: post.type || (post.media && Array.isArray(post.media) ? 'album' : 'post')
+      type: 'album' // Ensure it's set as album
     };
+    console.log('🔍 Opening watch view for album:', {
+      isAlbum,
+      type: itemWithType.type,
+      hasMedia: !!itemWithType.media,
+      mediaLength: itemWithType.media?.length || 0,
+      media: itemWithType.media,
+      name: itemWithType.name
+    });
     setSelectedPostForWatch(itemWithType);
+    setCurrentMediaIndex(0); // Reset to first media item
     setShowWatchModal(true);
   };
 
@@ -990,6 +1007,56 @@ export default function Dashboard() {
       }
     } catch (error) {
       showPopup('error', 'Network Error', 'Failed to connect to server');
+    }
+  };
+
+  const handleReview = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showPopup('error', 'Authentication Error', 'Please login to add a review.');
+        return;
+      }
+
+      if (!selectedPostForWatch) {
+        return;
+      }
+
+      // For now, we'll just show prompts. In a real app, you'd open a review modal
+      const rating = prompt('Rate this post (1-5 stars):');
+      if (rating && !isNaN(Number(rating)) && Number(rating) >= 1 && Number(rating) <= 5) {
+        const reviewText = prompt('Write your review (optional):');
+        
+        const postId = selectedPostForWatch._id || selectedPostForWatch.id;
+        const endpoint = selectedPostForWatch.type === 'album' 
+          ? `${API_URL}/api/albums/${postId}/review`
+          : `${API_URL}/api/posts/${postId}/review`;
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rating: Number(rating),
+            text: reviewText || ''
+          })
+        });
+
+        if (response.ok) {
+          showPopup('success', 'Success', 'Review added successfully!');
+          // Refresh the post/album data
+          window.location.reload();
+        } else {
+          showPopup('error', 'Error', 'Failed to add review. Please try again.');
+        }
+      } else if (rating !== null) {
+        showPopup('error', 'Invalid Rating', 'Please enter a valid rating between 1 and 5.');
+      }
+    } catch (error) {
+      console.error('Error adding review:', error);
+      showPopup('error', 'Network Error', 'Error adding review. Please try again.');
     }
   };
 
@@ -3088,63 +3155,226 @@ export default function Dashboard() {
       {/* Watch Modal - Enhanced Jaifriend Style */}
       {showWatchModal && selectedPostForWatch && (
         <>
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/80 backdrop-blur-sm">
-            <div className={`rounded-lg shadow-xl w-full max-w-4xl h-[75vh] flex flex-col border mx-auto transition-colors duration-200 ${
-              isDarkMode 
-                ? 'bg-gray-900 border-gray-700' 
-                : 'bg-white border-gray-200'
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-0 bg-black/90 backdrop-blur-sm">
+            <div className={`rounded-lg shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col border mx-auto transition-colors duration-200 ${
+              selectedPostForWatch.type === 'album'
+                ? 'bg-black border-gray-800'
+                : isDarkMode 
+                  ? 'bg-gray-900 border-gray-700' 
+                  : 'bg-white border-gray-200'
             }`}>
-              {/* Modal Header - Simple */}
-              <div className={`flex items-center justify-between p-3 sm:p-4 border-b flex-shrink-0 transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'border-gray-700 bg-gray-800' 
-                  : 'border-gray-200 bg-white'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <img
-                    src={selectedPostForWatch.user?.avatar || selectedPostForWatch.createdBy?.avatar || '/default-avatar.svg'}
-                    alt="User avatar"
-                    className={`w-8 h-8 rounded-full border transition-colors duration-200 ${
-                      isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                    }`}
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-avatar.svg';
-                    }}
-                  />
-                  <div>
-                    <div className={`font-medium text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {selectedPostForWatch.user?.name || selectedPostForWatch.user?.username || selectedPostForWatch.createdBy?.name || 'User'}
-                    </div>
-                    <div className={`text-xs transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`}>
-                      {new Date(selectedPostForWatch.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowWatchModal(false)}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
               {/* Modal Content - Fixed Layout */}
               <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-                {/* Left Side - Content */}
-                <div className="flex-1 overflow-y-auto scrollbar-hide">
-                  <div className="p-4 pb-8 min-h-full">
+                {/* Left Side - Content/Media - Dark for Albums */}
+                <div className={`relative ${selectedPostForWatch.type === 'album' ? 'lg:w-2/3 bg-black' : 'flex-1 overflow-y-auto scrollbar-hide'}`}>
+                  {selectedPostForWatch.type === 'album' ? (
+                    <>
+                      {/* Top Utility Bar for Albums */}
+                      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 bg-black/60 backdrop-blur-sm">
+                        <button
+                          onClick={() => setShowWatchModal(false)}
+                          className="p-2 rounded-full text-white hover:bg-white/20 transition-colors"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <div className="flex items-center gap-2">
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Download">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                          </button>
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Open in new tab">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </button>
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Rotate">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </button>
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Zoom in">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                            </svg>
+                          </button>
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Zoom out">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                            </svg>
+                          </button>
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Delete">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                          <button className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" title="Info">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Navigation Arrows */}
+                      {(() => {
+                        const mediaArray = selectedPostForWatch.media || selectedPostForWatch.photos || [];
+                        const hasMultiple = mediaArray.length > 1;
+                        return (
+                          <>
+                            {hasMultiple && currentMediaIndex > 0 && (
+                              <button
+                                onClick={() => setCurrentMediaIndex(prev => Math.max(0, prev - 1))}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors backdrop-blur-sm"
+                              >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                              </button>
+                            )}
+                            {hasMultiple && currentMediaIndex < mediaArray.length - 1 && (
+                              <button
+                                onClick={() => setCurrentMediaIndex(prev => Math.min(mediaArray.length - 1, prev + 1))}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors backdrop-blur-sm"
+                              >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
+
+                      {/* Full Screen Image Viewer */}
+                      <div className="w-full h-full flex items-center justify-center bg-black">
+                        {(() => {
+                          const mediaArray = selectedPostForWatch.media || selectedPostForWatch.photos || [];
+                          if (!mediaArray || mediaArray.length === 0) {
+                            return (
+                              <div className="text-center text-white py-8">
+                                No media found in this album
+                              </div>
+                            );
+                          }
+                          const currentMedia = mediaArray[currentMediaIndex];
+                          const rawUrl = typeof currentMedia === 'string' 
+                            ? currentMedia 
+                            : (currentMedia?.secure_url || currentMedia?.url || currentMedia?.path || '');
+                          const resolvedUrl = getMediaUrl(rawUrl);
+                          const isVideo = currentMedia?.type === 'video' || 
+                                         currentMedia?.mimetype?.startsWith('video/') ||
+                                         /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(rawUrl);
+
+                          return (
+                            <div className="w-full h-full flex items-center justify-center relative">
+                              {isVideo ? (
+                                <video
+                                  src={resolvedUrl}
+                                  controls
+                                  className="max-w-full max-h-full object-contain"
+                                  autoPlay
+                                />
+                              ) : (
+                                <img
+                                  src={resolvedUrl}
+                                  alt={`Album photo ${currentMediaIndex + 1}`}
+                                  className="max-w-full max-h-full object-contain"
+                                  onError={(e) => {
+                                    if (rawUrl && e.currentTarget.src !== rawUrl) {
+                                      e.currentTarget.src = rawUrl;
+                                    }
+                                  }}
+                                />
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Center Overlay with Action Buttons */}
+                      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20">
+                        <div className="bg-blue-900/80 backdrop-blur-md rounded-2xl p-4 flex items-center gap-6">
+                          <button
+                            onClick={() => {
+                              if (selectedPostForWatch.type === 'album') {
+                                handleAlbumLike(selectedPostForWatch._id || selectedPostForWatch.id);
+                              } else {
+                                handleLike(selectedPostForWatch._id || selectedPostForWatch.id);
+                              }
+                            }}
+                            className="flex flex-col items-center gap-1 text-white hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-2xl">{(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId())) ? '👍' : '👍'}</span>
+                            <span className="text-xs">Like</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              const commentInput = document.getElementById('watch-comment-input');
+                              if (commentInput) commentInput.focus();
+                            }}
+                            className="flex flex-col items-center gap-1 text-white hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-2xl">💬</span>
+                            <span className="text-xs">Comment</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleShare(selectedPostForWatch._id || selectedPostForWatch.id, {
+                                shareOnTimeline: false,
+                                shareToPage: false,
+                                shareToGroup: false,
+                                customMessage: ''
+                              });
+                            }}
+                            className="flex flex-col items-center gap-1 text-white hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-2xl">📤</span>
+                            <span className="text-xs">Share</span>
+                          </button>
+                          <button
+                            onClick={handleReview}
+                            className="flex flex-col items-center gap-1 text-white hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-2xl">⭐</span>
+                            <span className="text-xs">Review</span>
+                          </button>
+                          <button
+                            onClick={() => handleSave(selectedPostForWatch._id || selectedPostForWatch.id)}
+                            className="flex flex-col items-center gap-1 text-white hover:opacity-80 transition-opacity"
+                          >
+                            <span className="text-2xl">🔖</span>
+                            <span className="text-xs">Save</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-4 pb-8 min-h-full">
+                    {/* Album Name and Description - Show for albums */}
+                    {selectedPostForWatch.type === 'album' && (
+                      <>
+                        {selectedPostForWatch.name && (
+                          <div className={`mb-3 text-lg sm:text-xl font-semibold transition-colors duration-200 ${
+                            isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            📸 {selectedPostForWatch.name}
+                          </div>
+                        )}
+                        {selectedPostForWatch.description && (
+                          <div className={`mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words transition-colors duration-200 ${
+                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                            {selectedPostForWatch.description}
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     {/* Post Content - Simple Text */}
-                    {(() => {
+                    {selectedPostForWatch.type !== 'album' && (() => {
                       const content = selectedPostForWatch.content || selectedPostForWatch.text || '';
                       const cleanContent = content ? content.replace(/<pre[^>]*>/g, '').replace(/<\/pre>/g, '').replace(/class="[^"]*"/g, '') : '';
                       if (!cleanContent.trim()) return null;
@@ -3158,13 +3388,46 @@ export default function Dashboard() {
                     })()}
 
                     {/* Media Display - Simple without containers */}
-                    {selectedPostForWatch.media && selectedPostForWatch.media.length > 0 && (
-                      <div className={`space-y-3 mb-3 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-3 transition-colors duration-200`}>
-                        {selectedPostForWatch.media.map((media: any, index: number) => {
+                    {(() => {
+                      // For albums, check both media and photos properties
+                      const mediaArray = selectedPostForWatch.type === 'album' 
+                        ? (selectedPostForWatch.media || selectedPostForWatch.photos || [])
+                        : (selectedPostForWatch.media || []);
+                      
+                      console.log('🖼️ Modal Media Display:', {
+                        type: selectedPostForWatch.type,
+                        mediaArrayLength: mediaArray?.length || 0,
+                        mediaArray: mediaArray,
+                        hasMedia: !!selectedPostForWatch.media,
+                        mediaLength: selectedPostForWatch.media?.length || 0
+                      });
+                      
+                      if (!mediaArray || mediaArray.length === 0) {
+                        console.log('⚠️ No media to display');
+                        return (
+                          <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            No media found in this {selectedPostForWatch.type === 'album' ? 'album' : 'post'}
+                          </div>
+                        );
+                      }
+                      
+                      // For albums, show media in a grid layout
+                      const isAlbum = selectedPostForWatch.type === 'album';
+                      
+                      return (
+                      <div className={`${isAlbum ? 'grid grid-cols-2 sm:grid-cols-3 gap-2' : 'space-y-3'} mb-3 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-3 transition-colors duration-200`}>
+                        {mediaArray.map((media: any, index: number) => {
                           const rawUrl = typeof media === 'string' 
                             ? media 
                             : (media?.secure_url || media?.url || media?.path || '');
                           const resolvedUrl = getMediaUrl(rawUrl);
+                          
+                          console.log(`🖼️ Media ${index}:`, {
+                            rawUrl,
+                            resolvedUrl,
+                            mediaType: media?.type,
+                            mimetype: media?.mimetype
+                          });
                           
                           // Detect media type from type property or mimetype
                           const isVideo = media.type === 'video' || 
@@ -3179,7 +3442,7 @@ export default function Dashboard() {
                                         media.mimetype?.includes('text');
                           
                           return (
-                            <div key={index} className={`${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`}>
+                            <div key={index} className={`${isAlbum ? '' : `${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2`} transition-colors duration-200 ${isAlbum ? 'aspect-square overflow-hidden rounded-lg' : ''}`}>
                               {isVideo ? (
                                 <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
                                   <video
@@ -3247,16 +3510,28 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                               ) : (
-                                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                                <div className={isAlbum 
+                                  ? 'w-full h-full' 
+                                  : `${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`
+                                }>
                                   <img
                                     src={resolvedUrl}
-                                    alt="Post media"
-                                    className="w-full max-h-[40vh] object-contain rounded-lg"
+                                    alt={isAlbum ? `Album photo ${index + 1}` : "Post media"}
+                                    className={`w-full ${isAlbum ? 'h-full object-cover' : 'max-h-[40vh] object-contain'} rounded-lg`}
                                     loading="lazy"
                                     onError={(e) => {
+                                      console.error('❌ Image failed to load:', {
+                                        resolvedUrl,
+                                        rawUrl,
+                                        media,
+                                        index
+                                      });
                                       if (rawUrl && e.currentTarget.src !== rawUrl) {
                                         e.currentTarget.src = rawUrl;
                                       }
+                                    }}
+                                    onLoad={() => {
+                                      console.log('✅ Image loaded successfully:', resolvedUrl);
                                     }}
                                   />
                                 </div>
@@ -3265,7 +3540,8 @@ export default function Dashboard() {
                           );
                         })}
                       </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Location Display - Simple */}
                     {selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address) && (
@@ -3284,18 +3560,166 @@ export default function Dashboard() {
                     )}
 
                     {/* Debug: Show if no content, media, or location */}
-                    {!(selectedPostForWatch.content || selectedPostForWatch.text) && 
-                     !(selectedPostForWatch.media && selectedPostForWatch.media.length > 0) && 
-                     !(selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address)) && (
-                      <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        No content available
-                      </div>
-                    )}
+                    {(() => {
+                      const hasContent = selectedPostForWatch.content || selectedPostForWatch.text || 
+                                       (selectedPostForWatch.type === 'album' && (selectedPostForWatch.name || selectedPostForWatch.description));
+                      const hasMedia = selectedPostForWatch.media && selectedPostForWatch.media.length > 0 ||
+                                      (selectedPostForWatch.type === 'album' && selectedPostForWatch.photos && selectedPostForWatch.photos.length > 0);
+                      const hasLocation = selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address);
+                      
+                      if (!hasContent && !hasMedia && !hasLocation) {
+                        return (
+                          <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            No content available
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
+                  )}
                 </div>
 
-                {/* Right Side - Enhanced Actions & Comments */}
-                <div className={`w-full border-l bg-gradient-to-b p-4 flex flex-col min-h-0 flex-shrink-0 ${isDarkMode ? 'border-gray-700 from-gray-900 to-gray-800' : 'border-gray-200 from-white to-gray-50'}`}>
+                {/* Right Side - Enhanced Actions & Comments - White for Albums */}
+                <div className={`w-full ${selectedPostForWatch.type === 'album' ? 'lg:w-1/3 bg-white' : ''} ${selectedPostForWatch.type === 'album' ? 'lg:border-l border-gray-200' : 'border-l'} ${selectedPostForWatch.type === 'album' ? '' : 'bg-gradient-to-b p-4'} flex flex-col min-h-0 flex-shrink-0 ${selectedPostForWatch.type === 'album' ? '' : (isDarkMode ? 'border-gray-700 from-gray-900 to-gray-800' : 'border-gray-200 from-white to-gray-50')}`}>
+                  {selectedPostForWatch.type === 'album' ? (
+                    <div className="p-4 flex flex-col h-full">
+                      {/* User Info at Top */}
+                      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
+                        <img
+                          src={selectedPostForWatch.user?.avatar || selectedPostForWatch.createdBy?.avatar || '/default-avatar.svg'}
+                          alt="User avatar"
+                          className="w-10 h-10 rounded-full border border-gray-300"
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-avatar.svg';
+                          }}
+                        />
+                        <div>
+                          <div className="font-medium text-sm text-gray-900">
+                            {selectedPostForWatch.user?.name || selectedPostForWatch.user?.username || selectedPostForWatch.createdBy?.name || 'User'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {(() => {
+                              const date = new Date(selectedPostForWatch.createdAt);
+                              const now = new Date();
+                              const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+                              if (diffInHours < 1) return 'Just now';
+                              if (diffInHours < 24) return `${diffInHours} h`;
+                              return date.toLocaleDateString();
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Like Section */}
+                      <div className="mb-4 pb-4 border-b border-gray-200">
+                        <button
+                          onClick={() => {
+                            handleAlbumLike(selectedPostForWatch._id || selectedPostForWatch.id);
+                          }}
+                          className="flex items-center gap-2 text-gray-700 hover:text-red-600 transition-colors"
+                        >
+                          <span className="text-xl">👍</span>
+                          <span className="text-sm font-medium">Like</span>
+                        </button>
+                      </div>
+
+                      {/* Comments Section Header */}
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                          <span>💬</span>
+                          Comments ({selectedPostForWatch.comments?.length || 0})
+                        </h3>
+                      </div>
+
+                      {/* Comments List for Albums */}
+                      <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-2 mb-4">
+                        {selectedPostForWatch.comments && selectedPostForWatch.comments.length > 0 ? (
+                          selectedPostForWatch.comments.map((comment: any, index: number) => (
+                            <div key={index} className="rounded-lg p-3 border border-gray-200 bg-white">
+                              <div className="flex gap-2">
+                                <img
+                                  src={comment.user?.avatar || '/default-avatar.svg'}
+                                  alt="User avatar"
+                                  className="w-6 h-6 rounded-full flex-shrink-0"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/default-avatar.svg';
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-semibold text-gray-900">
+                                      {comment.user?.name || comment.user?.username || 'User'}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {(() => {
+                                        const date = new Date(comment.createdAt || comment.date);
+                                        const now = new Date();
+                                        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+                                        if (diffInHours < 1) return 'Just now';
+                                        if (diffInHours < 24) return `${diffInHours}h`;
+                                        return date.toLocaleDateString();
+                                      })()}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-gray-700">{comment.text || comment.content}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-8 text-center">
+                            <div className="text-6xl mb-3">💬</div>
+                            <p className="text-sm text-gray-500">No comments to show</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Comment Input for Albums */}
+                      <div className="rounded-lg p-3 border border-gray-200 bg-gray-50 flex-shrink-0">
+                        <div className="flex gap-2">
+                          <img
+                            src={JSON.parse(localStorage.getItem('user') || '{}')?.avatar || '/default-avatar.svg'}
+                            alt="Your avatar"
+                            className="w-6 h-6 rounded-full flex-shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.src = '/default-avatar.svg';
+                            }}
+                          />
+                          <div className="flex-1 flex gap-2">
+                            <input
+                              id="watch-comment-input"
+                              type="text"
+                              placeholder="Write a comment and press enter"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none bg-white text-gray-900"
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  const input = e.currentTarget;
+                                  if (input.value.trim()) {
+                                    const commentText = input.value.trim();
+                                    input.value = '';
+                                    handleAlbumComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
+                                    setSelectedPostForWatch((prev: any) => ({
+                                      ...prev,
+                                      comments: [...(prev.comments || []), { 
+                                        text: commentText,
+                                        user: JSON.parse(localStorage.getItem('user') || '{}'),
+                                        createdAt: new Date().toISOString()
+                                      }]
+                                    }));
+                                  }
+                                }
+                              }}
+                            />
+                            <button className="px-3 py-2 text-gray-400 hover:text-gray-600 transition-colors">
+                              <span className="text-xl">😊</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
                   {/* Action Buttons - Enhanced */}
                   <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
                     {/* Like Button - Enhanced */}
@@ -3382,11 +3806,36 @@ export default function Dashboard() {
                             className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
                           />
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               const input = document.getElementById('watch-comment-input') as HTMLInputElement;
                               if (input && input.value.trim()) {
-                                handleAddComment(selectedPostForWatch._id || selectedPostForWatch.id, input.value.trim());
+                                const commentText = input.value.trim();
                                 input.value = '';
+                                
+                                // Handle comment for albums vs posts
+                                if (selectedPostForWatch.type === 'album') {
+                                  await handleAlbumComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
+                                  // Update the modal state with the new comment
+                                  setSelectedPostForWatch((prev: any) => ({
+                                    ...prev,
+                                    comments: [...(prev.comments || []), { 
+                                      text: commentText,
+                                      user: JSON.parse(localStorage.getItem('user') || '{}'),
+                                      createdAt: new Date().toISOString()
+                                    }]
+                                  }));
+                                } else {
+                                  await handleAddComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
+                                  // Update the modal state with the new comment
+                                  setSelectedPostForWatch((prev: any) => ({
+                                    ...prev,
+                                    comments: [...(prev.comments || []), { 
+                                      text: commentText,
+                                      user: JSON.parse(localStorage.getItem('user') || '{}'),
+                                      createdAt: new Date().toISOString()
+                                    }]
+                                  }));
+                                }
                               }
                             }}
                             className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
@@ -3435,6 +3884,8 @@ export default function Dashboard() {
                       )}
                     </div>
                   </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

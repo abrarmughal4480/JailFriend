@@ -1,6 +1,6 @@
 "use client";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
@@ -41,7 +41,6 @@ export default function AlbumDisplay({
   const [showComments, setShowComments] = useState(false);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [showSharePopup, setShowSharePopup] = useState(false);
-  const reactionButtonRef = useRef<HTMLButtonElement>(null);
 
   // Check video format support and diagnose album issues
   useEffect(() => {
@@ -463,14 +462,42 @@ export default function AlbumDisplay({
     });
 
   const mediaCount = album.media ? album.media.length : 0;
-  const displayedMedia = showAllPhotos ? album.media : (album.media || []).slice(0, 3);
-  const hasMoreMedia = (album.media || []).length > 3;
+  // Show 5 photos if exactly 5, show 5 photos with overlay if more than 5, otherwise show all
+  let displayedMedia;
+  let hasMoreMedia = false;
+  let remainingCount = 0;
+  if (showAllPhotos) {
+    displayedMedia = album.media;
+  } else if (mediaCount === 5) {
+    // Show all 5 photos in grid
+    displayedMedia = album.media;
+  } else if (mediaCount > 5) {
+    // Show first 5 photos if more than 5
+    displayedMedia = (album.media || []).slice(0, 5);
+    hasMoreMedia = true;
+    remainingCount = mediaCount - 5;
+  } else {
+    // Show all photos if less than 5
+    displayedMedia = album.media;
+  }
   const mediaLabel = mediaCount === 1 ? 'photo' : 'photos';
   const actionText = `added new ${mediaCount > 0 ? `${mediaCount} ${mediaLabel}` : 'media'} to ${album.name || 'an album'}`;
 
   return (
-    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow p-3 sm:p-4 mb-4 sm:mb-6 transition-colors duration-200 relative`}>
-      <div className="flex items-center gap-2 mb-3">
+    <div 
+      className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow p-3 sm:p-4 mb-4 sm:mb-6 transition-colors duration-200 relative cursor-pointer`}
+      onClick={(e) => {
+        // Don't open modal if clicking on delete button or user profile link
+        const target = e.target as HTMLElement;
+        if (target.closest('button[class*="text-red"]') || target.closest('a[href*="/dashboard/profile"]')) {
+          return;
+        }
+        if (onWatch) {
+          onWatch(album);
+        }
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
         <img 
           src={album.user?.avatar ? (album.user.avatar.startsWith('http') ? album.user.avatar : `${API_URL}/${album.user.avatar}`) : '/avatars/1.png.png'} 
           alt="avatar" 
@@ -500,7 +527,10 @@ export default function AlbumDisplay({
         </div>
         {isOwner && onDelete && (
           <button
-            onClick={() => onDelete(album._id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(album._id);
+            }}
             className="text-red-500 hover:text-red-700 text-xs sm:text-sm touch-manipulation"
             style={{ touchAction: 'manipulation' }}
           >
@@ -509,7 +539,7 @@ export default function AlbumDisplay({
         )}
       </div>
 
-      <div className={`mb-3 cursor-pointer ${isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} rounded-lg p-2 transition-colors`} onClick={() => onWatch && onWatch(album)}>
+      <div className={`mb-3 ${isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} rounded-lg p-2 transition-colors`}>
         <div className="flex items-center gap-2 mb-2">
           <h3 className={`font-semibold text-lg transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>📸 {album.name}</h3>
         </div>
@@ -522,98 +552,153 @@ export default function AlbumDisplay({
 
       {album.media && album.media.length > 0 && (
         <div className="mb-3">
-          {displayedMedia.map((mediaItem: any, index: number) => {
-            return (
-            <div key={index} className="relative mb-3 cursor-pointer" onClick={() => onWatch && onWatch(album)}>
-                {(() => {
-                  // Enhanced video detection
-                  const isVideo = mediaItem.type === 'video' || 
-                                 /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
-                                 mediaItem.mimetype?.startsWith('video/');
-                  
-                  if (isVideo) {
-                    return renderVideo(mediaItem, index);
-                  } else {
-                    const imageUrl = getMediaUrl(mediaItem.url);
-                    if (!imageUrl || imageUrl === '/default-avatar.svg') {
-                      console.warn('Skipping image with invalid URL:', {
-                        mediaItem,
-                        imageUrl,
-                        index
-                      });
-                      return (
-                        <div className="w-full h-64 sm:h-96 bg-gray-300 rounded-lg shadow-lg flex items-center justify-center">
-                          <div className="text-center text-gray-600">
-                            <div className="text-4xl mb-2">🖼️</div>
-                            <div className="text-sm">Invalid image URL</div>
-                            <div className="text-xs text-gray-400 mt-1">URL: {mediaItem.url || 'undefined'}</div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    
-                    return (
-                <img
-                  src={imageUrl}
-                  alt={`Media ${index + 1}`}
-                  className="w-full object-contain rounded-lg shadow-lg hover:opacity-90 transition-opacity"
-                  style={{ maxHeight: '40vh' }}
+          {mediaCount === 5 && !showAllPhotos ? (
+            // Special layout for exactly 5 photos: 2 photos in first row, 3 photos in second row
+            // Using 6-column grid: first row (2 photos × 3 cols each), second row (3 photos × 2 cols each)
+            <div className="grid grid-cols-6 gap-1 sm:gap-2">
+              {displayedMedia.map((mediaItem: any, index: number) => {
+                const isVideo = mediaItem.type === 'video' || 
+                               /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+                               mediaItem.mimetype?.startsWith('video/');
+                
+                // First row: first 2 photos (index 0 and 1) - each spans 3 columns
+                // Second row: last 3 photos (index 2, 3, 4) - each spans 2 columns
+                const colSpan = index < 2 ? 'col-span-3' : 'col-span-2';
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`relative overflow-hidden rounded-lg aspect-square ${colSpan}`}
+                  >
+                    {isVideo ? (
+                      <div className="w-full h-full">
+                        {renderVideo(mediaItem, index)}
+                      </div>
+                    ) : (
+                      <img
+                        src={getMediaUrl(mediaItem.url)}
+                        alt={`Media ${index + 1}`}
+                        className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                         onError={(e) => {
-                          try {
-                            // Create a safe error details object with only serializable properties
-                            const errorDetails = {
-                              albumId: album?._id || 'unknown',
-                              albumName: album?.name || 'unknown',
-                              mediaIndex: index,
-                              mediaUrl: mediaItem?.url || 'unknown',
-                              fullUrl: mediaItem?.url ? getMediaUrl(mediaItem.url) : 'unknown',
-                              timestamp: new Date().toISOString(),
-                              mediaItem: {
-                                url: mediaItem?.url || 'unknown',
-                                type: mediaItem?.type || 'unknown',
-                                thumbnail: mediaItem?.thumbnail || 'unknown'
-                              },
-                              errorType: e?.type || 'unknown',
-                              errorMessage: 'Image failed to load'
-                            };
-                            // console.error('Image loading error for album media:', errorDetails);
-                          } catch (logError) {
-                            console.error('Error logging image error:', logError);
-                            // console.error('Image loading error for album media (fallback):', {
-                            //   albumId: album?._id || 'unknown',
-                            //   mediaIndex: index,
-                            //   mediaUrl: mediaItem?.url || 'unknown',
-                            //   timestamp: new Date().toISOString()
-                            // });
-                          }
                           const img = e.currentTarget;
                           if (img) {
                             img.style.display = 'none';
-                            // Show fallback content
                             const fallback = document.createElement('div');
-                            fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
+                            fallback.className = `w-full h-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg flex items-center justify-center`;
                             fallback.innerHTML = `
                               <div class="text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}">
-                                <div class="text-4xl mb-2">🖼️</div>
-                                <div class="text-sm">Image could not be loaded</div>
-                                <div class="text-xs mt-1 opacity-75">Check your connection</div>
+                                <div class="text-2xl mb-1">🖼️</div>
+                                <div class="text-xs">Image could not be loaded</div>
                               </div>
                             `;
                             img.parentNode?.appendChild(fallback);
                           }
                         }}
                       />
-                    );
-                  }
-                })()}
-              {index === 2 && hasMoreMedia && !showAllPhotos && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-                  <span className="text-white font-bold text-lg sm:text-xl">+{album.media.length - 3}</span>
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            );
-          })}
+          ) : !showAllPhotos && mediaCount > 5 ? (
+            // Show first 5 photos in 2-3 layout (2 on top, 3 on bottom) with overlay on 5th photo if more than 5
+            <div className="grid grid-cols-6 gap-1 sm:gap-2">
+              {displayedMedia.map((mediaItem: any, index: number) => {
+                const isVideo = mediaItem.type === 'video' || 
+                               /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+                               mediaItem.mimetype?.startsWith('video/');
+                
+                // First row: first 2 photos (index 0 and 1) - each spans 3 columns
+                // Second row: last 3 photos (index 2, 3, 4) - each spans 2 columns
+                const colSpan = index < 2 ? 'col-span-3' : 'col-span-2';
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`relative overflow-hidden rounded-lg aspect-square ${colSpan}`}
+                  >
+                    {isVideo ? (
+                      <div className="w-full h-full">
+                        {renderVideo(mediaItem, index)}
+                      </div>
+                    ) : (
+                      <>
+                        <img
+                          src={getMediaUrl(mediaItem.url)}
+                          alt={`Media ${index + 1}`}
+                          className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            if (img) {
+                              img.style.display = 'none';
+                              const fallback = document.createElement('div');
+                              fallback.className = `w-full h-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg flex items-center justify-center`;
+                              fallback.innerHTML = `
+                                <div class="text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}">
+                                  <div class="text-2xl mb-1">🖼️</div>
+                                  <div class="text-xs">Image could not be loaded</div>
+                                </div>
+                              `;
+                              img.parentNode?.appendChild(fallback);
+                            }
+                          }}
+                        />
+                        {/* Show overlay on 5th photo (index 4) if there are more photos */}
+                        {index === 4 && hasMoreMedia && remainingCount > 0 && (
+                          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+                            <span className="text-white font-bold text-lg sm:text-xl">+{remainingCount}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            // 2-column grid layout for other cases (less than 5 photos, or showAllPhotos)
+            <div className="grid grid-cols-2 gap-1 sm:gap-2">
+              {displayedMedia.map((mediaItem: any, index: number) => {
+                const isVideo = mediaItem.type === 'video' || 
+                               /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+                               mediaItem.mimetype?.startsWith('video/');
+                
+                return (
+                  <div 
+                    key={index} 
+                    className="relative overflow-hidden rounded-lg aspect-square"
+                  >
+                    {isVideo ? (
+                      <div className="w-full h-full">
+                        {renderVideo(mediaItem, index)}
+                      </div>
+                    ) : (
+                      <img
+                        src={getMediaUrl(mediaItem.url)}
+                        alt={`Media ${index + 1}`}
+                        className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (img) {
+                            img.style.display = 'none';
+                            const fallback = document.createElement('div');
+                            fallback.className = `w-full h-full ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg flex items-center justify-center`;
+                            fallback.innerHTML = `
+                              <div class="text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}">
+                                <div class="text-2xl mb-1">🖼️</div>
+                                <div class="text-xs">Image could not be loaded</div>
+                              </div>
+                            `;
+                            img.parentNode?.appendChild(fallback);
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
       
@@ -635,18 +720,9 @@ export default function AlbumDisplay({
         </div>
       )}
 
-      {hasMoreMedia && (
-        <button
-          onClick={() => setShowAllPhotos(!showAllPhotos)}
-          className={`text-sm touch-manipulation transition-colors ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-700'}`}
-          style={{ touchAction: 'manipulation' }}
-        >
-          {showAllPhotos ? 'Show Less' : `Show All ${album.media.length} Media`}
-        </button>
-      )}
 
       {/* Action Buttons - Matching FeedPost structure */}
-      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+      <div className="px-3 sm:px-4 pb-3 sm:pb-4" onClick={(e) => e.stopPropagation()}>
         {/* Top Section: Engagement Metrics */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-0 mb-3 sm:mb-4">
           {/* Right Side: Engagement Metrics */}
@@ -705,7 +781,6 @@ export default function AlbumDisplay({
               isDarkMode={isDarkMode}
             >
               <button 
-                ref={reactionButtonRef}
                 className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative z-50"
                 style={{ touchAction: 'manipulation' }}
               >

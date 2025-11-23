@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FaArrowLeft, FaStar } from 'react-icons/fa';
+import { FaArrowLeft, FaStar, FaPhone, FaVideo, FaComments } from 'react-icons/fa';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { config } from '@/utils/config';
 
@@ -194,80 +194,113 @@ export default function CategoryProfilesPage() {
     }
 
     return (
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 justify-items-center">
         {profiles.map((profile) => {
           const profileName = profile.userId.fullName || profile.userId.name || 'Expert';
-          const expertiseTags = profile.areasOfExpertise?.slice(0, 3) || [];
-          const startingPrice =
-            profile.audioCallPrice || profile.videoCallPrice || profile.chatPrice || null;
+          const allTags = profile.areasOfExpertise || [];
+          const uniqueTags = Array.from(new Set(allTags));
           return (
             <article
               key={profile._id}
-              className={`rounded-2xl border p-5 flex flex-col gap-4 ${isDarkMode ? 'border-gray-700 bg-gray-800 text-white' : 'border-gray-200 bg-white text-gray-900'}`}
+              onClick={() => router.push(`/dashboard/p2p/${profile._id}`)}
+              className={`w-full max-w-[400px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[20px] p-6 shadow-lg text-center border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} cursor-pointer hover:shadow-xl transition-all`}
             >
-              <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16">
-                  <Image
-                    src={getAvatarUrl(profile.userId.avatar)}
-                    alt={profileName}
-                    fill
-                    sizes="64px"
-                    className="rounded-full object-cover border-2 border-[#148F80]/30"
+              <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
+                <Image
+                  src={getAvatarUrl(profile.userId.avatar)}
+                  alt={profileName}
+                  width={100}
+                  height={100}
+                  className={`w-full h-full rounded-full border-4 ${isDarkMode ? 'border-gray-600' : 'border-[#f0f0f0]'} object-cover`}
+                  unoptimized
+                />
+                <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
+                  <FaStar 
+                    className="w-3.5 h-3.5 text-white"
                   />
-                </div>
-                <div className="flex-1">
-                  <p className="text-lg font-semibold leading-tight">{profileName}</p>
-                  {profile.occupation && (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{profile.occupation}</p>
-                  )}
-                  <div className="flex items-center gap-1 text-xs font-medium text-amber-500 mt-1">
-                    <FaStar className="h-4 w-4" />
-                    <span>{(profile.rating?.average || 5).toFixed(1)}</span>
-                    {profile.rating?.count ? (
-                      <span className="text-gray-400 dark:text-gray-500">
-                        ({profile.rating.count} reviews)
-                      </span>
-                    ) : null}
-                  </div>
+                  <span className="text-xs font-semibold text-white">
+                    {(profile.rating?.average || 0).toFixed(1)}
+                  </span>
                 </div>
               </div>
-
+              <div className="mb-4">
+                <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+                  {profileName}
+                </h1>
+                {profile.occupation && (
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {profile.occupation}
+                  </p>
+                )}
+              </div>
               {profile.description && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} leading-relaxed mb-4 line-clamp-3 overflow-hidden text-ellipsis break-words`}>
                   {profile.description}
                 </p>
               )}
-
-              {expertiseTags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {expertiseTags.map((tag) => (
-                    <span
-                      key={`${profile._id}-${tag}`}
-                      className="px-3 py-1 rounded-full text-xs font-medium bg-[#148F80]/10 text-[#148F80]"
+              {uniqueTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 justify-center mb-6">
+                  {uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
+                    <div 
+                      key={idx}
+                      className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all`}
                     >
                       {tag}
-                    </span>
+                    </div>
                   ))}
+                  {uniqueTags.length > 5 && (
+                    <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px]`}>
+                      +{uniqueTags.length - 5} more
+                    </div>
+                  )}
                 </div>
               )}
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                    Starting at
-                  </p>
-                  <p className="text-base font-semibold">
-                    {formatPrice(startingPrice, profile.currency)}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => router.push(`/dashboard/p2p/${profile._id}`)}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#148F80] text-white hover:bg-[#0f6f63] transition-colors"
+              <div className="flex justify-center gap-4">
+                {profile.audioCallPrice && (
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dashboard/p2p/${profile._id}`);
+                    }}
+                    className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
                   >
-                    View profile
-                  </button>
-                </div>
+                    <FaPhone 
+                      className="w-6 h-6 text-white"
+                    />
+                    <span className="text-xs font-medium">{formatPrice(profile.audioCallPrice, profile.currency)}</span>
+                  </a>
+                )}
+                {profile.videoCallPrice && (
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dashboard/p2p/${profile._id}`);
+                    }}
+                    className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
+                  >
+                    <FaVideo 
+                      className="w-6 h-6 text-white"
+                    />
+                    <span className="text-xs font-medium">{formatPrice(profile.videoCallPrice, profile.currency)}</span>
+                  </a>
+                )}
+                {profile.chatPrice && (
+                  <a 
+                    href="#" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dashboard/p2p/${profile._id}`);
+                    }}
+                    className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
+                  >
+                    <FaComments 
+                      className="w-6 h-6 text-white"
+                    />
+                    <span className="text-xs font-medium">{formatPrice(profile.chatPrice, profile.currency)}</span>
+                  </a>
+                )}
               </div>
             </article>
           );
