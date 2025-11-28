@@ -201,19 +201,32 @@ const getComments = async (req, res) => {
 const getGroups = async (req, res) => {
   try {
     const groups = await Group.find()
-      .populate('createdBy', 'name email avatar')
+      .populate('creator', 'name email avatar username')
       .sort({ createdAt: -1 });
+
+    // Transform groups to include createdBy for consistency with frontend
+    const transformedGroups = groups.map(group => {
+      const groupObj = group.toObject();
+      // Add createdBy field for frontend compatibility
+      if (groupObj.creator) {
+        groupObj.createdBy = groupObj.creator;
+      }
+      // Calculate member count
+      groupObj.membersCount = groupObj.members ? groupObj.members.length : 0;
+      return groupObj;
+    });
 
     res.json({
       success: true,
-      groups,
-      totalGroups: groups.length
+      groups: transformedGroups,
+      totalGroups: transformedGroups.length
     });
   } catch (error) {
     console.error('Error getting groups:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching groups'
+      message: 'Error fetching groups',
+      error: error.message
     });
   }
 };

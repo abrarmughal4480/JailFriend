@@ -1,109 +1,102 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { adminApi } from '@/utils/adminApi';
 
 interface Page {
   id: string;
+  _id?: string;
   pageName: string;
+  name?: string;
+  url?: string;
   owner: string;
+  ownerName?: string;
+  createdBy?: any;
   ownerAvatar: string;
   category: string;
+  categoryName?: string;
   favicon: string;
 }
 
 const Pages = () => {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedPages, setSelectedPages] = useState<string[]>([]);
-  const [pages, setPages] = useState<Page[]>([
-    {
-      id: '14',
-      pageName: 'TurnBinfo',
-      owner: 'SOM info',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '🌐'
-    },
-    {
-      id: '13',
-      pageName: 'Skyline Builders',
-      owner: 'clarathompson',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '🌤️'
-    },
-    {
-      id: '12',
-      pageName: 'Edroots International',
-      owner: 'gloriadaniel',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Education',
-      favicon: '📚'
-    },
-    {
-      id: '11',
-      pageName: 'Charles Darwish Associates',
-      owner: 'nashtajibran',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '🏢'
-    },
-    {
-      id: '10',
-      pageName: 'Sleeploan',
-      owner: 'Gregory Dcosta',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '💤'
-    },
-    {
-      id: '5',
-      pageName: 'parker',
-      owner: 'Parth Upclues',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '📊'
-    },
-    {
-      id: '4',
-      pageName: 'jalfriend',
-      owner: 'Vicky bedardi yadav',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '📊'
-    },
-    {
-      id: '3',
-      pageName: 'Paperub Official',
-      owner: 'paperub',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Other',
-      favicon: '📄'
-    },
-    {
-      id: '2',
-      pageName: 'BookMyEssay Official',
-      owner: 'bookmyessay',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Education',
-      favicon: '📝'
-    },
-    {
-      id: '1',
-      pageName: 'Apnademand',
-      owner: 'Vicky bedardi yadav',
-      ownerAvatar: '/api/placeholder/24/24',
-      category: 'Cars and Vehicles',
-      favicon: '📊'
+  const [pages, setPages] = useState<Page[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPagesCount, setTotalPagesCount] = useState(0);
+  const [totalLikes, setTotalLikes] = useState(0);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [verifiedPages, setVerifiedPages] = useState(0);
+
+  useEffect(() => {
+    fetchPages();
+  }, [currentPage]);
+
+  const fetchPages = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.getPages();
+      
+      if (data.success && data.pages) {
+        // Transform API data to match Page interface
+        const transformedPages: Page[] = data.pages.map((page: any) => ({
+          id: page._id?.toString() || page.id || '',
+          _id: page._id?.toString() || page.id,
+          pageName: page.name || page.pageName || 'Unnamed Page',
+          name: page.name || page.pageName,
+          url: page.url || page.slug || page._id?.toString() || page.id,
+          owner: page.createdBy?.name || page.ownerName || page.owner || 'Unknown',
+          ownerName: page.createdBy?.name || page.ownerName || page.owner,
+          createdBy: page.createdBy,
+          ownerAvatar: page.createdBy?.avatar || page.ownerAvatar || '/default-avatar.svg',
+          category: page.categoryName || page.category || 'Other',
+          categoryName: page.categoryName || page.category,
+          favicon: page.favicon || '📄'
+        }));
+        
+        setPages(transformedPages);
+        setTotalPagesCount(data.totalPages || transformedPages.length);
+        
+        // Calculate stats
+        const verified = transformedPages.filter((p: any) => p.isVerified || p.verified).length;
+        setVerifiedPages(verified);
+        
+        // You might want to fetch these from a separate stats endpoint
+        setTotalLikes(0);
+        setTotalPosts(0);
+      }
+    } catch (err) {
+      console.error('Error fetching pages:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load pages');
+      setPages([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  // Filter pages based on search term
+  const filteredPages = searchTerm.trim()
+    ? pages.filter((page) =>
+        page.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        page.pageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        page.owner.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : pages;
 
   const handleSearch = () => {
-    console.log('Searching for:', searchTerm);
+    // Search is handled by filteredPages computed value
+    // For server-side search, you would call fetchPages with search params here
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedPages(pages.map((page: Page) => page.id));
+      setSelectedPages(filteredPages.map((page: Page) => page.id));
     } else {
       setSelectedPages([]);
     }
@@ -117,12 +110,20 @@ const Pages = () => {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedPages.length > 0) {
       if (confirm(`Are you sure you want to delete ${selectedPages.length} selected page(s)?`)) {
-        setPages(prev => prev.filter((page: Page) => !selectedPages.includes(page.id)));
-        setSelectedPages([]);
-        alert('Selected pages deleted successfully!');
+        try {
+          // TODO: Implement bulk delete API call
+          // await adminApi.deletePages(selectedPages);
+          setPages(prev => prev.filter((page: Page) => !selectedPages.includes(page.id)));
+          setSelectedPages([]);
+          alert('Selected pages deleted successfully!');
+          fetchPages(); // Refresh the list
+        } catch (error) {
+          console.error('Error deleting pages:', error);
+          alert('Failed to delete pages. Please try again.');
+        }
       }
     } else {
       alert('Please select pages to delete.');
@@ -130,24 +131,27 @@ const Pages = () => {
   };
 
   const handleEditPage = (pageId: string) => {
+    // TODO: Navigate to edit page or open edit modal
     alert(`Edit page with ID: ${pageId}`);
   };
 
-  const handleDeletePage = (pageId: string) => {
+  const handleDeletePage = async (pageId: string) => {
     if (confirm('Are you sure you want to delete this page?')) {
-      setPages(prev => prev.filter((page: Page) => page.id !== pageId));
-      setSelectedPages(prev => prev.filter((id: string) => id !== pageId));
-      alert('Page deleted successfully!');
+      try {
+        // TODO: Implement delete API call
+        // await adminApi.deletePage(pageId);
+        setPages(prev => prev.filter((page: Page) => page.id !== pageId));
+        setSelectedPages(prev => prev.filter((id: string) => id !== pageId));
+        alert('Page deleted successfully!');
+        fetchPages(); // Refresh the list
+      } catch (error) {
+        console.error('Error deleting page:', error);
+        alert('Failed to delete page. Please try again.');
+      }
     }
   };
 
-  const totalPages = pages.length;
-  const isAllSelected = selectedPages.length === totalPages && totalPages > 0;
-
-  // Stats
-  const totalLikes = 0;
-  const totalPosts = 8;
-  const verifiedPages = 0;
+  const isAllSelected = selectedPages.length === filteredPages.length && filteredPages.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 py-2 sm:py-4">
@@ -204,7 +208,7 @@ const Pages = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs font-medium text-gray-500 uppercase">TOTAL PAGES</p>
-                  <p className="text-sm sm:text-lg font-bold text-gray-900">{totalPages}</p>
+                  <p className="text-sm sm:text-lg font-bold text-gray-900">{totalPagesCount}</p>
                 </div>
               </div>
             </div>
@@ -332,7 +336,31 @@ const Pages = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {pages.map((page) => (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center">
+                        <div className="flex items-center justify-center">
+                          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-2"></div>
+                          <span className="text-xs text-gray-500">Loading pages...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center">
+                        <span className="text-xs text-red-600">{error}</span>
+                      </td>
+                    </tr>
+                  ) : filteredPages.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-8 text-center">
+                        <span className="text-xs text-gray-500">
+                          {searchTerm ? 'No pages found matching your search.' : 'No pages available.'}
+                        </span>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPages.map((page) => (
                     <tr key={page.id} className="hover:bg-gray-50">
                       <td className="px-3 py-2">
                         <input
@@ -346,7 +374,15 @@ const Pages = () => {
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm">{page.favicon}</span>
-                          <span className="text-xs text-blue-600 font-medium">{page.pageName}</span>
+                          <span 
+                            className="text-xs text-blue-600 font-medium cursor-pointer hover:underline"
+                            onClick={() => {
+                              const pageIdentifier = page.url || page.id;
+                              router.push(`/dashboard/pages/${pageIdentifier}`);
+                            }}
+                          >
+                            {page.pageName}
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-2">
@@ -355,6 +391,9 @@ const Pages = () => {
                             src={page.ownerAvatar}
                             alt={page.owner}
                             className="w-5 h-5 rounded-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = '/default-avatar.svg';
+                            }}
                           />
                           <span className="text-xs text-blue-600">{page.owner}</span>
                         </div>
@@ -385,7 +424,8 @@ const Pages = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -394,7 +434,7 @@ const Pages = () => {
             <div className="px-4 py-3 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               {/* Results Count */}
               <div className="text-xs text-gray-700">
-                Showing 1 out of 1
+                Showing {filteredPages.length} out of {totalPagesCount}
               </div>
 
               {/* Action Buttons */}
@@ -413,13 +453,29 @@ const Pages = () => {
 
                 {/* Pagination */}
                 <div className="flex items-center gap-1">
-                  <button className="p-1.5 rounded-md border border-gray-300 hover:bg-gray-50" disabled>
+                  <button 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1 || loading}
+                    className={`p-1.5 rounded-md border border-gray-300 ${
+                      currentPage === 1 || loading
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
                     <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded">1</span>
-                  <button className="p-1.5 rounded-md border border-gray-300 hover:bg-gray-50" disabled>
+                  <span className="px-2 py-1 text-xs bg-blue-500 text-white rounded">{currentPage}</span>
+                  <button 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages || totalPages === 0 || loading}
+                    className={`p-1.5 rounded-md border border-gray-300 ${
+                      currentPage === totalPages || totalPages === 0 || loading
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
                     <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

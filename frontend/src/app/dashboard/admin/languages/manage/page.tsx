@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface Language {
   id: number;
@@ -9,6 +10,7 @@ interface Language {
 }
 
 const ManageLanguages = () => {
+  const { isDarkMode } = useDarkMode();
   const [languages, setLanguages] = useState<Language[]>([
     { id: 1, name: 'Arabic', selected: false },
     { id: 2, name: 'Bengali', selected: false },
@@ -67,32 +69,45 @@ const ManageLanguages = () => {
     setSelectedLanguages([]);
   };
 
+  const cardBase = isDarkMode
+    ? "bg-gray-800 border border-gray-700 shadow-gray-900/50"
+    : "bg-white border border-gray-200 shadow-md";
+  const textPrimary = isDarkMode ? "text-white" : "text-gray-900";
+  const textSecondary = isDarkMode ? "text-gray-300" : "text-gray-600";
+  const textTertiary = isDarkMode ? "text-gray-400" : "text-gray-500";
+  const tableHeader = isDarkMode
+    ? "bg-gray-700 text-gray-200"
+    : "bg-gray-100 text-gray-700";
+  const tableRow = isDarkMode
+    ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+    : "bg-white border-gray-200 hover:bg-gray-50";
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+    <div className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"} p-4`}>
       <div className="max-w-6xl mx-auto">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm mb-6">
-          <Link href="/" className="text-blue-600 dark:text-blue-400 hover:underline flex items-center">
+        <nav className={`flex items-center space-x-2 text-sm mb-6 ${textSecondary}`}>
+          <Link href="/" className={`${isDarkMode ? "text-blue-400" : "text-blue-600"} hover:underline flex items-center`}>
             <span className="mr-1">🏠</span>
             Home
           </Link>
-          <span className="text-gray-400 dark:text-gray-500">›</span>
-          <Link href="/languages" className="text-blue-600 dark:text-blue-400 hover:underline">
+          <span className={textTertiary}>›</span>
+          <Link href="/languages" className={`${isDarkMode ? "text-blue-400" : "text-blue-600"} hover:underline`}>
             Languages
           </Link>
-          <span className="text-gray-400 dark:text-gray-500">›</span>
-          <span className="text-red-500 dark:text-red-400">Manage Languages</span>
+          <span className={textTertiary}>›</span>
+          <span className={isDarkMode ? "text-red-400" : "text-red-500"}>Manage Languages</span>
         </nav>
 
         {/* Main Content */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className={`${cardBase} rounded-xl`}>
           {/* Header */}
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          <div className={`p-6 border-b ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
+            <h1 className={`text-xl font-semibold ${textPrimary} mb-4`}>
               Manage & Edit Languages
             </h1>
-            <div className="bg-blue-100 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
-              <p className="text-blue-800 dark:text-blue-300 text-sm">
+            <div className={`${isDarkMode ? "bg-blue-900/30 border-blue-800" : "bg-blue-100 border-blue-200"} border rounded-md p-3`}>
+              <p className={`${isDarkMode ? "text-blue-300" : "text-blue-800"} text-sm`}>
                 You can manage, edit and delete languages.
               </p>
             </div>
@@ -102,34 +117,34 @@ const ManageLanguages = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-300 text-sm">
+                <tr className={`${tableHeader} border-b ${isDarkMode ? "border-gray-600" : "border-gray-200"}`}>
+                  <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? "text-gray-200" : "text-gray-700"} text-sm`}>
                     <input
                       type="checkbox"
-                      className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                      className={`rounded ${isDarkMode ? "border-gray-600 bg-gray-700" : "border-gray-300"}`}
                     />
                   </th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600 dark:text-gray-300 text-sm uppercase tracking-wider">
+                  <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? "text-gray-200" : "text-gray-700"} text-sm uppercase tracking-wider`}>
                     Language Name
                   </th>
-                  <th className="text-center py-3 px-4 font-medium text-gray-600 dark:text-gray-300 text-sm uppercase tracking-wider">
+                  <th className={`text-center py-3 px-4 font-medium ${isDarkMode ? "text-gray-200" : "text-gray-700"} text-sm uppercase tracking-wider`}>
                     Action
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+              <tbody className={`divide-y ${isDarkMode ? "divide-gray-600" : "divide-gray-200"}`}>
                 {languages.map((language) => (
-                  <tr key={language.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={language.id} className={`${tableRow} transition-colors`}>
                     <td className="py-3 px-4">
                       <input
                         type="checkbox"
                         checked={language.selected}
                         onChange={() => handleCheckboxChange(language.id)}
-                        className="rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                        className={`rounded ${isDarkMode ? "border-gray-600 bg-gray-700" : "border-gray-300"}`}
                       />
                     </td>
                     <td className="py-3 px-4">
-                      <span className="text-blue-600 dark:text-blue-400 font-medium">
+                      <span className={`${isDarkMode ? "text-blue-400" : "text-blue-600"} font-medium`}>
                         {language.name}
                       </span>
                     </td>
@@ -162,15 +177,15 @@ const ManageLanguages = () => {
           </div>
 
           {/* Delete Selected Button */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className={`p-4 border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
             <button
               onClick={handleDeleteSelected}
               disabled={selectedLanguages.length === 0}
-              className={`px-4 py-2 text-sm font-medium rounded ${
+              className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
                 selectedLanguages.length === 0
-                  ? 'text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 cursor-not-allowed'
-                  : 'text-white bg-blue-500 dark:bg-blue-600 border border-blue-500 dark:border-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700'
-              } transition-colors`}
+                  ? `${textTertiary} ${isDarkMode ? "bg-gray-700 border-gray-600" : "bg-gray-100 border-gray-200"} border cursor-not-allowed`
+                  : `text-white ${isDarkMode ? "bg-blue-600 border-blue-600 hover:bg-blue-700" : "bg-blue-500 border-blue-500 hover:bg-blue-600"} border`
+              }`}
             >
               Delete Selected
             </button>

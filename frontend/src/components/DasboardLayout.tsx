@@ -222,7 +222,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Admin Sidebar States
   const [adminSettingsOpen, setAdminSettingsOpen] = useState<boolean>(true);
+  const [adminPostSettingsOpen, setAdminPostSettingsOpen] = useState<boolean>(false);
   const [adminManageFeaturesOpen, setAdminManageFeaturesOpen] = useState<boolean>(false);
+  const [adminStoreOpen, setAdminStoreOpen] = useState<boolean>(false);
+  const [adminForumsOpen, setAdminForumsOpen] = useState<boolean>(false);
+  const [adminMoviesOpen, setAdminMoviesOpen] = useState<boolean>(false);
+  const [adminGamesOpen, setAdminGamesOpen] = useState<boolean>(false);
+  const [adminCategoriesOpen, setAdminCategoriesOpen] = useState<boolean>(false);
+  const [adminCustomFieldsOpen, setAdminCustomFieldsOpen] = useState<boolean>(false);
   const [adminLanguagesOpen, setAdminLanguagesOpen] = useState<boolean>(false);
   const [adminUsersOpen, setAdminUsersOpen] = useState<boolean>(false);
   const [adminPaymentsOpen, setAdminPaymentsOpen] = useState<boolean>(false);
@@ -242,11 +249,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   
   // Check if current route is admin
   const isAdminPage = pathname.startsWith('/dashboard/admin');
-  const mobileSidebarThemeClasses = isAdminPage
-    ? 'bg-gray-900 text-white'
-    : isDarkMode
+  const mobileSidebarThemeClasses = 
+
+     isDarkMode
       ? 'bg-gray-900 text-white'
-      : 'bg-white text-gray-900';
+      : 'bg-white text-gray-900'; 
   
   // Check if current route is messages
   const isMessagesPage = pathname.startsWith('/dashboard/messages');
@@ -537,6 +544,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     { name: "NodeJS Settings", icon: "🟢", active: false, hasPlus: false, isSubItem: true, section: "settings", href: "/dashboard/admin/settings/nodejs" },
     { name: "CronJob Settings", icon: "⏰", active: false, hasPlus: false, isSubItem: true, section: "settings", href: "/dashboard/admin/settings/cronjob" },
     { name: "AI Settings", icon: "🤖", active: false, hasPlus: false, isSubItem: true, section: "settings", href: "/dashboard/admin/settings/ai" },
+    { name: "Posts Settings", icon: "📝", active: false, hasPlus: true, isSubItem: true, section: "settings", subSection: "postSettings", href: "/dashboard/admin/settings/posts" },
+    { name: "Manage Colored Posts", icon: "🎨", active: false, hasPlus: false, isSubItem: true, section: "settings", subSection: "postSettings", href: "/dashboard/admin/settings/posts/colored" },
+    { name: "Post Reactions", icon: "😊", active: false, hasPlus: false, isSubItem: true, section: "settings", subSection: "postSettings", href: "/dashboard/admin/settings/posts/reactions" },
+    { name: "Setup Live Streaming", icon: "📡", active: false, hasPlus: false, isSubItem: true, section: "settings", subSection: "postSettings", href: "/dashboard/admin/settings/posts/live-streaming" },
     { name: "Manage Features", icon: "☰", active: false, hasPlus: true, section: "manageFeatures", href: "/dashboard/admin/manage-features" },
     { name: "Enable / Disable Features", icon: "🔧", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/enable-disable" },
     { name: "Applications", icon: "📱", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/applications" },
@@ -549,6 +560,38 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     { name: "Articles (Blog)", icon: "📰", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/articles" },
     { name: "Events", icon: "📅", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/events" },
     { name: "Content Monetization", icon: "💳", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", href: "/dashboard/admin/manage-features/monetization" },
+    { name: "Store", icon: "🏪", active: false, hasPlus: true, isSubItem: true, section: "manageFeatures", subSection: "store", href: "/dashboard/admin/manage-features/store" },
+    { name: "Store Settings", icon: "⚙️", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "store", href: "/dashboard/admin/manage-features/store/settings" },
+    { name: "Manage Products", icon: "📦", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "store", href: "/dashboard/admin/manage-features/store/products" },
+    { name: "Manage Orders", icon: "🛒", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "store", href: "/dashboard/admin/manage-features/store/orders" },
+    { name: "Manage Reviews", icon: "⭐", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "store", href: "/dashboard/admin/manage-features/store/reviews" },
+    { name: "Forums", icon: "💬", active: false, hasPlus: true, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums" },
+    { name: "Manage Forums Sections", icon: "📋", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums/sections" },
+    { name: "Manage Forums", icon: "💬", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums/manage" },
+    { name: "Manage Threads", icon: "🧵", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums/threads" },
+    { name: "Manage Replies", icon: "💭", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums/replies" },
+    { name: "Create New Section", icon: "➕", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums/create-section" },
+    { name: "Create New Forum", icon: "✨", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "forums", href: "/dashboard/admin/manage-features/forums/create-forum" },
+    { name: "Movies", icon: "🎬", active: false, hasPlus: true, isSubItem: true, section: "manageFeatures", subSection: "movies", href: "/dashboard/admin/manage-features/movies" },
+    { name: "Manage Movies", icon: "🎬", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "movies", href: "/dashboard/admin/manage-features/movies/manage" },
+    { name: "Add New Movie", icon: "🎥", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "movies", href: "/dashboard/admin/manage-features/movies/add" },
+    { name: "Games", icon: "🎮", active: false, hasPlus: true, isSubItem: true, section: "manageFeatures", subSection: "games", href: "/dashboard/admin/manage-features/games" },
+    { name: "Manage Games", icon: "🎮", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "games", href: "/dashboard/admin/manage-features/games/manage" },
+    { name: "Add New Game", icon: "🕹️", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "games", href: "/dashboard/admin/manage-features/games/add" },
+    { name: "Categories", icon: "🏷️", active: false, hasPlus: true, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories" },
+    { name: "Pages Categories", icon: "📑", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/pages" },
+    { name: "Pages Sub Categories", icon: "📑", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/pages-sub" },
+    { name: "Groups Categories", icon: "👥", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/groups" },
+    { name: "Groups Sub Categories", icon: "👥", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/groups-sub" },
+    { name: "Blogs Categories", icon: "📝", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/blogs" },
+    { name: "Products Categories", icon: "📦", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/products" },
+    { name: "Products Sub Categories", icon: "📦", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/products-sub" },
+    { name: "Job Categories", icon: "💼", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "categories", href: "/dashboard/admin/manage-features/categories/jobs" },
+    { name: "Custom Fields", icon: "📝", active: false, hasPlus: true, isSubItem: true, section: "manageFeatures", subSection: "customFields", href: "/dashboard/admin/manage-features/custom-fields" },
+    { name: "Custom Users Fields", icon: "👤", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "customFields", href: "/dashboard/admin/manage-features/custom-fields/users" },
+    { name: "Custom Pages Fields", icon: "📄", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "customFields", href: "/dashboard/admin/manage-features/custom-fields/pages" },
+    { name: "Custom Groups Fields", icon: "👥", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "customFields", href: "/dashboard/admin/manage-features/custom-fields/groups" },
+    { name: "Custom Products Fields", icon: "📦", active: false, hasPlus: false, isSubItem: true, section: "manageFeatures", subSection: "customFields", href: "/dashboard/admin/manage-features/custom-fields/products" },
     { name: "P2P Categories", icon: "🏷️", active: false, hasPlus: false, href: "/dashboard/admin/p2p/categories" },
     { name: "Languages", icon: "🌐", active: false, hasPlus: true, section: "languages", href: "/dashboard/admin/languages" },
     { name: "Add New Language & Keys", icon: "➕", active: false, hasPlus: false, isSubItem: true, section: "languages", href: "/dashboard/admin/languages/add" },
@@ -848,6 +891,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       switch (section) {
         case 'settings': return adminSettingsOpen;
         case 'manageFeatures': return adminManageFeaturesOpen;
+        case 'postSettings': return adminPostSettingsOpen;
+        case 'store': return adminStoreOpen;
+        case 'forums': return adminForumsOpen;
+        case 'movies': return adminMoviesOpen;
+        case 'games': return adminGamesOpen;
+        case 'categories': return adminCategoriesOpen;
+        case 'customFields': return adminCustomFieldsOpen;
         case 'languages': return adminLanguagesOpen;
         case 'users': return adminUsersOpen;
         case 'payments': return adminPaymentsOpen;
@@ -865,6 +915,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       switch (section) {
         case 'settings': setAdminSettingsOpen(!adminSettingsOpen); break;
         case 'manageFeatures': setAdminManageFeaturesOpen(!adminManageFeaturesOpen); break;
+        case 'postSettings': setAdminPostSettingsOpen(!adminPostSettingsOpen); break;
+        case 'store': setAdminStoreOpen(!adminStoreOpen); break;
+        case 'forums': setAdminForumsOpen(!adminForumsOpen); break;
+        case 'movies': setAdminMoviesOpen(!adminMoviesOpen); break;
+        case 'games': setAdminGamesOpen(!adminGamesOpen); break;
+        case 'categories': setAdminCategoriesOpen(!adminCategoriesOpen); break;
+        case 'customFields': setAdminCustomFieldsOpen(!adminCustomFieldsOpen); break;
         case 'languages': setAdminLanguagesOpen(!adminLanguagesOpen); break;
         case 'users': setAdminUsersOpen(!adminUsersOpen); break;
         case 'payments': setAdminPaymentsOpen(!adminPaymentsOpen); break;
@@ -881,9 +938,61 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       <div className="space-y-1">
         {adminMenuItems.map((item, index) => {
           const isSectionOpen = item.section ? getSectionState(item.section) : false;
-          const shouldShow = !item.section || isSectionOpen || !item.isSubItem;
+          const subSection = (item as any).subSection;
+          const isSubSectionOpen = subSection ? getSectionState(subSection) : false;
+          
+          // Find the parent item with subSection if this item is a sub-item of a sub-section
+          let parentSubSection: string | null = null;
+          if (item.isSubItem && !subSection) {
+            // Look backwards to find the most recent item with a subSection that matches
+            for (let i = index - 1; i >= 0; i--) {
+              const prevItem = adminMenuItems[i];
+              if (prevItem.isSubItem && prevItem.section === item.section && (prevItem as any).subSection) {
+                parentSubSection = (prevItem as any).subSection;
+                break;
+              }
+            }
+          }
+          
+          // Determine if item should be shown
+          let shouldShow = true;
+          
+          if (item.isSubItem) {
+            // First check if parent section is open
+            if (item.section && !isSectionOpen) {
+              shouldShow = false;
+            } 
+            // If this item has a subSection
+            else if (subSection) {
+              // If it has hasPlus, it's an expandable parent (Store, Forums, etc.)
+              // Show it if parent section is open
+              if (item.hasPlus) {
+                shouldShow = !item.section || isSectionOpen;
+              } 
+              // If it doesn't have hasPlus, it's a child of a sub-section (Store Settings, Manage Products, etc.)
+              // Show it only if both parent section AND sub-section are open
+              else {
+                shouldShow = isSectionOpen && isSubSectionOpen;
+              }
+            }
+            // If this item is a sub-item of a sub-section (fallback for items without subSection property)
+            // Show it only if both parent section AND sub-section are open
+            else if (parentSubSection) {
+              const parentSubSectionOpen = getSectionState(parentSubSection);
+              shouldShow = isSectionOpen && parentSubSectionOpen;
+            }
+            // If this is a regular sub-item with a section but no subSection (like Settings sub-items)
+            // Show it if the parent section is open
+            else if (item.section) {
+              shouldShow = isSectionOpen;
+            }
+          }
 
           if (!shouldShow) return null;
+
+          // Determine which section state to use for the plus icon
+          const sectionToCheck = subSection ? subSection : item.section;
+          const sectionStateForIcon = sectionToCheck ? getSectionState(sectionToCheck) : false;
 
           const menuItemContent = (
             <div className="flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors">
@@ -892,33 +1001,42 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <span className="font-medium text-xs truncate">{item.name}</span>
               </div>
               {item.hasPlus && (
-                <span className={`text-gray-400 transition-transform duration-200 text-xs flex-shrink-0 ${
-                  isSectionOpen ? 'rotate-45' : ''
+                <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-700'} transition-transform duration-200 text-xs flex-shrink-0 ${
+                  sectionStateForIcon ? 'rotate-45' : ''
                 }`}>
-                  {isSectionOpen ? '−' : '+'}
+                  {sectionStateForIcon ? '−' : '+'}
                 </span>
               )}
             </div>
           );
 
+          // Determine indentation level
+          // Level 1: sub-items of main sections (ml-3)
+          // Level 2: sub-items of sub-sections (ml-6)
+          const indentLevel = item.isSubItem ? (parentSubSection ? 'ml-6' : 'ml-3') : '';
+
+          // Check if current pathname matches this item's href
+          const isActive = item.href ? pathname === item.href || pathname.startsWith(item.href + '/') : false;
+
           return (
-            <div key={index} className={`${item.isSubItem ? 'ml-3' : ''}`}>
+            <div key={index} className={indentLevel}>
               {item.href ? (
                 <Link
                   href={item.href}
                   className={`block ${
-                    item.active 
+                    isActive 
                       ? 'bg-gray-700 text-white' 
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      : isDarkMode 
+                        ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        : 'text-gray-900 hover:bg-gray-200 hover:text-gray-900'
                   }`}
                   onClick={(e) => {
-                    if (item.hasPlus && item.section) {
+                    if (item.hasPlus && subSection) {
+                      e.preventDefault();
+                      toggleSection(subSection);
+                    } else if (item.hasPlus && item.section) {
                       e.preventDefault();
                       toggleSection(item.section);
-                    }
-                    // Close admin sidebar when clicking on settings
-                    if (item.name === "Settings" || item.href?.includes('/admin/settings')) {
-                      setAdminSettingsOpen(false);
                     }
                   }}
                 >
@@ -927,17 +1045,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               ) : (
                 <div
                   className={`${
-                    item.active 
+                    isActive 
                       ? 'bg-gray-700 text-white' 
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      : isDarkMode 
+                        ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        : 'text-gray-900 hover:bg-gray-200 hover:text-gray-900'
                   }`}
                   onClick={() => {
-                    if (item.hasPlus && item.section) {
+                    if (item.hasPlus && subSection) {
+                      toggleSection(subSection);
+                    } else if (item.hasPlus && item.section) {
                       toggleSection(item.section);
-                    }
-                    // Close admin sidebar when clicking on settings
-                    if (item.name === "Settings" || item.href?.includes('/admin/settings')) {
-                      setAdminSettingsOpen(false);
                     }
                   }}
                 >

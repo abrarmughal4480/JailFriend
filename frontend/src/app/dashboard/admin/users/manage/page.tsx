@@ -28,6 +28,7 @@ import {
   UserPlus,
   Settings
 } from 'lucide-react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface User {
   _id: string;
@@ -70,6 +71,7 @@ interface UserStats {
 }
 
 const AdminUsersPage: React.FC = () => {
+  const { isDarkMode } = useDarkMode();
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -317,14 +319,27 @@ const AdminUsersPage: React.FC = () => {
     return 'Active';
   };
 
+  const cardBase = isDarkMode
+    ? "bg-gray-800 border border-gray-700 shadow-gray-900/50"
+    : "bg-white border border-gray-200 shadow-md";
+  const textPrimary = isDarkMode ? "text-white" : "text-gray-900";
+  const textSecondary = isDarkMode ? "text-gray-300" : "text-gray-600";
+  const textTertiary = isDarkMode ? "text-gray-400" : "text-gray-500";
+  const tableHeader = isDarkMode
+    ? "bg-gray-700 text-gray-200"
+    : "bg-gray-100 text-gray-700";
+  const tableRow = isDarkMode
+    ? "bg-gray-800 border-gray-700 hover:bg-gray-750"
+    : "bg-white border-gray-200 hover:bg-gray-50";
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-2 sm:p-4 overflow-x-hidden">
+    <div className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"} p-2 sm:p-4 overflow-x-hidden`}>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h1>
-            <p className="text-gray-600 dark:text-gray-300 text-sm">Manage all users on the platform</p>
+            <h1 className={`text-2xl font-bold ${textPrimary}`}>User Management</h1>
+            <p className={`${textSecondary} text-sm`}>Manage all users on the platform</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -344,56 +359,56 @@ const AdminUsersPage: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <div className={`${cardBase} rounded-lg p-3`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-300">Total</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">{stats.totalUsers}</p>
+                <p className={`text-xs ${textSecondary}`}>Total</p>
+                <p className={`text-lg font-bold ${textPrimary}`}>{stats.totalUsers}</p>
               </div>
               <Users className="w-5 h-5 text-blue-500" />
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <div className={`${cardBase} rounded-lg p-3`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-300">Online</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">{stats.onlineUsers}</p>
+                <p className={`text-xs ${textSecondary}`}>Online</p>
+                <p className={`text-lg font-bold ${isDarkMode ? "text-green-400" : "text-green-600"}`}>{stats.onlineUsers}</p>
               </div>
               <Activity className="w-5 h-5 text-green-500" />
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <div className={`${cardBase} rounded-lg p-3`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-300">Verified</p>
-                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{stats.verifiedUsers}</p>
+                <p className={`text-xs ${textSecondary}`}>Verified</p>
+                <p className={`text-lg font-bold ${isDarkMode ? "text-blue-400" : "text-blue-600"}`}>{stats.verifiedUsers}</p>
               </div>
               <CheckCircle className="w-5 h-5 text-blue-500" />
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <div className={`${cardBase} rounded-lg p-3`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-300">Blocked</p>
-                <p className="text-lg font-bold text-red-600 dark:text-red-400">{stats.blockedUsers}</p>
+                <p className={`text-xs ${textSecondary}`}>Blocked</p>
+                <p className={`text-lg font-bold ${isDarkMode ? "text-red-400" : "text-red-600"}`}>{stats.blockedUsers}</p>
               </div>
               <Ban className="w-5 h-5 text-red-500" />
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <div className={`${cardBase} rounded-lg p-3`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-300">New Today</p>
-                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{stats.newUsersToday}</p>
+                <p className={`text-xs ${textSecondary}`}>New Today</p>
+                <p className={`text-lg font-bold ${isDarkMode ? "text-purple-400" : "text-purple-600"}`}>{stats.newUsersToday}</p>
               </div>
               <UserPlus className="w-5 h-5 text-purple-500" />
             </div>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <div className={`${cardBase} rounded-lg p-3`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-600 dark:text-gray-300">Active Week</p>
-                <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{stats.activeUsersThisWeek}</p>
+                <p className={`text-xs ${textSecondary}`}>Active Week</p>
+                <p className={`text-lg font-bold ${isDarkMode ? "text-orange-400" : "text-orange-600"}`}>{stats.activeUsersThisWeek}</p>
               </div>
               <Clock className="w-5 h-5 text-orange-500" />
             </div>
@@ -401,17 +416,21 @@ const AdminUsersPage: React.FC = () => {
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 mb-4">
+        <div className={`${cardBase} rounded-lg p-3 mb-4`}>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
+                <Search className={`absolute left-2 top-1/2 transform -translate-y-1/2 ${textTertiary} w-4 h-4`} />
                 <input
                   type="text"
                   placeholder="Search users..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                  className={`w-full pl-8 pr-3 py-2 ${
+                    isDarkMode
+                      ? "bg-gray-700 text-white border-gray-600"
+                      : "bg-white text-gray-900 border-gray-300"
+                  } border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm`}
                 />
               </div>
             </div>
@@ -419,7 +438,11 @@ const AdminUsersPage: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                className={`px-3 py-2 ${
+                  isDarkMode
+                    ? "bg-gray-700 text-white border-gray-600"
+                    : "bg-white text-gray-900 border-gray-300"
+                } border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm`}
               >
                 <option value="all">All Users</option>
                 <option value="online">Online</option>
@@ -435,7 +458,11 @@ const AdminUsersPage: React.FC = () => {
                   setSortBy(field);
                   setSortOrder(order);
                 }}
-                className="px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                className={`px-3 py-2 ${
+                  isDarkMode
+                    ? "bg-gray-700 text-white border-gray-600"
+                    : "bg-white text-gray-900 border-gray-300"
+                } border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm`}
               >
                 <option value="createdAt-desc">Newest First</option>
                 <option value="createdAt-asc">Oldest First</option>
@@ -449,9 +476,9 @@ const AdminUsersPage: React.FC = () => {
 
         {/* Bulk Actions */}
         {selectedUsers.length > 0 && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+          <div className={`${isDarkMode ? "bg-blue-900/30 border-blue-800" : "bg-blue-50 border-blue-200"} border rounded-lg p-3 mb-4`}>
             <div className="flex items-center justify-between">
-              <p className="text-blue-800 dark:text-blue-300 text-sm">
+              <p className={`${isDarkMode ? "text-blue-300" : "text-blue-800"} text-sm`}>
                 {selectedUsers.length} user(s) selected
               </p>
               <div className="flex gap-2">
@@ -484,10 +511,10 @@ const AdminUsersPage: React.FC = () => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className={`${cardBase} rounded-lg overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <thead className={`${tableHeader} border-b ${isDarkMode ? "border-gray-600" : "border-gray-200"}`}>
               <tr>
                 <th className="px-4 py-2 text-left">
                   <input
@@ -500,27 +527,27 @@ const AdminUsersPage: React.FC = () => {
                         setSelectedUsers([]);
                       }
                     }}
-                    className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                    className={`rounded ${isDarkMode ? "border-gray-600" : "border-gray-300"} text-blue-600 focus:ring-blue-500`}
                   />
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? "text-gray-200" : "text-gray-500"} uppercase tracking-wider`}>
                   User
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? "text-gray-200" : "text-gray-500"} uppercase tracking-wider`}>
                   Contact
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? "text-gray-200" : "text-gray-500"} uppercase tracking-wider`}>
                   Status
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? "text-gray-200" : "text-gray-500"} uppercase tracking-wider`}>
                   Joined
                 </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? "text-gray-200" : "text-gray-500"} uppercase tracking-wider`}>
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className={`${isDarkMode ? "bg-gray-800" : "bg-white"} divide-y ${isDarkMode ? "divide-gray-700" : "divide-gray-200"}`}>
               {loading ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center">
@@ -532,13 +559,13 @@ const AdminUsersPage: React.FC = () => {
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className={`px-4 py-8 text-center ${textTertiary}`}>
                     No users found
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr key={user._id} className={`${tableRow} transition-colors`}>
                     <td className="px-4 py-2">
                       <input
                         type="checkbox"
@@ -550,7 +577,7 @@ const AdminUsersPage: React.FC = () => {
                             setSelectedUsers(selectedUsers.filter(id => id !== user._id));
                           }
                         }}
-                        className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                        className={`rounded ${isDarkMode ? "border-gray-600" : "border-gray-300"} text-blue-600 focus:ring-blue-500`}
                       />
                     </td>
                     <td className="px-4 py-2">
@@ -562,22 +589,22 @@ const AdminUsersPage: React.FC = () => {
                         />
                         <div>
                           <div className="flex items-center gap-1">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            <p className={`text-sm font-medium ${textPrimary}`}>
                               {user.name || user.fullName || 'Unknown'}
                             </p>
                             {user.isVerified && (
                               <CheckCircle className="w-3 h-3 text-blue-500" />
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">@{user.username}</p>
+                          <p className={`text-xs ${textTertiary}`}>@{user.username}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-2">
                       <div className="text-xs">
-                        <p className="text-gray-900 dark:text-white">{user.email}</p>
+                        <p className={textPrimary}>{user.email}</p>
                         {user.phone && (
-                          <p className="text-gray-500 dark:text-gray-400">{user.phone}</p>
+                          <p className={textTertiary}>{user.phone}</p>
                         )}
                       </div>
                     </td>
@@ -586,7 +613,7 @@ const AdminUsersPage: React.FC = () => {
                         {getUserStatusText(user)}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
+                    <td className={`px-4 py-2 text-xs ${textTertiary}`}>
                       {formatDate(user.createdAt)}
                     </td>
                     <td className="px-4 py-2">
@@ -646,23 +673,23 @@ const AdminUsersPage: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <div className={`${isDarkMode ? "bg-gray-800" : "bg-white"} px-4 py-3 border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
+              <div className={`text-sm ${textSecondary}`}>
                 Page {currentPage} of {totalPages}
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => fetchUsers(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-3 py-1 border ${isDarkMode ? "border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"} rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => fetchUsers(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-3 py-1 border ${isDarkMode ? "border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"} rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   Next
                 </button>
@@ -675,13 +702,13 @@ const AdminUsersPage: React.FC = () => {
       {/* User Details Modal */}
       {showUserModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-lg w-full max-h-[80vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
+          <div className={`${cardBase} rounded-lg max-w-lg w-full max-h-[80vh] overflow-y-auto`}>
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">User Details</h2>
+                <h2 className={`text-lg font-bold ${textPrimary}`}>User Details</h2>
                 <button
                   onClick={() => setShowUserModal(false)}
-                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+                  className={`${textTertiary} hover:${textSecondary}`}
                 >
                   <XCircle className="w-5 h-5" />
                 </button>
@@ -696,16 +723,16 @@ const AdminUsersPage: React.FC = () => {
                     className="w-16 h-16 rounded-full object-cover"
                   />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    <h3 className={`text-lg font-semibold ${textPrimary}`}>
                       {selectedUser.name || selectedUser.fullName || 'Unknown'}
                     </h3>
-                    <p className="text-gray-500 dark:text-gray-400">@{selectedUser.username}</p>
+                    <p className={textTertiary}>@{selectedUser.username}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getUserStatusColor(selectedUser)}`}>
                         {getUserStatusText(selectedUser)}
                       </span>
                       {selectedUser.isVerified && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${isDarkMode ? "bg-blue-900/30 text-blue-300" : "bg-blue-100 text-blue-800"}`}>
                           Verified
                         </span>
                       )}
@@ -716,22 +743,22 @@ const AdminUsersPage: React.FC = () => {
                 {/* User Information */}
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Contact Information</h4>
+                    <h4 className={`font-semibold ${textPrimary} mb-2`}>Contact Information</h4>
                     <div className="space-y-1 text-sm">
-                      <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Mail className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <p className={`flex items-center gap-2 ${textSecondary}`}>
+                        <Mail className={`w-4 h-4 ${textTertiary}`} />
                         {selectedUser.email}
                       </p>
                       {selectedUser.phone && (
-                        <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                          <Phone className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                        <p className={`flex items-center gap-2 ${textSecondary}`}>
+                          <Phone className={`w-4 h-4 ${textTertiary}`} />
                           {selectedUser.phone}
                         </p>
                       )}
                       {selectedUser.website && (
-                        <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                          <Globe className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-                          <a href={selectedUser.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                        <p className={`flex items-center gap-2 ${textSecondary}`}>
+                          <Globe className={`w-4 h-4 ${textTertiary}`} />
+                          <a href={selectedUser.website} target="_blank" rel="noopener noreferrer" className={`${isDarkMode ? "text-blue-400" : "text-blue-600"} hover:underline`}>
                             {selectedUser.website}
                           </a>
                         </p>
@@ -740,23 +767,23 @@ const AdminUsersPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Account Information</h4>
+                    <h4 className={`font-semibold ${textPrimary} mb-2`}>Account Information</h4>
                     <div className="space-y-1 text-sm">
-                      <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <p className={`flex items-center gap-2 ${textSecondary}`}>
+                        <Calendar className={`w-4 h-4 ${textTertiary}`} />
                         Joined: {formatDate(selectedUser.createdAt)}
                       </p>
-                      <p className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      <p className={`flex items-center gap-2 ${textSecondary}`}>
+                        <Clock className={`w-4 h-4 ${textTertiary}`} />
                         Last Active: {getTimeAgo(selectedUser.lastActive)}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-300">
+                      <p className={textSecondary}>
                         Online: {selectedUser.isOnline ? 'Yes' : 'No'}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-300">
+                      <p className={textSecondary}>
                         Verified: {selectedUser.isVerified ? 'Yes' : 'No'}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-300">
+                      <p className={textSecondary}>
                         Blocked: {selectedUser.isBlocked ? 'Yes' : 'No'}
                       </p>
                     </div>
@@ -764,13 +791,13 @@ const AdminUsersPage: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className={`flex items-center gap-2 pt-3 border-t ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
                   <button
                     onClick={() => handleUserAction(selectedUser._id, selectedUser.isVerified ? 'unverify' : 'verify')}
                     disabled={actionLoading}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                       selectedUser.isVerified
-                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        ? `${isDarkMode ? "bg-gray-700 text-gray-300 hover:bg-gray-600" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`
                         : 'bg-blue-600 text-white hover:bg-blue-700'
                     } disabled:opacity-50`}
                   >
@@ -809,10 +836,10 @@ const AdminUsersPage: React.FC = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full border border-gray-200 dark:border-gray-700">
+          <div className={`${cardBase} rounded-lg max-w-md w-full`}>
             <div className="p-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Delete User</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
+              <h3 className={`text-lg font-semibold ${textPrimary} mb-3`}>Delete User</h3>
+              <p className={`${textSecondary} mb-4 text-sm`}>
                 Are you sure you want to delete <strong>{selectedUser.name || selectedUser.username}</strong>? 
                 This action cannot be undone.
               </p>
@@ -822,7 +849,7 @@ const AdminUsersPage: React.FC = () => {
                     setShowDeleteModal(false);
                     setSelectedUser(null);
                   }}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-sm"
+                  className={`flex-1 px-3 py-2 border ${isDarkMode ? "border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"} rounded-lg transition-colors text-sm`}
                 >
                   Cancel
                 </button>

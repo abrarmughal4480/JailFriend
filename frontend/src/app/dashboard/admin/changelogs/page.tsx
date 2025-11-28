@@ -1,54 +1,144 @@
 "use client";
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
+import { adminApi } from '@/utils/adminApi';
+
+interface Changelog {
+  version: string;
+  date: string;
+  type: string;
+  description: string;
+}
 
 const AdminChangelogs = () => {
-  const changelogs = [
-    { version: "v2.1.0", date: "2024-01-15", type: "Feature", description: "Added new admin dashboard with enhanced features" },
-    { version: "v2.0.5", date: "2024-01-10", type: "Bug Fix", description: "Fixed user authentication issues" },
-    { version: "v2.0.4", date: "2024-01-05", type: "Security", description: "Enhanced security measures and API protection" },
-    { version: "v2.0.3", date: "2023-12-28", type: "Feature", description: "Added multi-language support" },
-    { version: "v2.0.2", date: "2023-12-20", type: "Performance", description: "Improved system performance and loading times" },
-    { version: "v2.0.1", date: "2023-12-15", type: "Bug Fix", description: "Resolved mobile responsiveness issues" }
-  ];
+  const { isDarkMode } = useDarkMode();
+  const [changelogs, setChangelogs] = useState<Changelog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchChangelogs();
+  }, []);
+
+  const fetchChangelogs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.getChangelogs();
+      
+      if (data.success && data.changelogs) {
+        setChangelogs(data.changelogs);
+      } else if (data.success && data.changelogs === undefined) {
+        // If API returns success but no changelogs, use empty array
+        setChangelogs([]);
+      }
+    } catch (err) {
+      console.error('Error fetching changelogs:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load changelogs');
+      setChangelogs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className={`p-6 min-h-screen transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+        <h1 className={`text-3xl font-bold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
           Changelogs
         </h1>
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Home {'>'} Admin {'>'} <span className="text-red-500 dark:text-red-400 font-semibold">CHANGELOGS</span>
+        <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          Home {'>'} Admin {'>'} <span className="text-red-500 font-semibold">CHANGELOGS</span>
         </div>
       </div>
 
       {/* Changelogs List */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Version History</h2>
+      <div className={`rounded-lg shadow-sm border transition-colors duration-200 ${
+        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}>
+        <div className={`p-6 border-b transition-colors duration-200 ${
+          isDarkMode ? 'border-gray-700' : 'border-gray-200'
+        }`}>
+          <h2 className={`text-xl font-semibold transition-colors duration-200 ${
+            isDarkMode ? 'text-white' : 'text-gray-800'
+          }`}>
+            Version History
+          </h2>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {changelogs.map((log, index) => (
+        {loading ? (
+          <div className="p-6 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <p className={`mt-4 transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              Loading changelogs...
+            </p>
+          </div>
+        ) : error ? (
+          <div className="p-6">
+            <p className={`transition-colors duration-200 ${
+              isDarkMode ? 'text-red-300' : 'text-red-800'
+            }`}>
+              {error}
+            </p>
+          </div>
+        ) : changelogs.length === 0 ? (
+          <div className="p-6 text-center">
+            <p className={`transition-colors duration-200 ${
+              isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>
+              No changelogs available
+            </p>
+          </div>
+        ) : (
+          <div className={`divide-y transition-colors duration-200 ${
+            isDarkMode ? 'divide-gray-700' : 'divide-gray-200'
+          }`}>
+            {changelogs.map((log, index) => (
             <div key={index} className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{log.version}</h3>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    log.type === 'Feature' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
-                    log.type === 'Bug Fix' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
-                    log.type === 'Security' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
-                    'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
+                  <h3 className={`text-lg font-semibold transition-colors duration-200 ${
+                    isDarkMode ? 'text-white' : 'text-gray-800'
+                  }`}>
+                    {log.version}
+                  </h3>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full transition-colors duration-200 ${
+                    log.type === 'Feature'
+                      ? isDarkMode
+                        ? 'bg-blue-900/30 text-blue-300'
+                        : 'bg-blue-100 text-blue-800'
+                      : log.type === 'Bug Fix'
+                      ? isDarkMode
+                        ? 'bg-green-900/30 text-green-300'
+                        : 'bg-green-100 text-green-800'
+                      : log.type === 'Security'
+                      ? isDarkMode
+                        ? 'bg-red-900/30 text-red-300'
+                        : 'bg-red-100 text-red-800'
+                      : isDarkMode
+                      ? 'bg-yellow-900/30 text-yellow-300'
+                      : 'bg-yellow-100 text-yellow-800'
                   }`}>
                     {log.type}
                   </span>
                 </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">{log.date}</span>
+                <span className={`text-sm transition-colors duration-200 ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  {log.date}
+                </span>
               </div>
-              <p className="text-gray-600 dark:text-gray-300">{log.description}</p>
+              <p className={`transition-colors duration-200 ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                {log.description}
+              </p>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

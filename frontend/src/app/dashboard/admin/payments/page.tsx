@@ -10,8 +10,10 @@ import {
   Building2,
   Home 
 } from 'lucide-react';
+import { useDarkMode } from '@/contexts/DarkModeContext';
 
 const AdminPayments = () => {
+  const { isDarkMode } = useDarkMode();
   const paymentsItems = [
     { 
       name: "Payment Configuration", 
@@ -57,17 +59,27 @@ const AdminPayments = () => {
     }
   ];
 
+  const cardBase = isDarkMode
+    ? "bg-gray-800 border border-gray-700 shadow-gray-900/50"
+    : "bg-white border border-gray-200 shadow-md";
+  const textPrimary = isDarkMode ? "text-white" : "text-gray-900";
+  const textSecondary = isDarkMode ? "text-gray-300" : "text-gray-600";
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={`min-h-screen ${isDarkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       <div className="p-4 lg:p-6">
       {/* Header */}
       <div className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white mb-2">
+          <h1 className={`text-2xl lg:text-3xl font-bold ${textPrimary} mb-2`}>
           Payments & Advertisement Management
         </h1>
-          <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
-            <Home className="w-4 h-4 mr-1" />
-          Home {'>'} Admin {'>'} <span className="text-red-500 dark:text-red-400 font-semibold">PAYMENTS & ADS</span>
+          <div className={`text-sm ${textSecondary} flex items-center space-x-2`}>
+            <span className={isDarkMode ? "text-red-400" : "text-red-500"}>🏠</span>
+            <span>Home</span>
+            <span>&gt;</span>
+            <span>Payments & Ads</span>
+            <span>&gt;</span>
+            <span className={isDarkMode ? "text-red-400" : "text-red-500"}>Payments & Ads</span>
         </div>
       </div>
 
@@ -75,14 +87,14 @@ const AdminPayments = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {paymentsItems.map((item, index) => (
             <Link key={index} href={item.href}>
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-all duration-200 cursor-pointer group">
+              <div className={`${cardBase} rounded-lg p-6 hover:shadow-lg transition-all duration-200 cursor-pointer group`}>
             <div className="flex items-center gap-4 mb-4">
                   <div className={`w-12 h-12 ${item.color} rounded-lg flex items-center justify-center text-white transition-transform duration-200`}>
                 {item.icon}
               </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.name}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">{item.description}</p>
+                    <h3 className={`text-lg font-semibold ${textPrimary} group-hover:${isDarkMode ? "text-blue-400" : "text-blue-600"} transition-colors`}>{item.name}</h3>
+                <p className={`text-sm ${textSecondary}`}>{item.description}</p>
               </div>
             </div>
             <div className="flex justify-end">
