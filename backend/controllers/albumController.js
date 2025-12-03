@@ -14,7 +14,7 @@ exports.createAlbum = async (req, res) => {
     if (req.files && req.files.length > 0) {
       media = req.files.map(file => {
         const isVideo = file.mimetype.startsWith('video/');
-        
+
         // Use Cloudinary URL if available, otherwise fallback to local
         let url;
         if (isCloudinaryConfigured && file.path) {
@@ -24,7 +24,7 @@ exports.createAlbum = async (req, res) => {
           // Local file - construct local URL
           url = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
         }
-        
+
         return {
           url,
           type: isVideo ? 'video' : 'image',
@@ -43,7 +43,7 @@ exports.createAlbum = async (req, res) => {
       } catch {
         urls = [req.body.mediaUrls];
       }
-      
+
       media = media.concat(urls.map(url => {
         const isVideo = /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(url) || url.includes('video');
         return {
@@ -64,9 +64,9 @@ exports.createAlbum = async (req, res) => {
       media
     });
     await album.save();
-    
+
     // Populate user info for response
-    await album.populate('user', 'name avatar');
+    await album.populate('user', 'name avatar plan');
     res.status(201).json(album);
   } catch (err) {
     console.error('Error creating album:', err);
@@ -94,7 +94,7 @@ exports.editAlbum = async (req, res) => {
     if (req.files && req.files.length > 0) {
       newMedia = req.files.map(file => {
         const isVideo = file.mimetype.startsWith('video/');
-        
+
         // Use Cloudinary URL if available, otherwise fallback to local
         let url;
         if (isCloudinaryConfigured && file.path) {
@@ -104,7 +104,7 @@ exports.editAlbum = async (req, res) => {
           // Local file - construct local URL
           url = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
         }
-        
+
         return {
           url,
           type: isVideo ? 'video' : 'image',
@@ -134,7 +134,7 @@ exports.editAlbum = async (req, res) => {
       album.media = album.media.concat(newMedia);
     }
     await album.save();
-    await album.populate('user', 'name avatar');
+    await album.populate('user', 'name avatar plan');
     res.json(album);
   } catch (err) {
     res.status(500).json({ message: 'Error editing album', error: err.message });
@@ -174,9 +174,9 @@ exports.deleteAlbum = async (req, res) => {
         }
       }
     }
-    
+
     await album.deleteOne();
-    res.json({ 
+    res.json({
       message: 'Album deleted'
     });
   } catch (err) {
@@ -212,7 +212,7 @@ exports.migrateToCloudinary = async (req, res) => {
       await album.save();
     }
 
-    res.json({ 
+    res.json({
       message: `Migration completed. ${migratedCount} media items marked for migration.`,
       migratedCount
     });
@@ -226,8 +226,8 @@ exports.getUserAlbums = async (req, res) => {
   try {
     const albums = await Album.find({ user: req.userId })
       .sort({ createdAt: -1 })
-      .populate('user', 'name avatar')
-      .populate('comments.user', 'name avatar')
+      .populate('user', 'name avatar plan')
+      .populate('comments.user', 'name avatar plan')
       .populate('savedBy', 'name avatar')
       .populate('likes', 'name avatar');
     res.json(albums);
@@ -240,12 +240,28 @@ exports.getUserAlbums = async (req, res) => {
 exports.getAllAlbums = async (req, res) => {
   try {
     const albums = await Album.find()
-      .sort({ createdAt: -1 })
-      .populate('user', 'name avatar')
-      .populate('comments.user', 'name avatar')
+
+      .populate('user', 'name avatar plan')
+      .populate('comments.user', 'name avatar plan')
       .populate('savedBy', 'name avatar')
       .populate('likes', 'name avatar')
       .limit(50); // Limit to prevent overwhelming response
+
+    // Convert to objects to ensure mutability if needed, though array shuffle works on docs too
+    // But let's keep it consistent with postController if we want to add more processing later
+    // For now, just shuffling the array is enough
+
+    // Shuffle the albums to show random feed on every refresh
+    for (let i = albums.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [albums[i], albums[j]] = [albums[j], albums[i]];
+    }
+
+    // Prevent caching to ensure shuffle works on every request
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     res.json(albums);
   } catch (err) {
     console.error('Error fetching albums:', err);
@@ -257,16 +273,16 @@ exports.getAllAlbums = async (req, res) => {
 exports.toggleLike = async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     // Use atomic operation to toggle like
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: 'Album not found' });
-    
+
     // Check if user already liked
-    const isLiked = album.likes.some(likeId => 
+    const isLiked = album.likes.some(likeId =>
       likeId.toString() === userId.toString()
     );
-    
+
     // Use atomic update to add or remove like
     if (isLiked) {
       // Remove like using atomic operation
@@ -283,18 +299,18 @@ exports.toggleLike = async (req, res) => {
         { new: true }
       );
     }
-    
+
     // Fetch updated album with populated fields
     const updatedAlbum = await Album.findById(req.params.id)
-      .populate('user', 'name avatar')
-      .populate('comments.user', 'name avatar')
+      .populate('user', 'name avatar plan')
+      .populate('comments.user', 'name avatar plan')
       .populate('savedBy', 'name avatar')
       .populate('reactions.user', 'name avatar')
       .populate('likes', 'name avatar');
-    
-    res.json({ 
+
+    res.json({
       album: updatedAlbum,
-      likes: updatedAlbum.likes, 
+      likes: updatedAlbum.likes,
       liked: !isLiked,
       isLiked: !isLiked
     });
@@ -319,7 +335,7 @@ exports.shareAlbum = async (req, res) => {
       shareToGroup
     });
 
-    const originalAlbum = await Album.findById(req.params.id).populate('user', 'name avatar');
+    const originalAlbum = await Album.findById(req.params.id).populate('user', 'name avatar plan');
     if (!originalAlbum) {
       return res.status(404).json({ message: 'Album not found' });
     }
@@ -368,7 +384,7 @@ exports.shareAlbum = async (req, res) => {
             uploadedAt: new Date()
           }))
         });
-        
+
         await timelinePost.save();
         sharedPosts.push(timelinePost);
         shareCount++;
@@ -401,7 +417,7 @@ exports.shareAlbum = async (req, res) => {
     if (originalAlbum.user._id.toString() !== userId.toString()) { // Fixed: use user._id instead of userId
       try {
         const { createNotification } = require('./notificationController');
-        
+
         await createNotification({
           userId: originalAlbum.user._id, // Fixed: use user._id instead of userId
           type: 'share',
@@ -415,23 +431,23 @@ exports.shareAlbum = async (req, res) => {
         // Continue even if notification creation fails
       }
     }
-    
+
     // Populate user info for response
-    await originalAlbum.populate('user', 'name avatar');
-    await originalAlbum.populate('comments.user', 'name avatar');
+    await originalAlbum.populate('user', 'name avatar plan');
+    await originalAlbum.populate('comments.user', 'name avatar plan');
     await originalAlbum.populate('savedBy', 'name avatar');
     await originalAlbum.populate('reactions.user', 'name avatar');
-    
+
     console.log('Album share completed successfully:', {
       albumId: originalAlbum._id,
       sharesCount: originalAlbum.shares.length,
       sharedPostsCount: sharedPosts.length
     });
-    
-    res.json({ 
+
+    res.json({
       album: originalAlbum,
       sharedPosts,
-      shares: originalAlbum.shares, 
+      shares: originalAlbum.shares,
       shared: true,
       shareCount,
       message: `Album shared successfully to ${shareCount} location${shareCount !== 1 ? 's' : ''}`
@@ -456,18 +472,18 @@ exports.addComment = async (req, res) => {
       text: text.trim()
     });
     await album.save();
-    
+
     // Populate user info for response
-    await album.populate('user', 'name avatar');
-    await album.populate('comments.user', 'name avatar');
+    await album.populate('user', 'name avatar plan');
+    await album.populate('comments.user', 'name avatar plan');
     await album.populate('savedBy', 'name avatar');
     await album.populate('reactions.user', 'name avatar');
-    
+
     const newComment = album.comments[album.comments.length - 1];
-    res.json({ 
+    res.json({
       album: album,
-      comment: newComment, 
-      message: 'Comment added successfully' 
+      comment: newComment,
+      message: 'Comment added successfully'
     });
   } catch (err) {
     res.status(500).json({ message: 'Error adding comment', error: err.message });
@@ -510,15 +526,15 @@ exports.deleteComment = async (req, res) => {
     console.log('✅ Comment removed, saving album...');
 
     // Populate the album with user info before sending response
-    await album.populate('user', 'name avatar username');
-    await album.populate('comments.user', 'name avatar');
+    await album.populate('user', 'name avatar username plan');
+    await album.populate('comments.user', 'name avatar plan');
     await album.populate('likes', 'name avatar');
     await album.populate('savedBy', 'name avatar');
     await album.populate('reactions.user', 'name avatar');
 
     console.log('✅ Album populated, sending response');
 
-    res.json({ 
+    res.json({
       message: 'Comment deleted successfully',
       album: album
     });
@@ -533,14 +549,14 @@ exports.toggleSave = async (req, res) => {
   try {
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: 'Album not found' });
-    
+
     const userId = req.userId;
     console.log('🎯 Toggle save request for album:', req.params.id, 'by user:', userId);
     console.log('📋 Current savedBy:', album.savedBy);
-    
+
     const saveIndex = album.savedBy.indexOf(userId);
     console.log('🔍 Save index:', saveIndex);
-    
+
     if (saveIndex > -1) {
       // Unsave
       album.savedBy.splice(saveIndex, 1);
@@ -550,20 +566,20 @@ exports.toggleSave = async (req, res) => {
       album.savedBy.push(userId);
       console.log('✅ Added user to savedBy');
     }
-    
+
     await album.save();
     console.log('💾 Album saved, new savedBy:', album.savedBy);
-    
+
     // Populate user info for response
-    await album.populate('user', 'name avatar');
-    await album.populate('comments.user', 'name avatar');
+    await album.populate('user', 'name avatar plan');
+    await album.populate('comments.user', 'name avatar plan');
     await album.populate('savedBy', 'name avatar');
     await album.populate('reactions.user', 'name avatar');
-    
-    res.json({ 
+
+    res.json({
       album: album,
-      savedBy: album.savedBy, 
-      saved: saveIndex === -1 
+      savedBy: album.savedBy,
+      saved: saveIndex === -1
     });
   } catch (err) {
     res.status(500).json({ message: 'Error toggling save', error: err.message });
@@ -575,12 +591,12 @@ exports.getSavedAlbums = async (req, res) => {
   try {
     const userId = req.userId;
     console.log('🔍 Fetching saved albums for user:', userId);
-    
+
     const albums = await Album.find({ savedBy: userId })
       .sort({ createdAt: -1 })
-      .populate('user', 'name avatar')
-      .populate('comments.user', 'name avatar');
-    
+      .populate('user', 'name avatar plan')
+      .populate('comments.user', 'name avatar plan');
+
     console.log('✅ Found', albums.length, 'saved albums for user:', userId);
     res.json(albums);
   } catch (err) {
@@ -595,13 +611,13 @@ exports.getAlbumsWithVideos = async (req, res) => {
     const albums = await Album.find({
       'media.type': 'video'
     })
-    .sort({ createdAt: -1 })
-    .populate('user', 'name avatar username')
-    .populate('comments.user', 'name avatar')
-    .limit(50);
-    
+
+      .populate('user', 'name avatar username plan')
+      .populate('comments.user', 'name avatar plan')
+      .limit(50);
+
     // Transform albums to video format for watch page
-    const videos = albums.flatMap(album => 
+    const videos = albums.flatMap(album =>
       album.media
         .filter(media => media.type === 'video')
         .map(media => ({
@@ -638,7 +654,7 @@ exports.getAlbumsWithVideos = async (req, res) => {
           createdAt: album.createdAt
         }))
     );
-    
+
     res.json(videos);
   } catch (err) {
     console.error('Error fetching albums with videos:', err);
@@ -669,15 +685,15 @@ exports.addView = async (req, res) => {
   try {
     const album = await Album.findById(req.params.id);
     if (!album) return res.status(404).json({ message: 'Album not found' });
-    
+
     const userId = req.userId;
-    
+
     // Only add view if user hasn't viewed this album before
     if (!album.views.includes(userId)) {
       album.views.push(userId);
       await album.save();
     }
-    
+
     res.json({ views: album.views, viewCount: album.views.length });
   } catch (err) {
     res.status(500).json({ message: 'Error adding view', error: err.message });
@@ -710,7 +726,7 @@ exports.addReaction = async (req, res) => {
 
     if (existingReactionIndex !== -1) {
       const existingReaction = album.reactions[existingReactionIndex];
-      
+
       // If same reaction type, remove it (toggle off) using atomic operation
       if (existingReaction.type === reactionType) {
         updatedAlbum = await Album.findByIdAndUpdate(
@@ -721,14 +737,14 @@ exports.addReaction = async (req, res) => {
       } else {
         // If different reaction type, update it using atomic operation with user filter
         updatedAlbum = await Album.findOneAndUpdate(
-          { 
+          {
             _id: albumId,
             'reactions.user': userId
           },
-          { 
-            $set: { 
-              'reactions.$.type': reactionType 
-            } 
+          {
+            $set: {
+              'reactions.$.type': reactionType
+            }
           },
           { new: true }
         );
@@ -737,21 +753,21 @@ exports.addReaction = async (req, res) => {
       // Add new reaction using atomic operation
       updatedAlbum = await Album.findByIdAndUpdate(
         albumId,
-        { 
-          $push: { 
+        {
+          $push: {
             reactions: {
               user: userId,
               type: reactionType,
               createdAt: new Date()
             }
-          } 
+          }
         },
         { new: true }
       );
     }
-    
+
     // Populate user info for response
-    await updatedAlbum.populate('user', 'name avatar');
+    await updatedAlbum.populate('user', 'name avatar plan');
     await updatedAlbum.populate('reactions.user', 'name avatar');
 
     res.json({

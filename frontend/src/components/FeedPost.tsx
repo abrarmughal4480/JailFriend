@@ -9,6 +9,7 @@ import SharePopup, { ShareOptions } from './SharePopup';
 import { getCurrentUserId } from '@/utils/auth';
 import LocationDisplay from './LocationDisplay';
 import { useDarkMode } from '@/contexts/DarkModeContext';
+import ProBadge from './ProBadge';
 
 interface FeedPostProps {
   post: any;
@@ -54,7 +55,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const [isTogglingComments, setIsTogglingComments] = useState(false);
   const [isPinning, setIsPinning] = useState(false);
   const [isBoosting, setIsBoosting] = useState(false);
-  const [expandedPosts, setExpandedPosts] = useState<{[key: string]: boolean}>({});
+  const [expandedPosts, setExpandedPosts] = useState<{ [key: string]: boolean }>({});
 
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const mediaPickerRef = useRef<HTMLDivElement>(null);
@@ -71,10 +72,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
       }
     };
 
-  
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
@@ -88,12 +89,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
   const getMediaUrl = (url: string) => {
     if (!url) return '/default-avatar.svg';
-    
+
     // Handle absolute URLs (http, https, data, blob)
     if (/^(https?:)?\/\//i.test(url) || /^(data:|blob:)/i.test(url)) {
       return url;
     }
-    
+
     // Handle Cloudinary URLs (they might not have protocol)
     if (url.includes('cloudinary.com') || url.includes('res.cloudinary.com')) {
       // If it's already a full Cloudinary URL, return as is
@@ -103,7 +104,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       // Otherwise, add https://
       return `https://${url}`;
     }
-    
+
     // Handle relative paths
     const api = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
     const normalized = (url.startsWith('/') ? url.slice(1) : url).replace(/\\/g, '/');
@@ -118,7 +119,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
           const correctedUrl = user.avatar.replace('http://localhost:3000', 'https://jaifriend-frontend-n6zr.vercel.app');
           return correctedUrl;
         }
-        
+
         // Handle avatar URLs properly
         if (user.avatar.includes('/avatars/') || user.avatar.includes('/covers/')) {
           // For avatar paths, construct the full URL
@@ -128,7 +129,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
           }
           return `${baseUrl}/${user.avatar}`;
         }
-        
+
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
         if (user.avatar.startsWith('http')) {
           return user.avatar;
@@ -186,7 +187,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       if (response.ok) {
         const data = await response.json();
         console.log('Reaction updated successfully:', data);
-        
+
         if (onPostUpdate) {
           if (data.post) {
             // Ensure the post has the correct _id for matching
@@ -208,9 +209,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
       }
     } catch (error: any) {
       console.error('Error adding reaction:', error);
-      
+
       let errorMessage = 'Error adding reaction. Please try again.';
-      
+
       if (error.message) {
         errorMessage = error.message;
       } else if (error.response?.data?.message) {
@@ -218,7 +219,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      
+
       alert(errorMessage);
     } finally {
       setIsReacting(false);
@@ -233,32 +234,32 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const isPostSaved = (): boolean => {
     try {
       const currentUserId = getCurrentUserId();
-      
+
       if (!currentUserId) {
         return false;
       }
-      
+
       if (!post.savedBy) {
         return false;
       }
-      
+
 
       const isSaved = Array.isArray(post.savedBy) && post.savedBy.some((savedUser: string | { _id?: string; id?: string; userId?: string }) => {
         let savedUserId: string | undefined;
-        
+
         if (typeof savedUser === 'object' && savedUser !== null) {
-   
+
           savedUserId = savedUser._id || savedUser.id || savedUser.userId;
         } else {
-        
+
           savedUserId = savedUser;
         }
-        
-     
+
+
         const matches = savedUserId === currentUserId || savedUserId?.toString() === currentUserId?.toString();
         return matches;
       });
-      
+
       return isSaved;
     } catch (error) {
       console.error('Error checking if post is saved:', error);
@@ -271,7 +272,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
     setShowOptionsDropdown(false);
   };
 
- 
+
   const handleToggleComments = async () => {
     try {
       setIsTogglingComments(true);
@@ -318,13 +319,13 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       if (response.message) {
         console.log('✅ Pin response:', response);
-     
+
         const updatedPost = { ...post, isPinned: response.isPinned };
-        
-        window.dispatchEvent(new CustomEvent('postUpdated', { 
-          detail: { postId: post._id, updatedPost } 
+
+        window.dispatchEvent(new CustomEvent('postUpdated', {
+          detail: { postId: post._id, updatedPost }
         }));
-        
+
         // Show success message
         alert(response.message);
       } else {
@@ -356,12 +357,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
         console.log('✅ Boost response:', response);
         // Update the post state locally instead of reloading
         const updatedPost = { ...post, isBoosted: response.isBoosted };
-        
+
         // Dispatch event to update parent component
-        window.dispatchEvent(new CustomEvent('postUpdated', { 
-          detail: { postId: post._id, updatedPost } 
+        window.dispatchEvent(new CustomEvent('postUpdated', {
+          detail: { postId: post._id, updatedPost }
         }));
-        
+
         // Show success message
         alert(response.message);
       } else {
@@ -383,7 +384,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
         alert('Save functionality not available');
         return;
       }
-      
+
       onSave(post._id);
       setShowOptionsDropdown(false);
     } catch (error) {
@@ -413,7 +414,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       const rating = prompt('Rate this post (1-5 stars):');
       if (rating && !isNaN(Number(rating)) && Number(rating) >= 1 && Number(rating) <= 5) {
         const reviewText = prompt('Write your review (optional):');
-        
+
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/review`, {
           method: 'POST',
           headers: {
@@ -529,7 +530,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       'sad': '😢',
       'angry': '😠'
     };
-    
+
     return reactionEmojis[reactionType] || '👍';
   };
 
@@ -543,22 +544,22 @@ const FeedPost: React.FC<FeedPostProps> = ({
       'sad': 'Sad',
       'angry': 'Angry'
     };
-    
+
     return reactionTexts[reactionType] || 'React';
   };
 
   const getMostCommonReactionEmoji = (): string => {
     if (!post.reactions || post.reactions.length === 0) return '👍';
-    
+
     const reactionCounts: { [key: string]: number } = {};
     post.reactions.forEach((reaction: any) => {
       reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
     });
-    
-    const mostCommon = Object.keys(reactionCounts).reduce((a, b) => 
+
+    const mostCommon = Object.keys(reactionCounts).reduce((a, b) =>
       reactionCounts[a] > reactionCounts[b] ? a : b
     );
-    
+
     return getReactionEmoji(mostCommon as ReactionType);
   };
 
@@ -583,7 +584,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
   const saveEditComment = async (commentId: string) => {
     if (!editCommentText.trim()) return;
-    
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -592,7 +593,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       }
 
       console.log('Editing comment:', { commentId, editCommentText, postId: post._id });
-      
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/comment/${commentId}`, {
         method: 'PUT',
         headers: {
@@ -601,13 +602,13 @@ const FeedPost: React.FC<FeedPostProps> = ({
         },
         body: JSON.stringify({ text: editCommentText })
       });
-      
+
       console.log('Edit response status:', res.status);
-      
+
       if (res.ok) {
         const data = await res.json();
         console.log('Edit success data:', data);
-        
+
         // Update the comment in the post
         const updatedPost = { ...post };
         const commentIndex = updatedPost.comments.findIndex((c: any) => (c._id || c.id) === commentId);
@@ -632,7 +633,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
   const deleteComment = async (commentId: string) => {
     if (!window.confirm('Are you sure you want to delete this comment?')) return;
-    
+
     setDeletingCommentId(commentId);
     try {
       const token = localStorage.getItem('token');
@@ -643,7 +644,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
       }
 
       console.log('Deleting comment:', { commentId, postId: post._id });
-      
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${post._id}/comment/${commentId}`, {
         method: 'DELETE',
         headers: {
@@ -651,13 +652,13 @@ const FeedPost: React.FC<FeedPostProps> = ({
           'Content-Type': 'application/json'
         }
       });
-      
+
       console.log('Delete response status:', res.status);
-      
+
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         console.log('Delete success data:', data);
-        
+
         // Remove the comment from the post
         const updatedPost = { ...post };
         updatedPost.comments = updatedPost.comments.filter((c: any) => (c._id || c.id) !== commentId);
@@ -689,14 +690,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
   const navigateToProfile = () => {
     let userId = '';
-    
+
     // Handle populated user object (when userId is the full user object)
     if (post.user?.userId && typeof post.user.userId === 'object' && post.user.userId._id) {
       userId = post.user.userId._id;
     } else {
       userId = post.user?.userId || post.user?._id || post.user?.id;
     }
-    
+
     if (userId) {
       router.push(`/dashboard/profile/${userId}`);
     }
@@ -707,7 +708,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInHours < 24) return `${diffInHours}h ago`;
@@ -794,23 +795,23 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const extractVideoLinks = (content: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const urls = content.match(urlRegex) || [];
-    
+
     return urls.filter(url => {
-    
+
       if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) return true;
-   
+
       if (url.includes('vimeo.com/')) return true;
-    
+
       if (url.includes('facebook.com/') && url.includes('video')) return true;
-     
+
       if (url.includes('instagram.com/') && url.includes('reel')) return true;
-      
+
       if (url.includes('tiktok.com/')) return true;
       return false;
     });
   };
 
-  
+
   const getVideoEmbedUrl = (url: string) => {
     // YouTube
     if (url.includes('youtube.com/watch')) {
@@ -853,9 +854,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
         );
       }
     }
-    
+
     const videoLinks = extractVideoLinks(content);
-    
+
     if (videoLinks.length === 0) {
       return renderContentWithLinks(content);
     }
@@ -895,9 +896,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     ) : (
                       <div className={`${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-lg p-4 text-center`}>
                         <div className="text-lg mb-2">🎬</div>
-                        <a 
-                          href={part} 
-                          target="_blank" 
+                        <a
+                          href={part}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline text-sm"
                         >
@@ -941,27 +942,27 @@ const FeedPost: React.FC<FeedPostProps> = ({
       }
 
       if (part.trim() === '') return null;
-      
+
       // Split by double line breaks to create paragraphs
       const paragraphs = part.split(/\n\n+/);
-      
+
       return (
         <div key={index}>
           {paragraphs.map((paragraph, pIndex) => {
             if (paragraph.trim() === '') return null;
-            
+
             // Split by single line breaks within paragraphs
             const lines = paragraph.split(/\n/);
-            
+
             return (
               <div key={pIndex} className="mb-3">
                 {lines.map((line, lineIndex) => {
                   if (line.trim() === '') return null;
-                  
+
                   // Check if line starts with emoji or special characters
                   const hasEmoji = /^[🚩✨✅💬🔴🟡🟢🔵⚫🟣🟠⚪🟤]/.test(line.trim());
                   const isBulletPoint = /^[•·▪▫‣⁃]/.test(line.trim());
-                  
+
                   return (
                     <div key={lineIndex} className={`${lineIndex > 0 ? 'mt-2' : ''} ${hasEmoji || isBulletPoint ? 'flex items-start gap-2' : ''}`}>
                       {hasEmoji || isBulletPoint ? (
@@ -1006,14 +1007,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
         const hasReactions = post.reactions && post.reactions.length > 0;
         const hasLikes = post.likes && post.likes.length > 0;
         const totalEngagement = (post.reactions?.length || 0) + (post.likes?.length || 0);
-        
+
         if (totalEngagement === 0) return null;
-        
+
         let badgeType = 'PROMOTED POST';
         let badgeColor = 'bg-orange-400';
         let badgeIcon = '⭐';
-        
-       
+
+
         if (totalEngagement >= 10) {
           badgeType = 'TRENDING POST';
           badgeColor = 'bg-purple-500';
@@ -1027,7 +1028,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
           badgeColor = 'bg-green-500';
           badgeIcon = '💫';
         }
-        
+
         return (
           <div className="px-3 sm:px-4 pt-3 sm:pt-4 animate-in slide-in-from-top-2 duration-300">
             <div className="flex items-center justify-between">
@@ -1035,7 +1036,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 <span className="mr-1">{badgeIcon}</span>
                 {badgeType}
               </div>
-              
+
               {/* Engagement Count */}
               <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span className="font-medium">{totalEngagement}</span> {totalEngagement === 1 ? 'engagement' : 'engagements'}
@@ -1044,14 +1045,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
           </div>
         );
       })()}
-      
-    
+
+
       <div className={`p-3 sm:p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 sm:space-x-3">
-          
+
             <div className="relative">
-              <div 
+              <div
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                 onClick={navigateToProfile}
               >
@@ -1067,16 +1068,24 @@ const FeedPost: React.FC<FeedPostProps> = ({
               {/* Online Status Indicator */}
               <div className={`absolute bottom-0 left-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
             </div>
-            
+
             {/* User Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-1 sm:space-x-2">
-                <div 
+                <div
                   className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate`}
                   onClick={navigateToProfile}
                 >
                   {post.user?.name || 'User'}
                 </div>
+                {/* Pro Badge */}
+                {(() => {
+                  const userPlan = post.user?.plan || post.user?.userId?.plan;
+                  if (userPlan && userPlan !== 'Free') {
+                    return <ProBadge plan={userPlan} size="sm" />;
+                  }
+                  return null;
+                })()}
                 {/* Verified Badge */}
                 <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs">✓</span>
@@ -1084,7 +1093,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
               </div>
               <div className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span>{formatDate(post.createdAt)}</span>
-                
+
                 {/* Pin indicator */}
                 {post.isPinned && (
                   <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
@@ -1092,7 +1101,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     <span className="text-xs">Pinned</span>
                   </div>
                 )}
-                
+
                 {/* Boost indicator */}
                 {post.isBoosted && (
                   <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
@@ -1100,7 +1109,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     <span className="text-xs">Boosted</span>
                   </div>
                 )}
-                
+
                 {/* Reel indicator */}
                 {post.type === 'reel' && (
                   <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>
@@ -1108,7 +1117,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     <span className="text-xs">Reel</span>
                   </div>
                 )}
-                
+
                 <Globe className="w-2 h-2 sm:w-3 sm:h-3" />
                 {post.isShared && (
                   <span className="text-blue-600 text-xs">📤 Shared</span>
@@ -1116,7 +1125,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
               </div>
             </div>
           </div>
-          
+
           {/* Options Dropdown */}
           {isOwnPost && (
             <div className="relative">
@@ -1128,7 +1137,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
               >
                 <MoreHorizontal className={`w-5 h-5 transition-colors duration-200 ${showOptionsDropdown ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
               </button>
-              
+
               <PostOptionsDropdown
                 isOpen={showOptionsDropdown}
                 onClose={() => setShowOptionsDropdown(false)}
@@ -1159,7 +1168,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </h3>
           </div>
         )}
-        
+
         {/* Fallback title for reels without titles */}
         {post.type === 'reel' && !post.title && (
           <div className="mb-2 sm:mb-3">
@@ -1168,11 +1177,11 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </h3>
           </div>
         )}
-        
 
-        
+
+
         {/* Content with word limit and Read More */}
-        <div 
+        <div
           className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer`}
           onClick={() => onWatch && onWatch(post)}
         >
@@ -1183,68 +1192,68 @@ const FeedPost: React.FC<FeedPostProps> = ({
             const wordCount = plainTextForPreview.split(/\s+/).filter((word: string) => word && word.length > 0).length;
             const postId = post._id || post.id;
             const isExpanded = expandedPosts[postId] || false;
-            
-                
-                if (wordCount > 50) {
-                  // Smart truncation that respects paragraph boundaries
-                  const smartTruncate = (text: string, maxWords: number) => {
-                    const words = text.split(/\s+/);
-                    if (words.length <= maxWords) return text;
-                    
-                  
-                    let truncatedWords = words.slice(0, maxWords);
-                 
-                    let truncatedText = truncatedWords.join(' ');
-                    
-                
-                    const breakPatterns = [
-                        /[.!?]\s*$/,          
-                      /\n\n\s*$/,           
-                      /[•·▪▫‣⁃]\s*$/,      
-                      /\n\s*$/,             
-                      /\s*$/,               
-                    ];
-                    
-                    let foundBreak = false;
-                    for (const pattern of breakPatterns) {
-                      if (pattern.test(truncatedText)) {
-                        foundBreak = true;
-                        break;
-                      }
+
+
+            if (wordCount > 50) {
+              // Smart truncation that respects paragraph boundaries
+              const smartTruncate = (text: string, maxWords: number) => {
+                const words = text.split(/\s+/);
+                if (words.length <= maxWords) return text;
+
+
+                let truncatedWords = words.slice(0, maxWords);
+
+                let truncatedText = truncatedWords.join(' ');
+
+
+                const breakPatterns = [
+                  /[.!?]\s*$/,
+                  /\n\n\s*$/,
+                  /[•·▪▫‣⁃]\s*$/,
+                  /\n\s*$/,
+                  /\s*$/,
+                ];
+
+                let foundBreak = false;
+                for (const pattern of breakPatterns) {
+                  if (pattern.test(truncatedText)) {
+                    foundBreak = true;
+                    break;
+                  }
+                }
+
+                // If no natural break found, try to find the last complete sentence
+                if (!foundBreak) {
+                  const lastSentenceMatch = truncatedText.match(/.*[.!?]\s*$/);
+                  if (lastSentenceMatch) {
+                    truncatedText = lastSentenceMatch[0];
+                  }
+                }
+
+                if (truncatedText.length >= text.length * 0.9) {
+                  // Force truncation to be more aggressive
+                  const forceTruncateWords = Math.floor(maxWords * 0.7);
+                  const forcedWords = words.slice(0, forceTruncateWords);
+                  truncatedText = forcedWords.join(' ');
+
+
+                  for (const pattern of breakPatterns) {
+                    const match = truncatedText.match(new RegExp(`.*${pattern.source}`));
+                    if (match) {
+                      truncatedText = match[0];
+                      break;
                     }
-                      
-                      // If no natural break found, try to find the last complete sentence
-                    if (!foundBreak) {
-                      const lastSentenceMatch = truncatedText.match(/.*[.!?]\s*$/);
-                      if (lastSentenceMatch) {
-                        truncatedText = lastSentenceMatch[0];
-                      }
-                    }
-                    
-                    if (truncatedText.length >= text.length * 0.9) { 
-                      // Force truncation to be more aggressive
-                      const forceTruncateWords = Math.floor(maxWords * 0.7); 
-                      const forcedWords = words.slice(0, forceTruncateWords);
-                      truncatedText = forcedWords.join(' ');
-                      
-                     
-                      for (const pattern of breakPatterns) {
-                        const match = truncatedText.match(new RegExp(`.*${pattern.source}`));
-                        if (match) {
-                          truncatedText = match[0];
-                          break;
-                        }
-                      }
-                    }
-                    
-                    
-                    return truncatedText;
-                  };
-              
+                  }
+                }
+
+
+                return truncatedText;
+              };
+
               const lines = plainTextForPreview.split('\n');
-              const maxLines = 4; 
+              const maxLines = 4;
               const truncatedContentPlain = lines.slice(0, maxLines).join('\n');
-              
+
               const previewContent = isExpanded ? content : truncatedContentPlain;
               return (
                 <div className="relative">
@@ -1254,8 +1263,8 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   {!isExpanded && (
                     <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>...</span>
                   )}
-                  <span 
-                    className="text-blue-600 cursor-pointer ml-1 font-medium inline-flex items-center gap-1" 
+                  <span
+                    className="text-blue-600 cursor-pointer ml-1 font-medium inline-flex items-center gap-1"
                     onClick={(e) => {
                       e.stopPropagation();
                       togglePostExpansion(postId);
@@ -1282,11 +1291,11 @@ const FeedPost: React.FC<FeedPostProps> = ({
             }
           })()}
         </div>
-        
+
         {/* Location Display - Show only once after content */}
         {post.location && post.location.name && post.location.address && (
           <div className="mb-3 sm:mb-4">
-            <LocationDisplay 
+            <LocationDisplay
               location={{
                 name: post.location.name || 'Unknown Location',
                 address: post.location.address || post.location.formatted_address || 'Location',
@@ -1308,7 +1317,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             />
           </div>
         )}
-        
+
         {/* Poll Display - Only show if poll was actually created */}
         {post.poll && post.poll.question && post.poll.options && post.poll.options.length > 0 && (
           <div className="mb-3 sm:mb-4">
@@ -1322,16 +1331,15 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   const optionVotes = option.voteCount || 0;
                   const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
                   const isVoted = post.poll.userVote && post.poll.userVote.includes(index);
-                  
+
                   return (
                     <div key={index} className="relative">
                       <button
                         onClick={() => handlePollVote(index)}
-                        className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${
-                          isVoted 
-                            ? 'bg-blue-500 text-white border-blue-500' 
-                            : `${isDarkMode ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`
-                        }`}
+                        className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${isVoted
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : `${isDarkMode ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm">{option.text}</span>
@@ -1341,7 +1349,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         </div>
                         {/* Progress bar */}
                         <div className={`mt-1 w-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-full h-2`}>
-                          <div 
+                          <div
                             className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${percentage}%` }}
                           />
@@ -1362,7 +1370,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
         )}
-        
+
         {/* Feeling Display - Only show if feeling was actually selected */}
         {post.feeling && post.feeling.type && post.feeling.emoji && post.feeling.description && (
           <div className="mb-3 sm:mb-4">
@@ -1379,9 +1387,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
         )}
-        
 
-        
+
+
         {/* Sell Info Display - Only show if sell info was actually added */}
         {post.sell && post.sell.productName && post.sell.price && (
           <div className="mb-3 sm:mb-4">
@@ -1409,18 +1417,18 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
         )}
-        
+
         {/* GIF Display - Only show if GIF was actually selected */}
         {post.gif && post.gif.url && post.gif.url !== 'undefined' && (
           <div className="mb-3 sm:mb-4">
-            <img 
-              src={post.gif.url} 
+            <img
+              src={post.gif.url}
               alt="GIF"
               className="w-full max-h-96 rounded-lg object-contain"
             />
           </div>
         )}
-        
+
         {/* Voice Recording Display - Only show if voice was actually recorded */}
         {post.voice && post.voice.url && post.voice.duration && (
           <div className="mb-3 sm:mb-4">
@@ -1447,16 +1455,16 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
         )}
-        
+
         {/* Media */}
         {post.media && post.media.length > 0 && (
           <div className={`mb-3 sm:mb-4 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-2 sm:p-3 transition-colors duration-200`}>
             {post.media.map((media: any, index: number) => {
-              const rawUrl = typeof media === 'string' 
-                ? media 
+              const rawUrl = typeof media === 'string'
+                ? media
                 : (media?.secure_url || media?.url || media?.path || '');
               const resolvedUrl = getMediaUrl(rawUrl);
-              
+
               // Debug logging for album posts
               if (post.originalAlbum || post.sharedFrom?.albumId) {
                 console.log('Album post media:', {
@@ -1469,125 +1477,125 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 });
               }
               return (
-              <div key={index} className={`mb-2 ${index < post.media.length - 1 ? 'mb-3' : ''} cursor-pointer ${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`} onClick={() => onWatch && onWatch(post)}>
-                {media.type === 'video' ? (
-                  <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
-                    <video
-                      src={resolvedUrl}
-                      controls
-                      className="w-full rounded-lg object-contain"
-                      style={{ maxHeight: '80vh' }}
-                    />
-                  </div>
-                ) : media.type === 'audio' ? (
-                  <div className={`mb-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🎵</span>
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {media.originalName || media.filename || media.name || 'Audio File'}
-                        </p>
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
-                        </p>
-                      </div>
-                      <audio
+                <div key={index} className={`mb-2 ${index < post.media.length - 1 ? 'mb-3' : ''} cursor-pointer ${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`} onClick={() => onWatch && onWatch(post)}>
+                  {media.type === 'video' ? (
+                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                      <video
                         src={resolvedUrl}
                         controls
-                        className="w-full"
+                        className="w-full rounded-lg object-contain"
+                        style={{ maxHeight: '80vh' }}
                       />
                     </div>
-                  </div>
-                ) : media.type === 'file' || media.type === 'document' ? (
-                  <div 
-                    className={`mb-2 cursor-pointer ${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}
-                    onClick={() => {
-                      // For PDFs and other files, open in new tab with absolute URL
-                      if (media.mimetype?.includes('pdf') || media.mimetype?.includes('text') || media.mimetype?.includes('image')) {
-                        let absoluteUrl = getMediaUrl(media.url);
-                        // Fallback: if a PDF was uploaded as image on Cloudinary older posts may be under /image/upload
-                        // Rewrite to /raw/upload to make Cloudinary serve it as a document
-                        if (absoluteUrl.toLowerCase().endsWith('.pdf') && absoluteUrl.includes('/image/upload/')) {
-                          absoluteUrl = absoluteUrl.replace('/image/upload/', '/raw/upload/');
-                        }
-                        try {
-                          window.open(absoluteUrl, '_blank');
-                        } catch (error) {
-                          // Fallback to download
-                          const link = document.createElement('a');
-                          link.href = absoluteUrl;
-                          link.download = media.originalName || media.filename || media.name || 'download';
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                        }
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {media.mimetype?.includes('pdf') ? '📕' : 
-                         media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' : 
-                         media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' : 
-                         media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
-                         media.mimetype?.includes('text') ? '📝' : '📄'}
-                      </span>
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {media.originalName || media.filename || media.name || 'Document'}
-                        </p>
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
-                          {media.extension && ` • ${media.extension.toUpperCase()}`}
-                          {media.mimetype && ` • ${media.mimetype.split('/')[1]?.toUpperCase()}`}
-                        </p>
+                  ) : media.type === 'audio' ? (
+                    <div className={`mb-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🎵</span>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {media.originalName || media.filename || media.name || 'Audio File'}
+                          </p>
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                          </p>
+                        </div>
+                        <audio
+                          src={resolvedUrl}
+                          controls
+                          className="w-full"
+                        />
                       </div>
-                      
                     </div>
-                  </div>
-                ) : (
-                  <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
-                    <img
-                      src={resolvedUrl}
-                      alt="Post media"
-                      className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity"
-                      style={{ maxHeight: '80vh' }}
-                      loading="lazy"
-                      onError={(e) => {
-                        const img = e.currentTarget;
-                        console.error('Image failed to load:', {
-                          resolvedUrl,
-                          rawUrl,
-                          mediaItem: media,
-                          postId: post._id,
-                          isShared: post.isShared,
-                          originalAlbum: post.originalAlbum
-                        });
-                        
-                        // Try fallback to rawUrl if different
-                        if (rawUrl && img.src !== rawUrl && rawUrl !== resolvedUrl) {
-                          img.src = rawUrl;
-                          return;
+                  ) : media.type === 'file' || media.type === 'document' ? (
+                    <div
+                      className={`mb-2 cursor-pointer ${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}
+                      onClick={() => {
+                        // For PDFs and other files, open in new tab with absolute URL
+                        if (media.mimetype?.includes('pdf') || media.mimetype?.includes('text') || media.mimetype?.includes('image')) {
+                          let absoluteUrl = getMediaUrl(media.url);
+                          // Fallback: if a PDF was uploaded as image on Cloudinary older posts may be under /image/upload
+                          // Rewrite to /raw/upload to make Cloudinary serve it as a document
+                          if (absoluteUrl.toLowerCase().endsWith('.pdf') && absoluteUrl.includes('/image/upload/')) {
+                            absoluteUrl = absoluteUrl.replace('/image/upload/', '/raw/upload/');
+                          }
+                          try {
+                            window.open(absoluteUrl, '_blank');
+                          } catch (error) {
+                            // Fallback to download
+                            const link = document.createElement('a');
+                            link.href = absoluteUrl;
+                            link.download = media.originalName || media.filename || media.name || 'download';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }
                         }
-                        
-                        // If still failing, show error placeholder
-                        img.style.display = 'none';
-                        const fallback = document.createElement('div');
-                        fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
-                        fallback.innerHTML = `
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">
+                          {media.mimetype?.includes('pdf') ? '📕' :
+                            media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' :
+                              media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' :
+                                media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
+                                  media.mimetype?.includes('text') ? '📝' : '📄'}
+                        </span>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {media.originalName || media.filename || media.name || 'Document'}
+                          </p>
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                            {media.extension && ` • ${media.extension.toUpperCase()}`}
+                            {media.mimetype && ` • ${media.mimetype.split('/')[1]?.toUpperCase()}`}
+                          </p>
+                        </div>
+
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                      <img
+                        src={resolvedUrl}
+                        alt="Post media"
+                        className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity"
+                        style={{ maxHeight: '80vh' }}
+                        loading="lazy"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          console.error('Image failed to load:', {
+                            resolvedUrl,
+                            rawUrl,
+                            mediaItem: media,
+                            postId: post._id,
+                            isShared: post.isShared,
+                            originalAlbum: post.originalAlbum
+                          });
+
+                          // Try fallback to rawUrl if different
+                          if (rawUrl && img.src !== rawUrl && rawUrl !== resolvedUrl) {
+                            img.src = rawUrl;
+                            return;
+                          }
+
+                          // If still failing, show error placeholder
+                          img.style.display = 'none';
+                          const fallback = document.createElement('div');
+                          fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
+                          fallback.innerHTML = `
                           <div class="text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}">
                             <div class="text-4xl mb-2">🖼️</div>
                             <div class="text-sm">Image could not be loaded</div>
                             <div class="text-xs mt-1 opacity-75">Check your connection</div>
                           </div>
                         `;
-                        img.parentNode?.appendChild(fallback);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            );
+                          img.parentNode?.appendChild(fallback);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
             })}
           </div>
         )}
@@ -1605,7 +1613,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
               </svg> */}
               <span className="text-xs sm:text-sm">{post.comments?.length || 0} Comments</span>
             </div>
-            
+
             <div className="flex items-center space-x-1 sm:space-x-2">
               {/* <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
@@ -1613,7 +1621,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
               </svg> */}
               <span className="text-xs sm:text-sm">{post.views?.length || 0} Views</span>
             </div>
-            
+
             <div className="flex items-center space-x-1 sm:space-x-2">
               {/* <svg className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
@@ -1622,7 +1630,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
         </div>
-        
+
         {/* Removed temporary reaction display */}
 
         {/* Single Reaction Display - Shows all reactions like Jaifriend */}
@@ -1634,7 +1642,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 post.reactions.forEach((reaction: any) => {
                   reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
                 });
-                
+
                 const reactionEmojis: { [key: string]: string } = {
                   'like': '👍',
                   'love': '❤️',
@@ -1643,7 +1651,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   'sad': '😢',
                   'angry': '😠'
                 };
-                
+
                 return Object.entries(reactionCounts).map(([type, count]) => (
                   <div key={type} className={`flex items-center space-x-1 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-full px-3 py-1 border`}>
                     <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
@@ -1656,109 +1664,108 @@ const FeedPost: React.FC<FeedPostProps> = ({
         )}
 
         {/* Bottom Section: Action Buttons */}
-          <div className="flex justify-around  items-center ">
-            {/* Reaction Button with ReactionPopup Component */}
-            <div className="relative">
-              <ReactionPopup
-                onReaction={handleReaction}
-                currentReaction={getCurrentReaction()}
+        <div className="flex justify-around  items-center ">
+          {/* Reaction Button with ReactionPopup Component */}
+          <div className="relative">
+            <ReactionPopup
+              onReaction={handleReaction}
+              currentReaction={getCurrentReaction()}
+            >
+              <button
+                disabled={isReacting}
+                className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                style={{ touchAction: 'manipulation' }}
+                ref={reactionButtonRef}
               >
-                <button
-                  disabled={isReacting}
-                  className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  style={{ touchAction: 'manipulation' }}
-                  ref={reactionButtonRef}
-                >
-                  {/* Reaction Button - Same size as other buttons */}
-                  <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
-                    {isReacting ? (
-                      <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
-                    ) : (
-                      <span className="text-lg sm:text-xl md:text-2xl">
-                        👍
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs sm:text-sm md:text-base font-medium text-gray-600 hover:text-pink-600 transition-colors">
-                    {isReacting ? 'Processing...' : (getCurrentReaction() ? getReactionText(getCurrentReaction()!) : 'Like')}
-                  </span>
-                </button>
-              </ReactionPopup>
-            </div>
-            
-            {/* Comment Button */}
-            <button
-              onClick={() => {
-                setShowComments(!showComments);
-                // Focus on comment input when showing comments
-                if (!showComments) {
-                  setTimeout(() => {
-                    const input = document.querySelector('input[placeholder="Write a comment and press enter"]') as HTMLInputElement;
-                    if (input) {
-                      input.focus();
-                    }
-                  }, 100);
-                }
-              }}
-              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-blue-600 transition-colors touch-manipulation`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <span className="text-xs sm:text-sm md:text-base font-medium">Comment</span>
-            </button>
-            
-            {/* Share Button */}
-            <button
-              onClick={handleShare}
-              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-green-600 transition-colors touch-manipulation`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
-                </svg>
-              </div>
-              <span className="text-xs sm:text-sm md:text-base font-medium">Share</span>
-            </button>
-            
-            {/* Review Button */}
-            <button
-              onClick={handleReview}
-              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-yellow-600 transition-colors touch-manipulation px-1`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                </svg>
-              </div>
-              <span className="text-xs sm:text-sm md:text-base font-medium whitespace-nowrap">Review</span>
-            </button>
-            
-            {/* Save Button */}
-            <button
-              onClick={handleSave}
-              className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-purple-600 transition-colors touch-manipulation`}
-              style={{ touchAction: 'manipulation' }}
-            >
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${
-                isPostSaved() 
-                  ? `${isDarkMode ? 'bg-gray-900/20 text-purple-400' : 'bg-purple-100 text-purple-600'}` 
-                  : `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`
-              }`}>
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill={isPostSaved() ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-              </div>
-              <span className="text-xs sm:text-sm md:text-base font-medium">{isPostSaved() ? 'Saved' : 'Save'}</span>
-            </button>
+                {/* Reaction Button - Same size as other buttons */}
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
+                  {isReacting ? (
+                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
+                  ) : (
+                    <span className="text-lg sm:text-xl md:text-2xl">
+                      👍
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs sm:text-sm md:text-base font-medium text-gray-600 hover:text-pink-600 transition-colors">
+                  {isReacting ? 'Processing...' : (getCurrentReaction() ? getReactionText(getCurrentReaction()!) : 'Like')}
+                </span>
+              </button>
+            </ReactionPopup>
           </div>
-          
-        
+
+          {/* Comment Button */}
+          <button
+            onClick={() => {
+              setShowComments(!showComments);
+              // Focus on comment input when showing comments
+              if (!showComments) {
+                setTimeout(() => {
+                  const input = document.querySelector('input[placeholder="Write a comment and press enter"]') as HTMLInputElement;
+                  if (input) {
+                    input.focus();
+                  }
+                }, 100);
+              }
+            }}
+            className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-blue-600 transition-colors touch-manipulation`}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="text-xs sm:text-sm md:text-base font-medium">Comment</span>
+          </button>
+
+          {/* Share Button */}
+          <button
+            onClick={handleShare}
+            className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-green-600 transition-colors touch-manipulation`}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+              </svg>
+            </div>
+            <span className="text-xs sm:text-sm md:text-base font-medium">Share</span>
+          </button>
+
+          {/* Review Button */}
+          <button
+            onClick={handleReview}
+            className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-yellow-600 transition-colors touch-manipulation px-1`}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </div>
+            <span className="text-xs sm:text-sm md:text-base font-medium whitespace-nowrap">Review</span>
+          </button>
+
+          {/* Save Button */}
+          <button
+            onClick={handleSave}
+            className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 ${isDarkMode ? 'text-white' : 'text-gray-600'} hover:text-purple-600 transition-colors touch-manipulation`}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${isPostSaved()
+              ? `${isDarkMode ? 'bg-gray-900/20 text-purple-400' : 'bg-purple-100 text-purple-600'}`
+              : `${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`
+              }`}>
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill={isPostSaved() ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </div>
+            <span className="text-xs sm:text-sm md:text-base font-medium">{isPostSaved() ? 'Saved' : 'Save'}</span>
+          </button>
+        </div>
+
+
 
         {/* Remove the old reaction popup section since we moved it above */}
 
@@ -1778,38 +1785,38 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 <div className="flex flex-col space-y-3">
                   {/* Comment Input */}
                   <div className={`flex items-center ${isDarkMode ? 'bg-gray-700' : 'bg-white'} rounded-lg px-3 py-2 shadow-sm border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-              <input
-                type="text"
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Write a comment and press enter"
+                    <input
+                      type="text"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Write a comment and press enter"
                       className={`flex-1 bg-transparent border-none outline-none text-sm sm:text-base ${isDarkMode ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'}`}
-                onKeyPress={(e) => e.key === 'Enter' && handleComment()}
-              />
-                <div className="flex items-center space-x-2 ml-2">
-                  <button 
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className={`text-gray-400 hover:text-blue-500 p-1.5 rounded-full ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} transition-colors`} 
-                    title="Add emoji"
-                  >
-                    😊
-                  </button>
-                  <button 
-                    onClick={() => setShowMediaPicker(!showMediaPicker)}
-                        className={`text-gray-400 hover:text-green-500 p-1.5 rounded-full ${isDarkMode ? 'hover:bg-green-900/20' : 'hover:bg-green-50'} transition-colors`} 
-                    title="Add media"
-                  >
-                    📷
-                  </button>
+                      onKeyPress={(e) => e.key === 'Enter' && handleComment()}
+                    />
+                    <div className="flex items-center space-x-2 ml-2">
+                      <button
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className={`text-gray-400 hover:text-blue-500 p-1.5 rounded-full ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} transition-colors`}
+                        title="Add emoji"
+                      >
+                        😊
+                      </button>
+                      <button
+                        onClick={() => setShowMediaPicker(!showMediaPicker)}
+                        className={`text-gray-400 hover:text-green-500 p-1.5 rounded-full ${isDarkMode ? 'hover:bg-green-900/20' : 'hover:bg-green-50'} transition-colors`}
+                        title="Add media"
+                      >
+                        📷
+                      </button>
                     </div>
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-              <button
-                onClick={handleComment}
-                disabled={!commentText.trim()}
+                      <button
+                        onClick={handleComment}
+                        disabled={!commentText.trim()}
                         className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
                       >
                         Post Comment
@@ -1823,36 +1830,36 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         className={`px-3 py-2 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors text-sm`}
                       >
                         Cancel
-              </button>
-            </div>
-              </div>
-            </div>
-            
-            {/* Emoji Picker */}
-            {showEmojiPicker && (
-                  <div ref={emojiPickerRef} className={`mt-3 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-3 shadow-lg`}>
-                <div className="grid grid-cols-8 gap-2">
-                  {['😊', '😂', '❤️', '👍', '🎉', '🔥', '😍', '🤔', '😭', '😡', '😱', '🥳', '😎', '🤗', '😴', '🤫'].map((emoji, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setCommentText(prev => prev + emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      className={`text-2xl hover:scale-110 transition-transform p-1 rounded ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            {/* Media Picker */}
-            {showMediaPicker && (
+
+                {/* Emoji Picker */}
+                {showEmojiPicker && (
+                  <div ref={emojiPickerRef} className={`mt-3 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-3 shadow-lg`}>
+                    <div className="grid grid-cols-8 gap-2">
+                      {['😊', '😂', '❤️', '👍', '🎉', '🔥', '😍', '🤔', '😭', '😡', '😱', '🥳', '😎', '🤗', '😴', '🤫'].map((emoji, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setCommentText(prev => prev + emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          className={`text-2xl hover:scale-110 transition-transform p-1 rounded ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Media Picker */}
+                {showMediaPicker && (
                   <div ref={mediaPickerRef} className={`mt-3 ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4 shadow-lg`}>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <button 
+                      <button
                         onClick={() => handleMediaUpload('photo')}
                         disabled={isUploading}
                         className="flex flex-col items-center space-y-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors group"
@@ -1861,8 +1868,8 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         <span className="text-sm font-medium">Photo</span>
                         <span className="text-xs opacity-80">JPG, PNG, GIF</span>
                         {isUploading && <span className="text-xs animate-pulse">Uploading...</span>}
-                  </button>
-                      <button 
+                      </button>
+                      <button
                         onClick={() => handleMediaUpload('video')}
                         disabled={isUploading}
                         className="flex flex-col items-center space-y-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors group"
@@ -1871,8 +1878,8 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         <span className="text-sm font-medium">Video</span>
                         <span className="text-xs opacity-80">MP4, MOV, AVI</span>
                         {isUploading && <span className="text-xs animate-pulse">Uploading...</span>}
-                  </button>
-                      <button 
+                      </button>
+                      <button
                         onClick={() => handleMediaUpload('file')}
                         disabled={isUploading}
                         className="flex flex-col items-center space-y-2 px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors group"
@@ -1881,9 +1888,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
                         <span className="text-sm font-medium">File</span>
                         <span className="text-xs opacity-80">PDF, DOC, ZIP</span>
                         {isUploading && <span className="text-xs animate-pulse">Uploading...</span>}
-                  </button>
+                      </button>
                     </div>
-                    
+
                     {/* File Upload Input */}
                     <input
                       ref={fileInputRef}
@@ -1892,16 +1899,16 @@ const FeedPost: React.FC<FeedPostProps> = ({
                       onChange={handleFileChange}
                       className="hidden"
                     />
-                    
+
                     {/* Upload Progress */}
                     {isUploading && (
                       <div className={`mt-3 p-3 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-lg border`}>
                         <div className="flex items-center space-x-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                           <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Uploading media...</span>
-                </div>
-              </div>
-            )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1926,17 +1933,17 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
                     <div className="flex items-center space-x-2">
                       <span className={`font-semibold text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {comment.user?.name || comment.user?.username || 'User'}
-                    </span>
-                    {comment.user?.verified && (
-                      <span className="text-red-500 text-xs">✓</span>
-                    )}
-                  </div>
+                        {comment.user?.name || comment.user?.username || 'User'}
+                      </span>
+                      {comment.user?.verified && (
+                        <span className="text-red-500 text-xs">✓</span>
+                      )}
+                    </div>
                     <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1 sm:mt-0`}>
                       {formatDate(comment.createdAt || comment.date)}
                     </span>
                   </div>
-                  
+
                   {editingCommentId === (comment._id || comment.id) ? (
                     <div className={`${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-lg p-3 mb-3 border`}>
                       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
@@ -1956,19 +1963,19 @@ const FeedPost: React.FC<FeedPostProps> = ({
                           autoFocus
                         />
                         <div className="flex items-center space-x-2 w-full sm:w-auto">
-                        <button
-                          onClick={() => saveEditComment(comment._id || comment.id)}
-                          disabled={!editCommentText.trim()}
+                          <button
+                            onClick={() => saveEditComment(comment._id || comment.id)}
+                            disabled={!editCommentText.trim()}
                             className="flex-1 sm:flex-none px-3 py-2 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={cancelEditComment}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditComment}
                             className="flex-1 sm:flex-none px-3 py-2 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
-                        >
-                          Cancel
-                        </button>
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1977,81 +1984,81 @@ const FeedPost: React.FC<FeedPostProps> = ({
                       <div className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} pr-20`}>
                         {comment.text || comment.content}
                       </div>
-                      
+
                       {/* Edit/Delete Icons - Positioned to the right */}
                       {(() => {
                         const currentUserId = getCurrentUserId();
                         const commentUserId = comment.user?._id || comment.user?.id || comment.user?.userId;
                         const canEdit = currentUserId && commentUserId && (
-                          comment.user?._id === currentUserId || 
-                          comment.user?.id === currentUserId || 
+                          comment.user?._id === currentUserId ||
+                          comment.user?.id === currentUserId ||
                           comment.user?.userId === currentUserId
                         );
-                        
+
                         return canEdit;
                       })() && (
-                        <div className="absolute top-3 right-3 flex items-center space-x-2">
-                          <button
-                            onClick={() => startEditComment(comment)}
-                            className={`p-2 text-gray-500 hover:text-blue-600 transition-colors rounded-lg ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'}`}
-                            title="Edit comment"
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => deleteComment(comment._id || comment.id)}
-                            disabled={deletingCommentId === (comment._id || comment.id)}
-                            className={`p-2 text-gray-500 hover:text-red-600 transition-colors rounded-lg ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'} disabled:opacity-50`}
-                            title="Delete comment"
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/>
-                            </svg>
-                          </button>
-                        </div>
-                      )}
+                          <div className="absolute top-3 right-3 flex items-center space-x-2">
+                            <button
+                              onClick={() => startEditComment(comment)}
+                              className={`p-2 text-gray-500 hover:text-blue-600 transition-colors rounded-lg ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'}`}
+                              title="Edit comment"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => deleteComment(comment._id || comment.id)}
+                              disabled={deletingCommentId === (comment._id || comment.id)}
+                              className={`p-2 text-gray-500 hover:text-red-600 transition-colors rounded-lg ${isDarkMode ? 'hover:bg-red-900/20' : 'hover:bg-red-50'} disabled:opacity-50`}
+                              title="Delete comment"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                     </div>
                   )}
-                  
+
                   {/* Comment Actions */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                  <div className={`flex items-center space-x-4 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <button 
-                      onClick={() => handleCommentLike(comment._id || comment.id)}
-                      className={`${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'} transition-colors flex items-center space-x-1`}
-                    >
-                      <span>👍</span>
-                      <span>Like</span>
-                      {comment.likes && comment.likes.length > 0 && (
-                        <span className="text-xs">({comment.likes.length})</span>
-                      )}
-                    </button>
-                    <button 
-                      onClick={() => handleCommentReply(comment._id || comment.id, comment.user?.name || 'User')}
+                    <div className={`flex items-center space-x-4 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <button
+                        onClick={() => handleCommentLike(comment._id || comment.id)}
                         className={`${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'} transition-colors flex items-center space-x-1`}
-                    >
+                      >
+                        <span>👍</span>
+                        <span>Like</span>
+                        {comment.likes && comment.likes.length > 0 && (
+                          <span className="text-xs">({comment.likes.length})</span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleCommentReply(comment._id || comment.id, comment.user?.name || 'User')}
+                        className={`${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'} transition-colors flex items-center space-x-1`}
+                      >
                         <span>💬</span>
                         <span>Reply</span>
-                    </button>
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             ))}
-            
+
             {/* View All Comments Button */}
             {post.comments.length > 3 && (
               <div className="text-center pt-2">
                 <button className={`text-sm ${isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'} font-medium hover:underline transition-colors`}>
-                View all {post.comments.length} comments
-              </button>
+                  View all {post.comments.length} comments
+                </button>
               </div>
             )}
           </div>
         )}
-        
+
         {/* Show Message When No Comments */}
         {showComments && (!post.comments || post.comments.length === 0) && (
           <div className={`mt-4 text-center ${isDarkMode ? 'text-gray-400 bg-gray-800' : 'text-gray-500 bg-gray-50'} text-sm p-4 rounded-lg`}>

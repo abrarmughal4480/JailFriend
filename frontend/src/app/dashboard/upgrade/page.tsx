@@ -7,6 +7,11 @@ const PricingPage = () => {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [expandedFeatures, setExpandedFeatures] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<any>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const plans = [
     {
@@ -120,30 +125,102 @@ const PricingPage = () => {
   ];
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com';
-  const handleUpgrade = async (planName: string) => {
+
+  // Fetch wallet balance and set current plan on mount
+  React.useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/api/wallet`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWalletBalance(data.balance || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching wallet balance:', error);
+      }
+    };
+
+    // Set current plan from user data
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.plan && user.plan !== 'Free') {
+      setSelectedPlan(user.plan);
+    }
+
+    fetchWalletBalance();
+  }, []);
+
+  const handleUpgradeClick = (planName: string) => {
+    const plan = plans.find(p => p.name === planName);
+    setPendingPlan(plan);
+    setShowPaymentModal(true);
+  };
+
+  const handlePayNow = async () => {
+    if (!pendingPlan) return;
+
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = user._id || user.id;
-    if (!userId) return alert('User not found!');
-    
+    if (!userId) {
+      alert('User not found!');
+      return;
+    }
+
+    const planPrice = billingPeriod === 'monthly' ? pendingPlan.monthlyPrice : pendingPlan.yearlyPrice;
+
+    // Check if balance is sufficient
+    if (walletBalance < planPrice) {
+      alert(`Insufficient balance! You need $${planPrice} but only have $${walletBalance}. Please add funds to your wallet.`);
+      setShowPaymentModal(false);
+      return;
+    }
+
+    setLoading(true);
+
     try {
-  const res = await fetch(`${API_URL}/api/upgrade`, {
+      const res = await fetch(`${API_URL}/api/upgrade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          userId, 
-          plan: planName,
+        body: JSON.stringify({
+          userId,
+          plan: pendingPlan.name,
           billing: billingPeriod
         })
       });
       const data = await res.json();
+
       if (res.ok) {
-        alert('Upgrade successful!');
-        setSelectedPlan(planName);
+        // Update local user data
+        const updatedUser = { ...user, plan: pendingPlan.name };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+
+        // Update wallet balance
+        setWalletBalance(data.user.balance);
+
+        // Show success modal
+        setShowPaymentModal(false);
+        setShowSuccessModal(true);
+        setSelectedPlan(pendingPlan.name);
+
+        // Auto-close success modal after 3 seconds
+        setTimeout(() => {
+          setShowSuccessModal(false);
+        }, 3000);
       } else {
-        alert(data.error || 'Upgrade failed');
+        if (data.error === 'Insufficient balance') {
+          alert(`Insufficient balance! You need $${data.required} but only have $${data.current}. Shortfall: $${data.shortfall}`);
+        } else {
+          alert(data.error || 'Upgrade failed');
+        }
+        setShowPaymentModal(false);
       }
     } catch (error) {
       alert('Network error. Please try again.');
+      setShowPaymentModal(false);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -163,7 +240,7 @@ const PricingPage = () => {
               </button>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Pricing Plans</h1>
             </div>
-            
+
             <button
               onClick={() => setShowMobileMenu(true)}
               className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -189,7 +266,7 @@ const PricingPage = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-4 space-y-3">
               <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg transition-colors">
                 Compare Plans
@@ -220,11 +297,11 @@ const PricingPage = () => {
                       Jaifriend <span className="bg-orange-500 text-white px-2 py-1 rounded-lg text-sm sm:text-base">PRO</span>
                     </h1>
                   </div>
-                  
+
                   <p className="text-lg sm:text-xl text-blue-100 mb-6 sm:mb-8">
                     Unlock premium features and take complete control over your profile experience.
                   </p>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {[
                       'Pro features give you complete control',
@@ -242,7 +319,7 @@ const PricingPage = () => {
                       </div>
                     ))}
                   </div>
-                  
+
                   <button
                     onClick={() => setExpandedFeatures(!expandedFeatures)}
                     className="sm:hidden mt-4 flex items-center gap-2 text-blue-200 hover:text-white transition-colors"
@@ -251,7 +328,7 @@ const PricingPage = () => {
                     <ChevronDown className={`w-4 h-4 transition-transform ${expandedFeatures ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
-                
+
                 {/* Illustration - Hidden on mobile */}
                 <div className="hidden lg:block flex-shrink-0">
                   <div className="w-48 xl:w-64 h-36 xl:h-48 relative">
@@ -264,7 +341,7 @@ const PricingPage = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Decorative elements */}
                     <div className="absolute top-4 right-8 w-8 xl:w-12 h-4 xl:h-6 bg-white/20 rounded-full"></div>
                     <div className="absolute top-8 right-16 xl:right-20 w-10 xl:w-16 h-5 xl:h-8 bg-white/10 rounded-full"></div>
@@ -273,7 +350,7 @@ const PricingPage = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Background decoration */}
             <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-purple-500/20 to-transparent"></div>
           </div>
@@ -288,25 +365,23 @@ const PricingPage = () => {
                 Select the perfect plan for your needs
               </p>
             </div>
-            
+
             <div className="bg-gray-100 rounded-xl p-1 flex">
               <button
                 onClick={() => setBillingPeriod('monthly')}
-                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base ${
-                  billingPeriod === 'monthly'
-                    ? 'bg-white text-gray-900 shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base ${billingPeriod === 'monthly'
+                  ? 'bg-white text-gray-900 shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 Monthly
               </button>
               <button
                 onClick={() => setBillingPeriod('yearly')}
-                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base relative ${
-                  billingPeriod === 'yearly'
-                    ? 'bg-white text-gray-900 shadow-md'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all text-sm sm:text-base relative ${billingPeriod === 'yearly'
+                  ? 'bg-white text-gray-900 shadow-md'
+                  : 'text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 Yearly
                 <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -324,7 +399,7 @@ const PricingPage = () => {
               </div>
               <h3 className="text-base sm:text-lg font-semibold text-gray-800">Current Pro Members</h3>
             </div>
-            
+
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full overflow-hidden flex items-center justify-center">
                 <Users className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
@@ -341,15 +416,14 @@ const PricingPage = () => {
             {plans.map((plan) => {
               const IconComponent = plan.icon;
               const currentPrice = getCurrentPrice(plan);
-              
+
               return (
                 <div
                   key={plan.name}
-                  className={`${plan.bgColor} rounded-xl sm:rounded-2xl p-4 sm:p-6 relative transition-all duration-300 hover:shadow-xl border-2 ${
-                    selectedPlan === plan.name 
-                      ? 'border-blue-500 shadow-lg scale-105' 
-                      : `${plan.borderColor} hover:border-opacity-60`
-                  } ${plan.popular ? 'lg:scale-105' : ''}`}
+                  className={`${plan.bgColor} rounded-xl sm:rounded-2xl p-4 sm:p-6 relative transition-all duration-300 hover:shadow-xl border-2 ${selectedPlan === plan.name
+                    ? 'border-blue-500 shadow-lg scale-105'
+                    : `${plan.borderColor} hover:border-opacity-60`
+                    } ${plan.popular ? 'lg:scale-105' : ''}`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -358,20 +432,20 @@ const PricingPage = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="text-center mb-4 sm:mb-6">
                     <div className={`w-12 h-12 sm:w-16 sm:h-16 ${plan.iconBg} rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4`}>
                       <IconComponent className={`w-6 h-6 sm:w-8 sm:h-8 ${plan.iconColor}`} />
                     </div>
-                    
+
                     <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">{plan.name}</h3>
-                    
+
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-sm text-gray-600">$</span>
                       <span className="text-2xl sm:text-3xl font-bold text-gray-800">{currentPrice}</span>
                       <span className="text-sm text-gray-600">{plan.period}</span>
                     </div>
-                    
+
                     {billingPeriod === 'yearly' && plan.savings && (
                       <div className="mt-2">
                         <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
@@ -382,8 +456,12 @@ const PricingPage = () => {
                   </div>
 
                   <button
-                    onClick={() => handleUpgrade(plan.name)}
-                    className={`w-full py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold transition-all duration-200 mb-4 sm:mb-6 text-sm sm:text-base ${plan.buttonColor} hover:shadow-md active:scale-95`}
+                    onClick={() => handleUpgradeClick(plan.name)}
+                    disabled={selectedPlan === plan.name}
+                    className={`w-full py-2.5 sm:py-3 rounded-lg sm:rounded-xl font-semibold transition-all duration-200 mb-4 sm:mb-6 text-sm sm:text-base ${selectedPlan === plan.name
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : `${plan.buttonColor} hover:shadow-md active:scale-95`
+                      }`}
                   >
                     {selectedPlan === plan.name ? 'Current Plan' : 'Upgrade Now'}
                   </button>
@@ -435,6 +513,81 @@ const PricingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Confirmation Modal */}
+      {showPaymentModal && pendingPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Pay By Wallet</h3>
+            <p className="text-gray-700 mb-6">
+              You are about to upgrade to a <span className="font-semibold">{pendingPlan.name}</span> membership.
+            </p>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600">Plan:</span>
+                <span className="font-semibold text-gray-900">{pendingPlan.name}</span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600">Billing:</span>
+                <span className="font-semibold text-gray-900">{billingPeriod}</span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600">Amount:</span>
+                <span className="font-semibold text-gray-900">${getCurrentPrice(pendingPlan)}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-gray-200 pt-2 mt-2">
+                <span className="text-gray-600">Wallet Balance:</span>
+                <span className={`font-semibold ${walletBalance >= getCurrentPrice(pendingPlan) ? 'text-green-600' : 'text-red-600'}`}>
+                  ${walletBalance}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayNow}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? 'Processing...' : 'Pay Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && pendingPlan && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-center">
+            <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Check className="w-12 h-12 text-white" />
+            </div>
+
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              Congratulations! You're now a
+            </h3>
+            <h2 className="text-3xl font-bold mb-6" style={{ color: pendingPlan.iconColor.replace('text-', '') }}>
+              {pendingPlan.name}
+            </h2>
+
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="bg-red-500 text-white px-6 py-2 rounded-full font-semibold hover:bg-red-600 transition-colors"
+            >
+              Let's Explore! It's Pro Time!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

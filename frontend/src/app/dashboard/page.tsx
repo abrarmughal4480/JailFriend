@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AlbumDisplay from '@/components/AlbumDisplay';
+import { Edit, Search, Camera, Video, Music, FileText, Plus, MapPin, Globe, Calendar, Users, Eye, Phone, Bot, Sparkles, Wand2, Image as ImageIcon } from 'lucide-react';
 import SharePopup, { ShareOptions } from '@/components/SharePopup';
 import LatestProducts from '@/components/LatestProducts';
 import Popup from '@/components/Popup';
@@ -100,52 +101,14 @@ function getUserAvatar() {
   }
 }
 
-function getUserId(user: any): string {
-  if (!user) {
-    return '';
-  }
-
-  if (user.userId && typeof user.userId === 'object' && user.userId._id) {
-    return user.userId._id;
-  }
-
-  if (typeof user._id === 'string') {
-    return user._id;
-  }
-  if (typeof user.id === 'string') {
-    return user.id;
-  }
-  if (typeof user.userId === 'string') {
-    return user.userId;
-  }
-
-  if (user._id && typeof user._id === 'object' && user._id.toString) {
-    const id = user._id.toString();
-    return id;
-  }
-  if (user.id && typeof user.id === 'object' && user.id.toString) {
-    const id = user.id.toString();
-    return id;
-  }
-  if (user.userId && typeof user.userId === 'object' && user.userId.toString) {
-    const id = user.userId.toString();
-    return id;
-  }
-
-  const fallbackId = String(user._id || user.id || user.userId || '');
-
-  if (!fallbackId || fallbackId === 'undefined' || fallbackId === 'null') {
-    return '';
-  }
-
-  return fallbackId;
-}
 
 export default function Dashboard() {
   const router = useRouter();
   const { isDarkMode } = useDarkMode();
   const [posts, setPosts] = useState<any[]>([]);
   const [albums, setAlbums] = useState<any[]>([]);
+  const [advertisements, setAdvertisements] = useState<any[]>([]);
+  const [proMembers, setProMembers] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [deletingComments, setDeletingComments] = useState<{ [key: string]: boolean }>({});
@@ -158,12 +121,12 @@ export default function Dashboard() {
   const openWatchView = (post: any) => {
     // Only open modal for albums, not for regular posts
     const isAlbum = post.type === 'album';
-    
+
     if (!isAlbum) {
       // Regular posts should not open modal
       return;
     }
-    
+
     const itemWithType = {
       ...post,
       type: 'album' // Ensure it's set as album
@@ -200,6 +163,70 @@ export default function Dashboard() {
   const modalVideoInputRef = useRef<HTMLInputElement>(null);
   const modalAudioInputRef = useRef<HTMLInputElement>(null);
   const modalFileUploadRef = useRef<HTMLInputElement>(null);
+
+  // AI Generation State
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [showAIOptions, setShowAIOptions] = useState(false);
+
+  const generateAIText = async () => {
+    if (!newPost.trim()) {
+      showPopup('warning', 'Input Required', 'Please enter a prompt for the AI');
+      return;
+    }
+    setIsGeneratingAI(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/ai/generate-text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ prompt: newPost })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewPost(data.data.text);
+        showPopup('success', 'AI Magic', 'Text generated successfully!');
+      } else {
+        showPopup('error', 'AI Error', data.message || 'Failed to generate text');
+      }
+    } catch (e) {
+      showPopup('error', 'AI Error', 'Failed to connect to AI service');
+    } finally {
+      setIsGeneratingAI(false);
+      setShowAIOptions(false);
+    }
+  };
+
+  const generateAIImage = async () => {
+    if (!newPost.trim()) {
+      showPopup('warning', 'Input Required', 'Please enter a prompt for the AI');
+      return;
+    }
+    setIsGeneratingAI(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/ai/generate-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ prompt: newPost })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Fetch the image and convert to File
+        const imageRes = await fetch(data.data.imageUrl);
+        const blob = await imageRes.blob();
+        const file = new File([blob], "ai-generated.png", { type: "image/png" });
+        setMediaFiles(prev => [...prev, file]);
+        showPopup('success', 'AI Magic', 'Image generated successfully!');
+      } else {
+        showPopup('error', 'AI Error', data.message || 'Failed to generate image');
+      }
+    } catch (e) {
+      showPopup('error', 'AI Error', 'Failed to connect to AI service');
+    } finally {
+      setIsGeneratingAI(false);
+      setShowAIOptions(false);
+    }
+  };
 
   const [openDropdownPostId, setOpenDropdownPostId] = useState<string | null>(null);
 
@@ -257,64 +284,8 @@ export default function Dashboard() {
     setEditMediaFiles([]);
   };
 
-  const handleEditPost = async (postId: string) => {
-    const token = localStorage.getItem('token');
-    const formData = new FormData();
-    formData.append('content', editContent);
 
-    // Add title if provided
-    if (editTitle.trim()) {
-      formData.append('title', editTitle.trim());
-    }
 
-    editMediaFiles.forEach(file => formData.append('media', file));
-
-    const res = await fetch(`${API_URL}/api/posts/${postId}`, {
-      method: 'PUT',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: formData
-    });
-
-    if (res.ok) {
-      const updatedPost = await res.json();
-      setPosts(posts => posts.map(p => (p._id === postId || p.id === postId) ? updatedPost : p));
-      cancelEditPost();
-      window.dispatchEvent(new CustomEvent('postUpdated'));
-    }
-  };
-
-  const handleDeleteComment = async (postId: string, commentId: string) => {
-    const token = localStorage.getItem('token');
-    const commentKey = `${postId}-${commentId}`;
-
-    setDeletingComments(prev => ({ ...prev, [commentKey]: true }));
-
-    try {
-      const url = `${API_URL}/api/posts/${postId}/comment/${commentId}`;
-
-      const res = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(posts => posts.map(p => (p._id === postId || p.id === postId) ? data.post : p));
-        showPopup('success', 'Success', 'Comment deleted successfully');
-      } else {
-        showPopup('error', 'Error', 'Failed to delete comment. Please try again.');
-      }
-    } catch (error) {
-      showPopup('error', 'Error', 'Network error. Please check your connection and try again.');
-    } finally {
-      setDeletingComments(prev => ({ ...prev, [commentKey]: false }));
-    }
-  };
 
   const handleDeleteAlbumComment = async (albumId: string, commentId: string) => {
     const token = localStorage.getItem('token');
@@ -364,6 +335,23 @@ export default function Dashboard() {
       const albumsResponse = await fetch(`${API_URL}/api/albums`, token ? { headers: { 'Authorization': `Bearer ${token}` } } : {});
       const albumsData = albumsResponse.ok ? await albumsResponse.json() : [];
 
+      // Fetch active advertisements
+      let adsData = [];
+      try {
+        console.log('🔍 Fetching advertisements from:', `${API_URL}/api/advertisements/active`);
+        const adsResponse = await fetch(`${API_URL}/api/advertisements/active`);
+        console.log('📡 Advertisements response status:', adsResponse.status);
+        if (adsResponse.ok) {
+          adsData = await adsResponse.json();
+          console.log('✅ Fetched advertisements:', adsData.length, 'ads');
+          console.log('📋 Advertisement data:', adsData);
+        } else {
+          console.error('❌ Failed to fetch advertisements:', adsResponse.status, adsResponse.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching advertisements:', error);
+      }
+
       // If posts don't have populated user data, try to fetch user info for each post
       if (postsData.length > 0 && !postsData[0].user?.avatar) {
         const postsWithUserData = await Promise.all(
@@ -400,17 +388,32 @@ export default function Dashboard() {
         postsData = postsWithUserData;
       }
 
+      // Don't sort here - let the backend shuffle and DashboardPostsFeed component handle ordering
       const combinedFeed = [
         ...postsData.map((post: any) => ({ ...post, type: 'post' })),
-        ...albumsData.map((album: any) => ({ ...album, type: 'album' }))
-      ].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        ...albumsData.map((album: any) => ({ ...album, type: 'album' })),
+        ...adsData.map((ad: any) => ({ ...ad, type: 'advertisement' }))
+      ];
 
       setPosts(postsData);
       setAlbums(albumsData);
+      setAdvertisements(adsData);
     } catch (error) {
     } finally {
       setLoadingPosts(false);
       setLoadingAlbums(false);
+    }
+  };
+
+  const fetchProMembers = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/upgrade/pro-members`);
+      if (res.ok) {
+        const data = await res.json();
+        setProMembers(data.members || []);
+      }
+    } catch (error) {
+      console.error('Error fetching pro members:', error);
     }
   };
 
@@ -427,6 +430,7 @@ export default function Dashboard() {
       fetchStories();
       fetchLatestPages();
       fetchSuggestedPages();
+      fetchProMembers();
     };
 
     checkAuth();
@@ -450,7 +454,7 @@ export default function Dashboard() {
         };
 
         const targetPostId = normalizeId(customEvent.detail.postId);
-        
+
         // Update specific post instead of refetching all data
         setPosts(posts => {
           // Check if post exists to prevent issues
@@ -545,118 +549,31 @@ export default function Dashboard() {
     }
   }, [albums]);
 
-  const handlePost = async () => {
-    if (!newPost.trim() && !mediaFiles.length) {
-      showPopup('error', 'Empty Post', 'Please add some content or media to your post');
-      return;
-    }
-
-    // Check word limit
-    const wordCount = newPost.split(/\s+/).filter(word => word && word.length > 0).length;
-    if (wordCount > 300) {
-      showPopup('error', 'Word Limit Exceeded', 'Your post cannot exceed 300 words. Please shorten your message.');
-      return;
-    }
-
-    setPosting(true);
-    try {
+  useEffect(() => {
+    const trackAdViews = async () => {
       const token = localStorage.getItem('token');
-      if (!token) {
-        showPopup('error', 'Authentication Error', 'Please log in again to create posts');
-        return;
-      }
-
-      const formData = new FormData();
-      // Preserve content exactly as typed/pasted - no trimming to maintain formatting
-      formData.append('content', newPost);
-
-      // Add title if provided
-      if (newPostTitle.trim()) {
-        formData.append('title', newPostTitle.trim());
-      }
-
-      mediaFiles.forEach((file, index) => {
-        if (file.size > 10 * 1024 * 1024) {
-          throw new Error(`File "${file.name}" is too large. Maximum size is 10MB.`);
-        }
-
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/ogg'];
-        if (!validTypes.includes(file.type)) {
-          throw new Error(`File "${file.name}" has an unsupported format. Please use images (JPEG, PNG, GIF, WebP) or videos (MP4, WebM, OGG).`);
-        }
-
-        formData.append('media', file);
-      });
-
-      const res = await fetch(`${API_URL}/api/posts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (res.ok) {
-        const post = await res.json();
-
-        // Ensure the new post has user data
-        let postWithUserData = post;
-        if (!post.user?.avatar) {
+      if (advertisements.length > 0) {
+        const adsToTrack = advertisements.slice(0, 2);
+        for (const ad of adsToTrack) {
           try {
-            const token = localStorage.getItem('token');
-            if (token && post.userId) {
-              const userResponse = await fetch(`${API_URL}/api/users/${post.userId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              if (userResponse.ok) {
-                const userData = await userResponse.json();
-                postWithUserData = {
-                  ...post,
-                  user: {
-                    _id: userData._id,
-                    name: userData.name,
-                    username: userData.name,
-                    avatar: userData.avatar
-                  }
-                };
-              }
-            }
+            await fetch(`${API_URL}/api/advertisements/${ad._id}/view`, {
+              method: 'POST',
+              headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            console.log('📊 Tracked view for advertisement:', ad.title);
           } catch (error) {
-            // Only log errors in development
-            if (process.env.NODE_ENV === 'development') {
-            }
+            // Silent fail
           }
         }
-
-        setPosts([postWithUserData, ...posts]);
-        setNewPost('');
-        setNewPostTitle('');
-
-        // Clean up object URLs before clearing media files
-        mediaFiles.forEach(file => {
-          if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-            const tempUrl = URL.createObjectURL(file);
-            URL.revokeObjectURL(tempUrl);
-          }
-        });
-
-        setMediaFiles([]);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-
-        showPopup('success', 'Post Created!', 'Your post has been shared successfully!');
-        window.dispatchEvent(new CustomEvent('postCreated'));
-      } else {
-        const errorData = await res.json().catch(() => ({}));
-        const errorMessage = errorData.message || errorData.error || 'Failed to create post. Please try again.';
-        showPopup('error', 'Post Failed', errorMessage);
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create post. Please try again.';
-      showPopup('error', 'Post Failed', errorMessage);
-    } finally {
-      setPosting(false);
+    };
+
+    if (advertisements.length > 0) {
+      trackAdViews();
     }
-  };
+  }, [advertisements]);
+
+
 
   const handleDelete = async (id: string) => {
     setPostToDelete(id);
@@ -687,7 +604,7 @@ export default function Dashboard() {
       };
 
       const updatedPostId = normalizeId(updatedPost._id || updatedPost.id);
-      
+
       // Check if post already exists to prevent duplicates
       const postExists = prevPosts.some(post => {
         const postId = normalizeId(post._id || post.id);
@@ -713,100 +630,7 @@ export default function Dashboard() {
     });
   };
 
-  const handleToggleComments = async (postId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      showPopup('error', 'Authentication Error', 'Please login to modify post settings');
-      return;
-    }
 
-    try {
-      const res = await fetch(`${API_URL}/api/posts/${postId}/toggle-comments`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(posts => posts.map(p =>
-          (p._id === postId || p.id === postId) ? { ...p, commentsEnabled: data.commentsEnabled } : p
-        ));
-        showPopup('success', 'Success', `Comments ${data.commentsEnabled ? 'enabled' : 'disabled'} successfully`);
-      } else {
-        showPopup('error', 'Error', 'Failed to toggle comments');
-      }
-    } catch (error) {
-      showPopup('error', 'Network Error', 'Failed to connect to server');
-    }
-  };
-
-  const handleOpenInNewTab = (post: any) => {
-    const postUrl = `${window.location.origin}/dashboard/post/${post._id || post.id}`;
-    window.open(postUrl, '_blank');
-  };
-
-  const handlePinPost = async (postId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      showPopup('error', 'Authentication Error', 'Please login to pin posts');
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/posts/${postId}/pin`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(posts => posts.map(p =>
-          (p._id === postId || p.id === postId) ? { ...p, isPinned: data.isPinned } : p
-        ));
-        showPopup('success', 'Success', `Post ${data.isPinned ? 'pinned' : 'unpinned'} successfully`);
-      } else {
-        showPopup('error', 'Error', 'Failed to pin/unpin post');
-      }
-    } catch (error) {
-      showPopup('error', 'Network Error', 'Failed to connect to server');
-    }
-  };
-
-  const handleBoostPost = async (postId: string) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      showPopup('error', 'Authentication Error', 'Please login to boost posts');
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/posts/${postId}/boost`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(posts => posts.map(p =>
-          (p._id === postId || p.id === postId) ? { ...p, isBoosted: data.isBoosted } : p
-        ));
-        showPopup('success', 'Success', `Post ${data.isBoosted ? 'boosted' : 'unboosted'} successfully`);
-      } else {
-        showPopup('error', 'Error', 'Failed to boost/unboost post');
-      }
-    } catch (error) {
-      showPopup('error', 'Network Error', 'Failed to connect to server');
-    }
-  };
 
   const handlePopupConfirm = async () => {
     if (popup.title === 'Delete Post' && postToDelete) {
@@ -1026,12 +850,12 @@ export default function Dashboard() {
       const rating = prompt('Rate this post (1-5 stars):');
       if (rating && !isNaN(Number(rating)) && Number(rating) >= 1 && Number(rating) <= 5) {
         const reviewText = prompt('Write your review (optional):');
-        
+
         const postId = selectedPostForWatch._id || selectedPostForWatch.id;
-        const endpoint = selectedPostForWatch.type === 'album' 
+        const endpoint = selectedPostForWatch.type === 'album'
           ? `${API_URL}/api/albums/${postId}/review`
           : `${API_URL}/api/posts/${postId}/review`;
-        
+
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -1102,25 +926,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleView = async (postId: string) => {
-    const token = localStorage.getItem('token');
-    try {
-      const res = await fetch(`${API_URL}/api/posts/${postId}/view`, {
-        method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPosts(posts => posts.map(p =>
-          (p._id === postId || p.id === postId) ? { ...p, views: data.views } : p
-        ));
-      }
-    } catch (error) {
-      // Silent fail
-    }
-  };
+
 
   const handleAlbumDelete = async (albumId: string) => {
     if (!window.confirm('Delete this album?')) return;
@@ -1278,7 +1084,7 @@ export default function Dashboard() {
     if (!url) {
       return '/default-avatar.svg';
     }
-    
+
     // Handle localhost URLs that might be stored incorrectly
     if (url.includes('localhost:3000') || url.includes('localhost:3001')) {
       if (!process.env.NEXT_PUBLIC_API_URL) {
@@ -1289,11 +1095,11 @@ export default function Dashboard() {
       // console.log('🔗 Dashboard - Fixed localhost URL:', { original: url, corrected: correctedUrl });
       return correctedUrl;
     }
-    
+
     if (url.startsWith('http')) {
       return url;
     }
-    
+
     // Remove leading slash to avoid double slashes
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
     if (!process.env.NEXT_PUBLIC_API_URL) {
@@ -1320,7 +1126,6 @@ export default function Dashboard() {
 
 
   const [userStory, setUserStory] = useState<string | null>(null);
-  const storyInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedStory = localStorage.getItem('userStory');
@@ -1387,19 +1192,7 @@ export default function Dashboard() {
     fetchCurrentUser();
   }, []);
 
-  const handleStoryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          setUserStory(reader.result);
-          localStorage.setItem('userStory', reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+
 
   // New story system functions
 
@@ -1658,9 +1451,7 @@ export default function Dashboard() {
   const [loadingPages, setLoadingPages] = useState(false);
   const [loadingSuggestedPages, setLoadingSuggestedPages] = useState(false);
 
-  const navigateToProfile = (userId: string) => {
-    window.location.href = `/dashboard/profile/${userId}`;
-  };
+
 
 
 
@@ -1954,7 +1745,7 @@ export default function Dashboard() {
 
           showPopup('success', 'Post Created!', 'Your post has been shared successfully!');
           window.dispatchEvent(new CustomEvent('postCreated'));
-          
+
           // Close the modal
           setShowPostModal(false);
         } else {
@@ -2290,9 +2081,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`min-h-screen w-full transition-colors duration-200 touch-manipulation ${
-      isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-    }`}>
+    <div className={`min-h-screen w-full transition-colors duration-200 touch-manipulation ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`}>
       <Popup popup={popup} onClose={closePopup} />
 
       <SharePopup
@@ -2377,10 +2167,10 @@ export default function Dashboard() {
             {/* Other Users' Stories */}
             {loadingStories ? (
               // Loading skeleton
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="flex-shrink-0 flex flex-col items-center">
-                      <div className={`${storySizeClasses} ${storyRoundedClasses} border-2 sm:border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gradient-to-br ${isDarkMode ? 'from-gray-700 to-gray-600' : 'from-gray-200 to-gray-300'} animate-pulse`} />
-                      <div className={`w-20 h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded animate-pulse`} />
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 flex flex-col items-center">
+                  <div className={`${storySizeClasses} ${storyRoundedClasses} border-2 sm:border-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'} mb-2 sm:mb-3 shadow-lg sm:shadow-xl bg-gradient-to-br ${isDarkMode ? 'from-gray-700 to-gray-600' : 'from-gray-200 to-gray-300'} animate-pulse`} />
+                  <div className={`w-20 h-4 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded animate-pulse`} />
                 </div>
               ))
             ) : (
@@ -2478,38 +2268,34 @@ export default function Dashboard() {
             {/* Left Section - Feed */}
             <div
               id="left-section"
-              className={`w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin flex flex-col order-1 lg:order-1 transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'scrollbar-thumb-gray-600 scrollbar-track-gray-800' 
-                  : 'scrollbar-thumb-gray-300 scrollbar-track-gray-100'
-              }`}
+              className={`w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin flex flex-col order-1 lg:order-1 transition-colors duration-200 ${isDarkMode
+                ? 'scrollbar-thumb-gray-600 scrollbar-track-gray-800'
+                : 'scrollbar-thumb-gray-300 scrollbar-track-gray-100'
+                }`}
               style={{
                 boxSizing: 'border-box',
                 height: 'auto'
               }}
             >
-              <div className={`rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6 ${
-                isDarkMode 
-                  ? 'bg-gray-800' 
-                  : 'bg-white'
-              }`}>
+              <div className={`rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 mb-3 sm:mb-4 transition-colors duration-200 pb-6 ${isDarkMode
+                ? 'bg-gray-800'
+                : 'bg-white'
+                }`}>
                 {/* Top Section: Content Type Selection */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1 xs:gap-2 sm:gap-3">
                     <button
                       onClick={() => setShowReelsModal(true)}
-                      className={`flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors cursor-pointer ${
-                        isDarkMode 
-                          ? 'bg-pink-900/20 border-pink-700 hover:bg-pink-900/30' 
-                          : 'bg-pink-50 border-pink-200 hover:bg-pink-100'
-                      }`}
+                      className={`flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors cursor-pointer ${isDarkMode
+                        ? 'bg-pink-900/20 border-pink-700 hover:bg-pink-900/30'
+                        : 'bg-pink-50 border-pink-200 hover:bg-pink-100'
+                        }`}
                     >
                       <span className="text-pink-500 text-lg">💎</span>
-                      <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${
-                        isDarkMode ? 'text-pink-300' : 'text-pink-700'
-                      }`}>Reels Video</span>
+                      <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-pink-300' : 'text-pink-700'
+                        }`}>Reels Video</span>
                     </button>
-                   
+
                   </div>
                 </div>
 
@@ -2529,12 +2315,10 @@ export default function Dashboard() {
                             }}
                           />
                         ) : (
-                          <div className={`w-full h-full flex items-center justify-center transition-colors duration-200 ${
-                            isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                          }`}>
-                            <svg className={`w-6 h-6 transition-colors duration-200 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className={`w-full h-full flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                            }`}>
+                            <svg className={`w-6 h-6 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                           </div>
@@ -2545,11 +2329,10 @@ export default function Dashboard() {
                       {/* Content Textarea */}
                       <textarea
                         placeholder="Click to create a new post..."
-                        className={`w-full border rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${
-                          isDarkMode 
-                            ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400 hover:border-gray-500' 
-                            : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 hover:border-gray-400'
-                        } ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'}`}
+                        className={`w-full border rounded-xl px-2 xs:px-4 py-1.5 xs:py-2 text-xs xs:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none cursor-pointer ${isDarkMode
+                          ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400 hover:border-gray-500'
+                          : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 hover:border-gray-400'
+                          } ${newPost.trim() ? 'min-h-[60px] xs:min-h-[80px]' : 'min-h-[32px] xs:min-h-[40px]'}`}
                         value=""
                         readOnly
                         onClick={() => setShowPostModal(true)}
@@ -2565,11 +2348,10 @@ export default function Dashboard() {
                     {/* Camera Icon - Positioned to the right of textarea */}
                     <div className="flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0">
                       <button
-                        className={`flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 transition-colors rounded-full ${
-                          isDarkMode 
-                            ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
-                            : 'text-gray-600 hover:text-blue-500 hover:bg-gray-100'
-                        }`}
+                        className={`flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 transition-colors rounded-full ${isDarkMode
+                          ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
+                          : 'text-gray-600 hover:text-blue-500 hover:bg-gray-100'
+                          }`}
                         onClick={() => fileInputRef.current && fileInputRef.current.click()}
                         disabled={posting}
                         title="Add photos or videos"
@@ -2577,14 +2359,55 @@ export default function Dashboard() {
                         <span className="text-xl">📷</span>
                       </button>
                     </div>
+
+                    {/* AI Button */}
+                    <div className="relative flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0">
+                      <button
+                        className={`flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 transition-colors rounded-full ${isDarkMode
+                          ? 'text-purple-400 hover:text-purple-300 hover:bg-gray-700'
+                          : 'text-purple-600 hover:text-purple-500 hover:bg-gray-100'
+                          }`}
+                        onClick={() => setShowAIOptions(!showAIOptions)}
+                        disabled={posting || isGeneratingAI}
+                        title="Generate with AI"
+                      >
+                        {isGeneratingAI ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500"></div>
+                        ) : (
+                          <Sparkles className="w-5 h-5" />
+                        )}
+                      </button>
+
+                      {/* AI Options Dropdown */}
+                      {showAIOptions && (
+                        <div className={`absolute top-full right-0 mt-2 w-48 rounded-xl shadow-lg border z-50 overflow-hidden ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                          }`}>
+                          <button
+                            onClick={generateAIText}
+                            className={`w-full px-4 py-3 text-left text-sm flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
+                              }`}
+                          >
+                            <Bot className="w-4 h-4" />
+                            Generate Text
+                          </button>
+                          <button
+                            onClick={generateAIImage}
+                            className={`w-full px-4 py-3 text-left text-sm flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
+                              }`}
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                            Generate Image
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Character Count and Word Count */}
                 {newPost.trim() && (
-                  <div className={`flex items-center justify-between text-xs mb-3 transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
+                  <div className={`flex items-center justify-between text-xs mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
                     <span>Words: {newPost.split(/\s+/).filter(word => word && word.length > 0).length}/300</span>
                     <span>Characters: {newPost.length}/1800</span>
                   </div>
@@ -2628,22 +2451,19 @@ export default function Dashboard() {
                 />
                 {mediaFiles.length > 0 && (
                   <div className="mt-2">
-                    <div className={`text-xs mb-2 transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Selected files ({mediaFiles.length}):</div>
+                    <div className={`text-xs mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Selected files ({mediaFiles.length}):</div>
                     <div className="space-y-3">
                       {mediaFiles.map((file, index) => (
-                        <div key={index} className={`rounded-lg p-3 border transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'bg-gray-800 border-gray-700' 
-                            : 'bg-gray-50 border-gray-200'
-                        }`}>
+                        <div key={index} className={`rounded-lg p-3 border transition-colors duration-200 ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-gray-50 border-gray-200'
+                          }`}>
                           <div className="flex items-start gap-3">
                             {/* Image/Video Thumbnail Preview */}
                             {file.type.startsWith('image/') ? (
-                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 transition-colors duration-200 ${
-                                isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                              }`}>
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                                }`}>
                                 <img
                                   src={URL.createObjectURL(file)}
                                   alt={file.name}
@@ -2674,9 +2494,8 @@ export default function Dashboard() {
                                 </div>
                               </div>
                             ) : (
-                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${
-                              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                            }`}>
+                              <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                                }`}>
                                 <span className="text-3xl sm:text-4xl">
                                   {file.type.startsWith('audio/') ? '🎵' : '📄'}
                                 </span>
@@ -2687,19 +2506,16 @@ export default function Dashboard() {
                             <div className="flex-1">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className={`font-medium text-sm mb-1 transition-colors duration-200 ${
-                                    isDarkMode ? 'text-white' : 'text-gray-900'
-                                  }`}>
+                                  <div className={`font-medium text-sm mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                    }`}>
                                     {file.name}
                                   </div>
-                                  <div className={`text-xs transition-colors duration-200 ${
-                                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                                  }`}>
+                                  <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                    }`}>
                                     {(file.size / 1024 / 1024).toFixed(1)}MB
                                   </div>
-                                  <div className={`text-xs mt-1 transition-colors duration-200 ${
-                                    isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                                  }`}>
+                                  <div className={`text-xs mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                                    }`}>
                                     {file.type.startsWith('image/') ? 'Image' :
                                       file.type.startsWith('video/') ? 'Video' :
                                         file.type.startsWith('audio/') ? 'Audio' : 'Document'}
@@ -2709,11 +2525,10 @@ export default function Dashboard() {
                                 {/* Remove Button */}
                                 <button
                                   onClick={() => removeMediaFile(index)}
-                                  className={`text-red-500 p-1.5 rounded-full transition-colors flex-shrink-0 ${
-                                    isDarkMode 
-                                      ? 'hover:text-red-400 hover:bg-red-900/20' 
-                                      : 'hover:text-red-700 hover:bg-red-100'
-                                  }`}
+                                  className={`text-red-500 p-1.5 rounded-full transition-colors flex-shrink-0 ${isDarkMode
+                                    ? 'hover:text-red-400 hover:bg-red-900/20'
+                                    : 'hover:text-red-700 hover:bg-red-100'
+                                    }`}
                                   title="Remove file"
                                 >
                                   <svg className="w-3 xs:w-4 h-3 xs:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2728,16 +2543,15 @@ export default function Dashboard() {
                     </div>
 
                     {/* Clear All Button */}
-                  <button
-                    onClick={clearAllMediaFiles}
-                    className={`mt-3 text-sm text-red-500 px-3 py-2 rounded-lg transition-colors font-medium ${
-                      isDarkMode 
-                        ? 'hover:text-red-400 hover:bg-red-900/20' 
+                    <button
+                      onClick={clearAllMediaFiles}
+                      className={`mt-3 text-sm text-red-500 px-3 py-2 rounded-lg transition-colors font-medium ${isDarkMode
+                        ? 'hover:text-red-400 hover:bg-red-900/20'
                         : 'hover:text-red-700 hover:bg-red-50'
-                    }`}
-                  >
-                    Clear all files
-                  </button>
+                        }`}
+                    >
+                      Clear all files
+                    </button>
                   </div>
                 )}
               </div>
@@ -2768,8 +2582,9 @@ export default function Dashboard() {
                       // Create combined feed and remove duplicates
                       const postsWithType = posts.map((post: any) => ({ ...post, type: 'post' }));
                       const albumsWithType = albums.map((album: any) => ({ ...album, type: 'album' }));
-                      
-                      const combinedFeed = [...postsWithType, ...albumsWithType]
+                      const adsWithType = advertisements.map((ad: any) => ({ ...ad, type: 'advertisement' }));
+
+                      const combinedFeed = [...postsWithType, ...albumsWithType, ...adsWithType]
                         .filter((item, index, self) => {
                           // Remove duplicates based on ID
                           const itemId = normalizeId(item._id || item.id);
@@ -2777,8 +2592,7 @@ export default function Dashboard() {
                             const otherId = normalizeId(i._id || i.id);
                             return otherId === itemId && i.type === item.type;
                           });
-                        })
-                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+                        });
 
                       const renderFeed = () => {
                         const feedItems: React.ReactNode[] = [];
@@ -2800,8 +2614,76 @@ export default function Dashboard() {
                         }
 
                         combinedFeed.forEach((item: any, index: number) => {
+                          // Add advertisement
+                          if (item.type === 'advertisement') {
+                            const handleAdClick = async () => {
+                              try {
+                                const token = localStorage.getItem('token');
+                                await fetch(`${API_URL}/api/advertisements/${item._id}/click`, {
+                                  method: 'POST',
+                                  headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                                });
+
+                                // Open website URL if provided
+                                if (item.websiteUrl) {
+                                  window.open(item.websiteUrl, '_blank');
+                                }
+                              } catch (error) {
+                                console.error('Error tracking ad click:', error);
+                              }
+                            };
+
+                            feedItems.push(
+                              <div key={`ad-${item._id}-${index}`} className={`rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} p-4 mb-4 shadow-sm`}>
+                                {/* Sponsored Badge */}
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold">
+                                    {item.companyName ? item.companyName[0].toUpperCase() : 'A'}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        {item.companyName || 'Advertiser'}
+                                      </p>
+                                      <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 text-xs font-medium rounded">
+                                        Sponsored
+                                      </span>
+                                    </div>
+                                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {item.location || 'India'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Advertisement Content */}
+                                <div className="cursor-pointer" onClick={handleAdClick}>
+                                  {item.imageUrl && (
+                                    <img
+                                      src={item.imageUrl}
+                                      alt={item.title}
+                                      className="w-full rounded-lg mb-3 object-cover max-h-96"
+                                    />
+                                  )}
+
+                                  <h3 className={`font-semibold text-lg mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {item.title}
+                                  </h3>
+
+                                  <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-3`}>
+                                    {item.description}
+                                  </p>
+
+                                  {item.websiteUrl && (
+                                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {item.websiteUrl}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
                           // Add post/album
-                          if (item.type === 'album') {
+                          else if (item.type === 'album') {
                             feedItems.push(
                               <AlbumDisplay
                                 key={`album-${item._id}-${index}`}
@@ -2881,9 +2763,58 @@ export default function Dashboard() {
             >
               <div className="lg:sticky lg:top-4 space-y-3 sm:space-y-4">
                 {/* Pro Members Section */}
-                <div className={`rounded-lg sm:rounded-xl shadow p-1 xs:p-2 sm:p-3 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                  <div className={`font-semibold mb-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Pro Members</div>
-                  <button className="bg-orange-400 text-white px-2 xs:px-3 py-1.5 xs:py-2 rounded-full w-full mb-2 text-xs xs:text-sm">Upgrade To Pro</button>
+                <div className={`rounded-lg sm:rounded-xl shadow p-3 sm:p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                  <div className={`font-semibold mb-3 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-500">👑</span>
+                      Pro Members
+                    </div>
+                  </div>
+
+                  {proMembers.length > 0 ? (
+                    <div className="space-y-2">
+                      {proMembers.slice(0, 3).map((member: any) => (
+                        <div
+                          key={member._id}
+                          className={`flex items-center gap-2 p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
+                        >
+                          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-orange-400">
+                            <img
+                              src={member.avatar || '/default-avatar.svg'}
+                              alt={member.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-avatar.svg';
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`font-medium text-sm truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {member.name || member.username}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className={`text-xs ${member.plan === 'VIP' ? 'text-blue-500' : member.plan === 'Ultima' ? 'text-orange-500' : member.plan === 'Hot' ? 'text-red-500' : 'text-green-500'}`}>
+                                {member.plan}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={`text-xs text-center py-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      No pro members yet
+                    </div>
+                  )}
+
+                  {(!user?.plan || user.plan === 'Free') && (
+                    <button
+                      onClick={() => router.push('/dashboard/upgrade')}
+                      className="bg-orange-400 hover:bg-orange-500 text-white px-3 py-2 rounded-full w-full mt-3 text-xs font-semibold transition-colors"
+                    >
+                      Upgrade To Pro
+                    </button>
+                  )}
                 </div>
 
                 {/* Latest Products Section */}
@@ -2912,15 +2843,13 @@ export default function Dashboard() {
                       {latestPages.slice(0, 3).map((page) => (
                         <div
                           key={page._id}
-                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${
-                            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                          }`}
+                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                            }`}
                           onClick={() => router.push(`/dashboard/pages/${page._id}`)}
                         >
                           {/* Page Avatar */}
-                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 transition-colors duration-200 ${
-                            isDarkMode ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 transition-colors duration-200 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                            }`}>
                             {page.profileImage ? (
                               <img
                                 src={page.profileImage}
@@ -2940,7 +2869,7 @@ export default function Dashboard() {
                           </div>
 
                           {/* Page Info */}
-                                <div className="flex-1">
+                          <div className="flex-1">
                             <div className={`font-medium text-sm transition-colors ${isDarkMode ? 'text-white group-hover:text-blue-400' : 'text-gray-900 group-hover:text-blue-600'}`}>
                               {page.name}
                             </div>
@@ -2960,30 +2889,26 @@ export default function Dashboard() {
                       {/* View All Pages Button */}
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className={`w-full mt-3 text-sm font-medium py-2 rounded-lg transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' 
-                            : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                        }`}
+                        className={`w-full mt-3 text-sm font-medium py-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                          ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'
+                          : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                          }`}
                       >
                         View All Pages
                       </button>
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <div className={`text-2xl mb-2 transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                      }`}>📄</div>
-                      <div className={`text-sm transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`}>No pages yet</div>
+                      <div className={`text-2xl mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>📄</div>
+                      <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>No pages yet</div>
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className={`mt-2 text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'text-blue-400 hover:text-blue-300' 
-                            : 'text-blue-600 hover:text-blue-700'
-                        }`}
+                        className={`mt-2 text-xs font-medium transition-colors duration-200 ${isDarkMode
+                          ? 'text-blue-400 hover:text-blue-300'
+                          : 'text-blue-600 hover:text-blue-700'
+                          }`}
                       >
                         Create Page
                       </button>
@@ -2999,16 +2924,13 @@ export default function Dashboard() {
                     <div className="space-y-3">
                       {Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full animate-pulse transition-colors duration-200 ${
-                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          }`} />
+                          <div className={`w-10 h-10 rounded-full animate-pulse transition-colors duration-200 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                            }`} />
                           <div className="flex-1 space-y-2">
-                            <div className={`h-3 rounded animate-pulse transition-colors duration-200 ${
-                              isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                            }`} />
-                            <div className={`h-2 rounded w-2/3 animate-pulse transition-colors duration-200 ${
-                              isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                            }`} />
+                            <div className={`h-3 rounded animate-pulse transition-colors duration-200 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                              }`} />
+                            <div className={`h-2 rounded w-2/3 animate-pulse transition-colors duration-200 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                              }`} />
                           </div>
                         </div>
                       ))}
@@ -3018,15 +2940,13 @@ export default function Dashboard() {
                       {suggestedPages.slice(0, 5).map((page) => (
                         <div
                           key={page._id}
-                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${
-                            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                          }`}
+                          className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                            }`}
                           onClick={() => router.push(`/dashboard/pages/${page._id}`)}
                         >
                           {/* Page Avatar */}
-                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 transition-colors duration-200 ${
-                            isDarkMode ? 'border-gray-600' : 'border-gray-200'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 transition-colors duration-200 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'
+                            }`}>
                             {page.profileImage ? (
                               <img
                                 src={page.profileImage}
@@ -3046,30 +2966,26 @@ export default function Dashboard() {
                           </div>
 
                           {/* Page Info */}
-                                <div className="flex-1">
-                            <div className={`font-medium text-sm transition-colors duration-200 ${
-                              isDarkMode 
-                                ? 'text-white group-hover:text-blue-400' 
-                                : 'text-gray-900 group-hover:text-blue-600'
-                            }`}>
+                          <div className="flex-1">
+                            <div className={`font-medium text-sm transition-colors duration-200 ${isDarkMode
+                              ? 'text-white group-hover:text-blue-400'
+                              : 'text-gray-900 group-hover:text-blue-600'
+                              }`}>
                               {page.name}
                             </div>
-                            <div className={`text-xs transition-colors duration-200 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
+                            <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>
                               @{page.url}
                             </div>
-                            <div className={`text-xs transition-colors duration-200 ${
-                              isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                            }`}>
+                            <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                              }`}>
                               {page.category}
                             </div>
                           </div>
 
                           {/* Followers Count */}
-                          <div className={`text-xs text-right transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
+                          <div className={`text-xs text-right transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                             <div className="font-medium">{page.followers?.length || 0}</div>
                             <div>followers</div>
                           </div>
@@ -3079,30 +2995,26 @@ export default function Dashboard() {
                       {/* View All Pages Button */}
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className={`w-full mt-3 text-sm font-medium py-2 rounded-lg transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20' 
-                            : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                        }`}
+                        className={`w-full mt-3 text-sm font-medium py-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                          ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/20'
+                          : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                          }`}
                       >
                         View All Pages
                       </button>
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <div className={`text-2xl mb-2 transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                      }`}>📄</div>
-                      <div className={`text-sm transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`}>No pages yet</div>
+                      <div className={`text-2xl mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>📄</div>
+                      <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                        }`}>No pages yet</div>
                       <button
                         onClick={() => router.push('/dashboard/pages')}
-                        className={`mt-2 text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'text-blue-400 hover:text-blue-300' 
-                            : 'text-blue-600 hover:text-blue-700'
-                        }`}
+                        className={`mt-2 text-xs font-medium transition-colors duration-200 ${isDarkMode
+                          ? 'text-blue-400 hover:text-blue-300'
+                          : 'text-blue-600 hover:text-blue-700'
+                          }`}
                       >
                         Create Page
                       </button>
@@ -3156,13 +3068,12 @@ export default function Dashboard() {
       {showWatchModal && selectedPostForWatch && (
         <>
           <div className="fixed inset-0 flex items-center justify-center z-50 p-0 bg-black/90 backdrop-blur-sm">
-            <div className={`rounded-lg shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col border mx-auto transition-colors duration-200 ${
-              selectedPostForWatch.type === 'album'
-                ? 'bg-black border-gray-800'
-                : isDarkMode 
-                  ? 'bg-gray-900 border-gray-700' 
-                  : 'bg-white border-gray-200'
-            }`}>
+            <div className={`rounded-lg shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col border mx-auto transition-colors duration-200 ${selectedPostForWatch.type === 'album'
+              ? 'bg-black border-gray-800'
+              : isDarkMode
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-white border-gray-200'
+              }`}>
               {/* Modal Content - Fixed Layout */}
               <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                 {/* Left Side - Content/Media - Dark for Albums */}
@@ -3260,13 +3171,13 @@ export default function Dashboard() {
                             );
                           }
                           const currentMedia = mediaArray[currentMediaIndex];
-                          const rawUrl = typeof currentMedia === 'string' 
-                            ? currentMedia 
+                          const rawUrl = typeof currentMedia === 'string'
+                            ? currentMedia
                             : (currentMedia?.secure_url || currentMedia?.url || currentMedia?.path || '');
                           const resolvedUrl = getMediaUrl(rawUrl);
-                          const isVideo = currentMedia?.type === 'video' || 
-                                         currentMedia?.mimetype?.startsWith('video/') ||
-                                         /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(rawUrl);
+                          const isVideo = currentMedia?.type === 'video' ||
+                            currentMedia?.mimetype?.startsWith('video/') ||
+                            /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(rawUrl);
 
                           return (
                             <div className="w-full h-full flex items-center justify-center relative">
@@ -3353,230 +3264,223 @@ export default function Dashboard() {
                     </>
                   ) : (
                     <div className="p-4 pb-8 min-h-full">
-                    {/* Album Name and Description - Show for albums */}
-                    {selectedPostForWatch.type === 'album' && (
-                      <>
-                        {selectedPostForWatch.name && (
-                          <div className={`mb-3 text-lg sm:text-xl font-semibold transition-colors duration-200 ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            📸 {selectedPostForWatch.name}
-                          </div>
-                        )}
-                        {selectedPostForWatch.description && (
-                          <div className={`mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                          }`}>
-                            {selectedPostForWatch.description}
-                          </div>
-                        )}
-                      </>
-                    )}
+                      {/* Album Name and Description - Show for albums */}
+                      {selectedPostForWatch.type === 'album' && (
+                        <>
+                          {selectedPostForWatch.name && (
+                            <div className={`mb-3 text-lg sm:text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                              📸 {selectedPostForWatch.name}
+                            </div>
+                          )}
+                          {selectedPostForWatch.description && (
+                            <div className={`mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                              }`}>
+                              {selectedPostForWatch.description}
+                            </div>
+                          )}
+                        </>
+                      )}
 
-                    {/* Post Content - Simple Text */}
-                    {selectedPostForWatch.type !== 'album' && (() => {
-                      const content = selectedPostForWatch.content || selectedPostForWatch.text || '';
-                      const cleanContent = content ? content.replace(/<pre[^>]*>/g, '').replace(/<\/pre>/g, '').replace(/class="[^"]*"/g, '') : '';
-                      if (!cleanContent.trim()) return null;
-                      return (
-                        <div className={`mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
-                          {cleanContent}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Media Display - Simple without containers */}
-                    {(() => {
-                      // For albums, check both media and photos properties
-                      const mediaArray = selectedPostForWatch.type === 'album' 
-                        ? (selectedPostForWatch.media || selectedPostForWatch.photos || [])
-                        : (selectedPostForWatch.media || []);
-                      
-                      console.log('🖼️ Modal Media Display:', {
-                        type: selectedPostForWatch.type,
-                        mediaArrayLength: mediaArray?.length || 0,
-                        mediaArray: mediaArray,
-                        hasMedia: !!selectedPostForWatch.media,
-                        mediaLength: selectedPostForWatch.media?.length || 0
-                      });
-                      
-                      if (!mediaArray || mediaArray.length === 0) {
-                        console.log('⚠️ No media to display');
+                      {/* Post Content - Simple Text */}
+                      {selectedPostForWatch.type !== 'album' && (() => {
+                        const content = selectedPostForWatch.content || selectedPostForWatch.text || '';
+                        const cleanContent = content ? content.replace(/<pre[^>]*>/g, '').replace(/<\/pre>/g, '').replace(/class="[^"]*"/g, '') : '';
+                        if (!cleanContent.trim()) return null;
                         return (
-                          <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            No media found in this {selectedPostForWatch.type === 'album' ? 'album' : 'post'}
+                          <div className={`mb-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
+                            {cleanContent}
                           </div>
                         );
-                      }
-                      
-                      // For albums, show media in a grid layout
-                      const isAlbum = selectedPostForWatch.type === 'album';
-                      
-                      return (
-                      <div className={`${isAlbum ? 'grid grid-cols-2 sm:grid-cols-3 gap-2' : 'space-y-3'} mb-3 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-3 transition-colors duration-200`}>
-                        {mediaArray.map((media: any, index: number) => {
-                          const rawUrl = typeof media === 'string' 
-                            ? media 
-                            : (media?.secure_url || media?.url || media?.path || '');
-                          const resolvedUrl = getMediaUrl(rawUrl);
-                          
-                          console.log(`🖼️ Media ${index}:`, {
-                            rawUrl,
-                            resolvedUrl,
-                            mediaType: media?.type,
-                            mimetype: media?.mimetype
-                          });
-                          
-                          // Detect media type from type property or mimetype
-                          const isVideo = media.type === 'video' || 
-                                         media.mimetype?.startsWith('video/') ||
-                                         /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(rawUrl);
-                          const isAudio = media.type === 'audio' || media.mimetype?.startsWith('audio/');
-                          const isFile = media.type === 'file' || media.type === 'document' || 
-                                        media.mimetype?.includes('pdf') || 
-                                        media.mimetype?.includes('word') ||
-                                        media.mimetype?.includes('excel') ||
-                                        media.mimetype?.includes('powerpoint') ||
-                                        media.mimetype?.includes('text');
-                          
+                      })()}
+
+                      {/* Media Display - Simple without containers */}
+                      {(() => {
+                        // For albums, check both media and photos properties
+                        const mediaArray = selectedPostForWatch.type === 'album'
+                          ? (selectedPostForWatch.media || selectedPostForWatch.photos || [])
+                          : (selectedPostForWatch.media || []);
+
+                        console.log('🖼️ Modal Media Display:', {
+                          type: selectedPostForWatch.type,
+                          mediaArrayLength: mediaArray?.length || 0,
+                          mediaArray: mediaArray,
+                          hasMedia: !!selectedPostForWatch.media,
+                          mediaLength: selectedPostForWatch.media?.length || 0
+                        });
+
+                        if (!mediaArray || mediaArray.length === 0) {
+                          console.log('⚠️ No media to display');
                           return (
-                            <div key={index} className={`${isAlbum ? '' : `${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2`} transition-colors duration-200 ${isAlbum ? 'aspect-square overflow-hidden rounded-lg' : ''}`}>
-                              {isVideo ? (
-                                <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
-                                  <video
-                                    src={resolvedUrl}
-                                    controls
-                                    className="w-full max-h-[40vh] object-contain rounded-lg"
-                                    poster={media.thumbnail ? getMediaUrl(media.thumbnail) : ''}
-                                    onError={(e) => {
-                                      if (rawUrl && e.currentTarget.src !== rawUrl) {
-                                        e.currentTarget.src = rawUrl;
-                                      }
-                                    }}
-                                  />
-                                </div>
-                              ) : isAudio ? (
-                                <div className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">🎵</span>
-                                    <div className="flex-1">
-                                      <p className={`text-sm font-medium transition-colors duration-200 ${
-                                        isDarkMode ? 'text-white' : 'text-gray-900'
-                                      }`}>
-                                        {media.originalName || media.filename || media.name || 'Audio File'}
-                                      </p>
-                                      <p className={`text-xs transition-colors duration-200 ${
-                                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                      }`}>
-                                        {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
-                                      </p>
-                                    </div>
-                                    <audio src={resolvedUrl} controls className="w-full" />
-                                  </div>
-                                </div>
-                              ) : isFile ? (
-                                <div className={`${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}>
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">
-                                      {media.mimetype?.includes('pdf') ? '📕' : 
-                                       media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' : 
-                                       media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' : 
-                                       media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
-                                       media.mimetype?.includes('text') ? '📝' : '📄'}
-                                    </span>
-                                    <div className="flex-1">
-                                      <p className={`text-sm font-medium transition-colors duration-200 ${
-                                        isDarkMode ? 'text-white' : 'text-gray-900'
-                                      }`}>
-                                        {media.originalName || media.filename || media.name || 'Document'}
-                                      </p>
-                                      <p className={`text-xs transition-colors duration-200 ${
-                                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                      }`}>
-                                        {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
-                                        {media.extension && ` • ${media.extension.toUpperCase()}`}
-                                      </p>
-                                    </div>
-                                    <a
-                                      href={resolvedUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
-                                    >
-                                      Download
-                                    </a>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className={isAlbum 
-                                  ? 'w-full h-full' 
-                                  : `${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`
-                                }>
-                                  <img
-                                    src={resolvedUrl}
-                                    alt={isAlbum ? `Album photo ${index + 1}` : "Post media"}
-                                    className={`w-full ${isAlbum ? 'h-full object-cover' : 'max-h-[40vh] object-contain'} rounded-lg`}
-                                    loading="lazy"
-                                    onError={(e) => {
-                                      console.error('❌ Image failed to load:', {
-                                        resolvedUrl,
-                                        rawUrl,
-                                        media,
-                                        index
-                                      });
-                                      if (rawUrl && e.currentTarget.src !== rawUrl) {
-                                        e.currentTarget.src = rawUrl;
-                                      }
-                                    }}
-                                    onLoad={() => {
-                                      console.log('✅ Image loaded successfully:', resolvedUrl);
-                                    }}
-                                  />
-                                </div>
-                              )}
+                            <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              No media found in this {selectedPostForWatch.type === 'album' ? 'album' : 'post'}
                             </div>
                           );
-                        })}
-                      </div>
-                      );
-                    })()}
+                        }
 
-                    {/* Location Display - Simple */}
-                    {selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address) && (
-                      <div className={`flex items-center gap-2 text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        <span>📍</span>
-                        {selectedPostForWatch.location.name && (
-                          <span>{selectedPostForWatch.location.name}</span>
-                        )}
-                        {selectedPostForWatch.location.address && (
-                          <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-                            {selectedPostForWatch.location.name ? '• ' : ''}
-                            {selectedPostForWatch.location.address}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                        // For albums, show media in a grid layout
+                        const isAlbum = selectedPostForWatch.type === 'album';
 
-                    {/* Debug: Show if no content, media, or location */}
-                    {(() => {
-                      const hasContent = selectedPostForWatch.content || selectedPostForWatch.text || 
-                                       (selectedPostForWatch.type === 'album' && (selectedPostForWatch.name || selectedPostForWatch.description));
-                      const hasMedia = selectedPostForWatch.media && selectedPostForWatch.media.length > 0 ||
-                                      (selectedPostForWatch.type === 'album' && selectedPostForWatch.photos && selectedPostForWatch.photos.length > 0);
-                      const hasLocation = selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address);
-                      
-                      if (!hasContent && !hasMedia && !hasLocation) {
                         return (
-                          <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            No content available
+                          <div className={`${isAlbum ? 'grid grid-cols-2 sm:grid-cols-3 gap-2' : 'space-y-3'} mb-3 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-3 transition-colors duration-200`}>
+                            {mediaArray.map((media: any, index: number) => {
+                              const rawUrl = typeof media === 'string'
+                                ? media
+                                : (media?.secure_url || media?.url || media?.path || '');
+                              const resolvedUrl = getMediaUrl(rawUrl);
+
+                              console.log(`🖼️ Media ${index}:`, {
+                                rawUrl,
+                                resolvedUrl,
+                                mediaType: media?.type,
+                                mimetype: media?.mimetype
+                              });
+
+                              // Detect media type from type property or mimetype
+                              const isVideo = media.type === 'video' ||
+                                media.mimetype?.startsWith('video/') ||
+                                /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(rawUrl);
+                              const isAudio = media.type === 'audio' || media.mimetype?.startsWith('audio/');
+                              const isFile = media.type === 'file' || media.type === 'document' ||
+                                media.mimetype?.includes('pdf') ||
+                                media.mimetype?.includes('word') ||
+                                media.mimetype?.includes('excel') ||
+                                media.mimetype?.includes('powerpoint') ||
+                                media.mimetype?.includes('text');
+
+                              return (
+                                <div key={index} className={`${isAlbum ? '' : `${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2`} transition-colors duration-200 ${isAlbum ? 'aspect-square overflow-hidden rounded-lg' : ''}`}>
+                                  {isVideo ? (
+                                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                                      <video
+                                        src={resolvedUrl}
+                                        controls
+                                        className="w-full max-h-[40vh] object-contain rounded-lg"
+                                        poster={media.thumbnail ? getMediaUrl(media.thumbnail) : ''}
+                                        onError={(e) => {
+                                          if (rawUrl && e.currentTarget.src !== rawUrl) {
+                                            e.currentTarget.src = rawUrl;
+                                          }
+                                        }}
+                                      />
+                                    </div>
+                                  ) : isAudio ? (
+                                    <div className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-2xl">🎵</span>
+                                        <div className="flex-1">
+                                          <p className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                            }`}>
+                                            {media.originalName || media.filename || media.name || 'Audio File'}
+                                          </p>
+                                          <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                            }`}>
+                                            {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                                          </p>
+                                        </div>
+                                        <audio src={resolvedUrl} controls className="w-full" />
+                                      </div>
+                                    </div>
+                                  ) : isFile ? (
+                                    <div className={`${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-2xl">
+                                          {media.mimetype?.includes('pdf') ? '📕' :
+                                            media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' :
+                                              media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' :
+                                                media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
+                                                  media.mimetype?.includes('text') ? '📝' : '📄'}
+                                        </span>
+                                        <div className="flex-1">
+                                          <p className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                            }`}>
+                                            {media.originalName || media.filename || media.name || 'Document'}
+                                          </p>
+                                          <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                            }`}>
+                                            {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                                            {media.extension && ` • ${media.extension.toUpperCase()}`}
+                                          </p>
+                                        </div>
+                                        <a
+                                          href={resolvedUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                                        >
+                                          Download
+                                        </a>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className={isAlbum
+                                      ? 'w-full h-full'
+                                      : `${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`
+                                    }>
+                                      <img
+                                        src={resolvedUrl}
+                                        alt={isAlbum ? `Album photo ${index + 1}` : "Post media"}
+                                        className={`w-full ${isAlbum ? 'h-full object-cover' : 'max-h-[40vh] object-contain'} rounded-lg`}
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          console.error('❌ Image failed to load:', {
+                                            resolvedUrl,
+                                            rawUrl,
+                                            media,
+                                            index
+                                          });
+                                          if (rawUrl && e.currentTarget.src !== rawUrl) {
+                                            e.currentTarget.src = rawUrl;
+                                          }
+                                        }}
+                                        onLoad={() => {
+                                          console.log('✅ Image loaded successfully:', resolvedUrl);
+                                        }}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         );
-                      }
-                      return null;
-                    })()}
-                  </div>
+                      })()}
+
+                      {/* Location Display - Simple */}
+                      {selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address) && (
+                        <div className={`flex items-center gap-2 text-sm mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          <span>📍</span>
+                          {selectedPostForWatch.location.name && (
+                            <span>{selectedPostForWatch.location.name}</span>
+                          )}
+                          {selectedPostForWatch.location.address && (
+                            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
+                              {selectedPostForWatch.location.name ? '• ' : ''}
+                              {selectedPostForWatch.location.address}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Debug: Show if no content, media, or location */}
+                      {(() => {
+                        const hasContent = selectedPostForWatch.content || selectedPostForWatch.text ||
+                          (selectedPostForWatch.type === 'album' && (selectedPostForWatch.name || selectedPostForWatch.description));
+                        const hasMedia = selectedPostForWatch.media && selectedPostForWatch.media.length > 0 ||
+                          (selectedPostForWatch.type === 'album' && selectedPostForWatch.photos && selectedPostForWatch.photos.length > 0);
+                        const hasLocation = selectedPostForWatch.location && (selectedPostForWatch.location.name || selectedPostForWatch.location.address);
+
+                        if (!hasContent && !hasMedia && !hasLocation) {
+                          return (
+                            <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              No content available
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                   )}
                 </div>
 
@@ -3701,7 +3605,7 @@ export default function Dashboard() {
                                     handleAlbumComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
                                     setSelectedPostForWatch((prev: any) => ({
                                       ...prev,
-                                      comments: [...(prev.comments || []), { 
+                                      comments: [...(prev.comments || []), {
                                         text: commentText,
                                         user: JSON.parse(localStorage.getItem('user') || '{}'),
                                         createdAt: new Date().toISOString()
@@ -3720,170 +3624,170 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <>
-                  {/* Action Buttons - Enhanced */}
-                  <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
-                    {/* Like Button - Enhanced */}
-                    <button
-                      onClick={() => {
-                        if (selectedPostForWatch.type === 'album') {
-                          handleAlbumLike(selectedPostForWatch._id || selectedPostForWatch.id);
-                        } else {
-                          handleLike(selectedPostForWatch._id || selectedPostForWatch.id);
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId()))
-                          ? isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-100 text-red-600'
-                          : isDarkMode ? 'bg-gray-700 text-white hover:bg-red-900/10 hover:text-red-500' : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-500'
-                        }`}
-                    >
-                      <span>❤️</span>
-                      <span>
-                        {(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId())) ? 'Liked' : 'Like'}
-                      </span>
-                    </button>
-
-                    {/* Comment Button - Enhanced */}
-                    <button
-                      onClick={() => {
-                        const commentInput = document.getElementById('watch-comment-input');
-                        if (commentInput) commentInput.focus();
-                      }}
-                      className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 text-white hover:bg-blue-900/10 hover:text-blue-500' : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-500'}`}
-                    >
-                      <span>💬</span>
-                      <span>Comment</span>
-                    </button>
-
-                    {/* Share Button - Enhanced */}
-                    <button
-                      onClick={() => {
-                        handleShare(selectedPostForWatch._id || selectedPostForWatch.id, {
-                          shareOnTimeline: false,
-                          shareToPage: false,
-                          shareToGroup: false,
-                          customMessage: ''
-                        });
-                        setShowWatchModal(false);
-                      }}
-                      className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 text-white hover:bg-green-900/10 hover:text-green-500' : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-500'}`}
-                    >
-                      <span>📤</span>
-                      <span>Share</span>
-                    </button>
-                  </div>
-
-                  {/* Like Count - Enhanced */}
-                  {(selectedPostForWatch.likes?.length > 0 || selectedPostForWatch.likedBy?.length > 0) && (
-                    <div className={`mb-3 p-2 rounded-lg text-sm flex-shrink-0 ${isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
-                      {selectedPostForWatch.likes?.length || selectedPostForWatch.likedBy?.length} likes
-                    </div>
-                  )}
-
-                  {/* Comments Section - Enhanced */}
-                  <div className="flex-1 flex flex-col min-h-0">
-                    <div className="mb-3 flex-shrink-0">
-                      <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Comments ({selectedPostForWatch.comments?.length || 0})
-                      </h3>
-                    </div>
-
-                    {/* Comment Input - Enhanced */}
-                    <div className={`rounded-lg p-3 border mb-3 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                      <div className="flex gap-2">
-                        <img
-                          src={JSON.parse(localStorage.getItem('user') || '{}')?.avatar || '/default-avatar.svg'}
-                          alt="Your avatar"
-                          className="w-6 h-6 rounded-full flex-shrink-0"
-                          onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.svg';
+                      {/* Action Buttons - Enhanced */}
+                      <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
+                        {/* Like Button - Enhanced */}
+                        <button
+                          onClick={() => {
+                            if (selectedPostForWatch.type === 'album') {
+                              handleAlbumLike(selectedPostForWatch._id || selectedPostForWatch.id);
+                            } else {
+                              handleLike(selectedPostForWatch._id || selectedPostForWatch.id);
+                            }
                           }}
-                        />
-                        <div className="flex-1 flex gap-2">
-                          <input
-                            id="watch-comment-input"
-                            type="text"
-                            placeholder="Add a comment..."
-                            className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
-                          />
-                          <button
-                            onClick={async () => {
-                              const input = document.getElementById('watch-comment-input') as HTMLInputElement;
-                              if (input && input.value.trim()) {
-                                const commentText = input.value.trim();
-                                input.value = '';
-                                
-                                // Handle comment for albums vs posts
-                                if (selectedPostForWatch.type === 'album') {
-                                  await handleAlbumComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
-                                  // Update the modal state with the new comment
-                                  setSelectedPostForWatch((prev: any) => ({
-                                    ...prev,
-                                    comments: [...(prev.comments || []), { 
-                                      text: commentText,
-                                      user: JSON.parse(localStorage.getItem('user') || '{}'),
-                                      createdAt: new Date().toISOString()
-                                    }]
-                                  }));
-                                } else {
-                                  await handleAddComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
-                                  // Update the modal state with the new comment
-                                  setSelectedPostForWatch((prev: any) => ({
-                                    ...prev,
-                                    comments: [...(prev.comments || []), { 
-                                      text: commentText,
-                                      user: JSON.parse(localStorage.getItem('user') || '{}'),
-                                      createdAt: new Date().toISOString()
-                                    }]
-                                  }));
-                                }
-                              }
-                            }}
-                            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
-                          >
-                            Post
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId()))
+                            ? isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-100 text-red-600'
+                            : isDarkMode ? 'bg-gray-700 text-white hover:bg-red-900/10 hover:text-red-500' : 'bg-gray-100 text-gray-700 hover:bg-red-50 hover:text-red-500'
+                            }`}
+                        >
+                          <span>❤️</span>
+                          <span>
+                            {(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId())) ? 'Liked' : 'Like'}
+                          </span>
+                        </button>
 
-                    {/* Comments List - Enhanced */}
-                    <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-2">
-                      {selectedPostForWatch.comments?.map((comment: any, index: number) => (
-                        <div key={index} className={`rounded-lg p-3 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                        {/* Comment Button - Enhanced */}
+                        <button
+                          onClick={() => {
+                            const commentInput = document.getElementById('watch-comment-input');
+                            if (commentInput) commentInput.focus();
+                          }}
+                          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 text-white hover:bg-blue-900/10 hover:text-blue-500' : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-500'}`}
+                        >
+                          <span>💬</span>
+                          <span>Comment</span>
+                        </button>
+
+                        {/* Share Button - Enhanced */}
+                        <button
+                          onClick={() => {
+                            handleShare(selectedPostForWatch._id || selectedPostForWatch.id, {
+                              shareOnTimeline: false,
+                              shareToPage: false,
+                              shareToGroup: false,
+                              customMessage: ''
+                            });
+                            setShowWatchModal(false);
+                          }}
+                          className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium ${isDarkMode ? 'bg-gray-700 text-white hover:bg-green-900/10 hover:text-green-500' : 'bg-gray-100 text-gray-700 hover:bg-green-50 hover:text-green-500'}`}
+                        >
+                          <span>📤</span>
+                          <span>Share</span>
+                        </button>
+                      </div>
+
+                      {/* Like Count - Enhanced */}
+                      {(selectedPostForWatch.likes?.length > 0 || selectedPostForWatch.likedBy?.length > 0) && (
+                        <div className={`mb-3 p-2 rounded-lg text-sm flex-shrink-0 ${isDarkMode ? 'bg-red-900/20 text-red-400' : 'bg-red-50 text-red-600'}`}>
+                          {selectedPostForWatch.likes?.length || selectedPostForWatch.likedBy?.length} likes
+                        </div>
+                      )}
+
+                      {/* Comments Section - Enhanced */}
+                      <div className="flex-1 flex flex-col min-h-0">
+                        <div className="mb-3 flex-shrink-0">
+                          <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            Comments ({selectedPostForWatch.comments?.length || 0})
+                          </h3>
+                        </div>
+
+                        {/* Comment Input - Enhanced */}
+                        <div className={`rounded-lg p-3 border mb-3 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                           <div className="flex gap-2">
                             <img
-                              src={comment.user?.avatar || '/default-avatar.svg'}
-                              alt="User avatar"
+                              src={JSON.parse(localStorage.getItem('user') || '{}')?.avatar || '/default-avatar.svg'}
+                              alt="Your avatar"
                               className="w-6 h-6 rounded-full flex-shrink-0"
                               onError={(e) => {
                                 e.currentTarget.src = '/default-avatar.svg';
                               }}
                             />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  {comment.user?.name || comment.user?.username || 'User'}
-                                </span>
-                                <span className={`text-xs flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                  {new Date(comment.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <div className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                {comment.text || comment.content}
-                              </div>
+                            <div className="flex-1 flex gap-2">
+                              <input
+                                id="watch-comment-input"
+                                type="text"
+                                placeholder="Add a comment..."
+                                className={`flex-1 px-3 py-2 border rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
+                              />
+                              <button
+                                onClick={async () => {
+                                  const input = document.getElementById('watch-comment-input') as HTMLInputElement;
+                                  if (input && input.value.trim()) {
+                                    const commentText = input.value.trim();
+                                    input.value = '';
+
+                                    // Handle comment for albums vs posts
+                                    if (selectedPostForWatch.type === 'album') {
+                                      await handleAlbumComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
+                                      // Update the modal state with the new comment
+                                      setSelectedPostForWatch((prev: any) => ({
+                                        ...prev,
+                                        comments: [...(prev.comments || []), {
+                                          text: commentText,
+                                          user: JSON.parse(localStorage.getItem('user') || '{}'),
+                                          createdAt: new Date().toISOString()
+                                        }]
+                                      }));
+                                    } else {
+                                      await handleAddComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
+                                      // Update the modal state with the new comment
+                                      setSelectedPostForWatch((prev: any) => ({
+                                        ...prev,
+                                        comments: [...(prev.comments || []), {
+                                          text: commentText,
+                                          user: JSON.parse(localStorage.getItem('user') || '{}'),
+                                          createdAt: new Date().toISOString()
+                                        }]
+                                      }));
+                                    }
+                                  }
+                                }}
+                                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                              >
+                                Post
+                              </button>
                             </div>
                           </div>
                         </div>
-                      ))}
 
-                      {(!selectedPostForWatch.comments || selectedPostForWatch.comments.length === 0) && (
-                        <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          <div className="text-4xl mb-2">💬</div>
-                          <div className="text-sm">No comments yet. Be the first to comment!</div>
+                        {/* Comments List - Enhanced */}
+                        <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-2">
+                          {selectedPostForWatch.comments?.map((comment: any, index: number) => (
+                            <div key={index} className={`rounded-lg p-3 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                              <div className="flex gap-2">
+                                <img
+                                  src={comment.user?.avatar || '/default-avatar.svg'}
+                                  alt="User avatar"
+                                  className="w-6 h-6 rounded-full flex-shrink-0"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/default-avatar.svg';
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                      {comment.user?.name || comment.user?.username || 'User'}
+                                    </span>
+                                    <span className={`text-xs flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {new Date(comment.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <div className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                    {comment.text || comment.content}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {(!selectedPostForWatch.comments || selectedPostForWatch.comments.length === 0) && (
+                            <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              <div className="text-4xl mb-2">💬</div>
+                              <div className="text-sm">No comments yet. Be the first to comment!</div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
+                      </div>
                     </>
                   )}
                 </div>
@@ -3896,22 +3800,19 @@ export default function Dashboard() {
       {/* Post Creation Modal */}
       {showPostModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black/20 backdrop-blur-md" style={{ paddingTop: '60px', paddingBottom: '80px' }}>
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${
-            isDarkMode 
-              ? 'bg-gray-800/90 border-gray-700/30' 
-              : 'bg-white/90 border-gray-200/20'
-          }`}>
-            {/* Modal Header */}
-            <div className={`flex items-center justify-between p-3 sm:p-4 border-b transition-colors duration-200 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode
+            ? 'bg-gray-800/90 border-gray-700/30'
+            : 'bg-white/90 border-gray-200/20'
             }`}>
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between p-3 sm:p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
               <button
                 onClick={() => setShowPostModal(false)}
-                className={`transition-colors p-1 ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-gray-200' 
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`transition-colors p-1 ${isDarkMode
+                  ? 'text-gray-400 hover:text-gray-200'
+                  : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3919,9 +3820,8 @@ export default function Dashboard() {
               </button>
 
               <div className="flex items-center gap-2">
-                <span className={`text-xs sm:text-sm transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{1800 - (newPost.length)}</span>
+                <span className={`text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>{1800 - (newPost.length)}</span>
                 <button
                   onClick={handleModalPost}
                   disabled={posting || (!newPost.trim() && modalMediaFiles.length === 0 && !selectedGif && !voiceRecording && !selectedFeeling && !sellData && !pollData && !locationData)}
@@ -3939,33 +3839,29 @@ export default function Dashboard() {
                 placeholder="What's happening?"
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
-                className={`w-full border-none outline-none text-sm sm:text-base resize-none min-h-[60px] sm:min-h-[80px] bg-transparent transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'text-white placeholder-gray-400' 
-                    : 'text-gray-900 placeholder-gray-500'
-                }`}
+                className={`w-full border-none outline-none text-sm sm:text-base resize-none min-h-[60px] sm:min-h-[80px] bg-transparent transition-colors duration-200 ${isDarkMode
+                  ? 'text-white placeholder-gray-400'
+                  : 'text-gray-900 placeholder-gray-500'
+                  }`}
                 maxLength={1800}
               />
 
               {/* Media Preview */}
               {modalMediaFiles.length > 0 && (
                 <div className="mt-3 sm:mt-4">
-                  <div className={`text-xs sm:text-sm mb-2 transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Selected files ({modalMediaFiles.length}):</div>
+                  <div className={`text-xs sm:text-sm mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Selected files ({modalMediaFiles.length}):</div>
                   <div className="space-y-3">
                     {modalMediaFiles.map((file, index) => (
-                      <div key={index} className={`rounded-lg p-3 border transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gray-700 border-gray-600' 
-                          : 'bg-gray-100 border-gray-200'
-                      }`}>
+                      <div key={index} className={`rounded-lg p-3 border transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600'
+                        : 'bg-gray-100 border-gray-200'
+                        }`}>
                         <div className="flex items-start gap-3">
                           {/* Image/Video Thumbnail Preview */}
                           {file.type.startsWith('image/') ? (
-                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 transition-colors duration-200 ${
-                              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                            }`}>
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                              }`}>
                               <img
                                 src={URL.createObjectURL(file)}
                                 alt={file.name}
@@ -3996,9 +3892,8 @@ export default function Dashboard() {
                               </div>
                             </div>
                           ) : (
-                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${
-                              isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
-                            }`}>
+                            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                              }`}>
                               <span className="text-3xl sm:text-4xl">
                                 {file.type.startsWith('audio/') ? '🎵' : '📄'}
                               </span>
@@ -4006,22 +3901,19 @@ export default function Dashboard() {
                           )}
 
                           {/* File Info */}
-                                <div className="flex-1">
+                          <div className="flex-1">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <div className={`font-medium text-sm mb-1 transition-colors duration-200 ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                }`}>
+                                <div className={`font-medium text-sm mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
                                   {file.name}
                                 </div>
-                                <div className={`text-xs transition-colors duration-200 ${
-                                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                                }`}>
+                                <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                                  }`}>
                                   {(file.size / 1024 / 1024).toFixed(1)}MB
                                 </div>
-                                <div className={`text-xs mt-1 transition-colors duration-200 ${
-                                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                                }`}>
+                                <div className={`text-xs mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                                  }`}>
                                   {file.type.startsWith('image/') ? 'Image' :
                                     file.type.startsWith('video/') ? 'Video' :
                                       file.type.startsWith('audio/') ? 'Audio' : 'Document'}
@@ -4048,11 +3940,10 @@ export default function Dashboard() {
                   {/* Clear All Button */}
                   <button
                     onClick={clearModalMedia}
-                    className={`mt-3 text-sm text-red-500 px-3 py-2 rounded-lg transition-colors font-medium ${
-                      isDarkMode 
-                        ? 'hover:text-red-400 hover:bg-red-900/20' 
-                        : 'hover:text-red-700 hover:bg-red-50'
-                    }`}
+                    className={`mt-3 text-sm text-red-500 px-3 py-2 rounded-lg transition-colors font-medium ${isDarkMode
+                      ? 'hover:text-red-400 hover:bg-red-900/20'
+                      : 'hover:text-red-700 hover:bg-red-50'
+                      }`}
                   >
                     Clear all files
                   </button>
@@ -4063,90 +3954,78 @@ export default function Dashboard() {
               {(selectedGif || voiceRecording || selectedFeeling || sellData || pollData || locationData) && (
                 <div className="mt-3 sm:mt-4 space-y-2">
                   {selectedGif && (
-                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       <span>🎭 GIF: {selectedGif.source}</span>
                       <button
                         onClick={() => setSelectedGif(null)}
-                        className={`text-red-500 transition-colors p-1 ${
-                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
-                        }`}
+                        className={`text-red-500 transition-colors p-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                          }`}
                       >
                         ✕
                       </button>
                     </div>
                   )}
                   {voiceRecording && (
-                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       <span>🎤 Voice recording</span>
                       <button
                         onClick={() => setVoiceRecording(null)}
-                        className={`text-red-500 transition-colors p-1 ${
-                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
-                        }`}
+                        className={`text-red-500 transition-colors p-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                          }`}
                       >
                         ✕
                       </button>
                     </div>
                   )}
                   {selectedFeeling && (
-                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       <span>{selectedFeeling.emoji} Feeling: {selectedFeeling.description}</span>
                       <button
                         onClick={() => setSelectedFeeling(null)}
-                        className={`text-red-500 transition-colors p-1 ${
-                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
-                        }`}
+                        className={`text-red-500 transition-colors p-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                          }`}
                       >
                         ✕
                       </button>
                     </div>
                   )}
                   {sellData && (
-                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       <span>🏪 Selling: {sellData.productName} - ${sellData.price}</span>
                       <button
                         onClick={() => setSellData(null)}
-                        className={`text-red-500 transition-colors p-1 ${
-                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
-                        }`}
+                        className={`text-red-500 transition-colors p-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                          }`}
                       >
                         ✕
                       </button>
                     </div>
                   )}
                   {pollData && (
-                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       <span>📊 Poll: {pollData.question}</span>
                       <button
                         onClick={() => setPollData(null)}
-                        className={`text-red-500 transition-colors p-1 ${
-                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
-                        }`}
+                        className={`text-red-500 transition-colors p-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                          }`}
                       >
                         ✕
                       </button>
                     </div>
                   )}
                   {locationData && (
-                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
+                    <div className={`flex items-center gap-2 text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
                       <span>📍 Location: {locationData.name}</span>
                       <button
                         onClick={() => setLocationData(null)}
-                        className={`text-red-500 transition-colors p-1 ${
-                          isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
-                        }`}
+                        className={`text-red-500 transition-colors p-1 ${isDarkMode ? 'hover:text-red-400' : 'hover:text-red-700'
+                          }`}
                       >
                         ✕
                       </button>
@@ -4159,47 +4038,47 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
-                    const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
-                    if (textarea) {
-                      const start = textarea.selectionStart;
-                      const end = textarea.selectionEnd;
-                      const text = textarea.value;
-                      const before = text.substring(0, start);
-                      const selected = text.substring(start, end);
-                      const after = text.substring(end);
-                      textarea.value = before + '#' + selected + after;
-                      textarea.setSelectionRange(start + 1, start + 1 + selected.length);
-                      textarea.focus();
-                      setNewPost(textarea.value);
-                    }
-                  }}
-                  className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-                  title="Add hashtag"
-                      >
-                        <span className="text-base font-bold">#</span>
-                      </button>
+                        const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
+                        if (textarea) {
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const text = textarea.value;
+                          const before = text.substring(0, start);
+                          const selected = text.substring(start, end);
+                          const after = text.substring(end);
+                          textarea.value = before + '#' + selected + after;
+                          textarea.setSelectionRange(start + 1, start + 1 + selected.length);
+                          textarea.focus();
+                          setNewPost(textarea.value);
+                        }
+                      }}
+                      className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                      title="Add hashtag"
+                    >
+                      <span className="text-base font-bold">#</span>
+                    </button>
 
                     <button
                       onClick={() => {
-                    const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
-                    if (textarea) {
-                      const start = textarea.selectionStart;
-                      const end = textarea.selectionEnd;
-                      const text = textarea.value;
-                      const before = text.substring(0, start);
-                      const selected = text.substring(start, end);
-                      const after = text.substring(end);
-                      textarea.value = before + '@' + selected + after;
-                      textarea.setSelectionRange(start + 1, start + 1 + selected.length);
-                      textarea.focus();
-                      setNewPost(textarea.value);
-                    }
-                  }}
-                  className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-                  title="Mention user"
-                      >
-                        <span className="text-base font-bold">@</span>
-                      </button>
+                        const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
+                        if (textarea) {
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const text = textarea.value;
+                          const before = text.substring(0, start);
+                          const selected = text.substring(start, end);
+                          const after = text.substring(end);
+                          textarea.value = before + '@' + selected + after;
+                          textarea.setSelectionRange(start + 1, start + 1 + selected.length);
+                          textarea.focus();
+                          setNewPost(textarea.value);
+                        }
+                      }}
+                      className={`transition-colors p-1.5 sm:p-2 rounded-lg ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+                      title="Mention user"
+                    >
+                      <span className="text-base font-bold">@</span>
+                    </button>
 
                     <button
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -4282,7 +4161,7 @@ export default function Dashboard() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
-            
+
               {showEmojiPicker && (
                 <div className={`mt-3 sm:mt-4 p-3 sm:p-4 rounded-lg border ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
                   <div className="flex items-center justify-between mb-2 sm:mb-3">
@@ -4365,10 +4244,10 @@ export default function Dashboard() {
 
 
               {/* Mark/Formatting Icons */}
-             
+
 
               {/* Emoji Picker */}
-            
+
 
               {/* Hidden file inputs */}
               <input
@@ -4564,20 +4443,16 @@ export default function Dashboard() {
       {/* Feelings Selection Modal */}
       {showFeelingsModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${
-            isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-          }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
             }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>How are you feeling?</h3>
+            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>How are you feeling?</h3>
               <button
                 onClick={() => setShowFeelingsModal(false)}
-                className={`transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -4606,16 +4481,14 @@ export default function Dashboard() {
                       setSelectedFeeling(feeling);
                       setShowFeelingsModal(false);
                     }}
-                    className={`flex flex-col items-center p-3 rounded-lg transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600' 
-                        : 'bg-gray-50 hover:bg-gray-100'
-                    }`}
+                    className={`flex flex-col items-center p-3 rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 hover:bg-gray-600'
+                      : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
                   >
                     <span className="text-3xl mb-2">{feeling.emoji}</span>
-                    <span className={`text-xs text-center transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>{feeling.description}</span>
+                    <span className={`text-xs text-center transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>{feeling.description}</span>
                   </button>
                 ))}
               </div>
@@ -4627,20 +4500,16 @@ export default function Dashboard() {
       {/* Sell Product Modal */}
       {showSellModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${
-            isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-          }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
             }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Sell Product</h3>
+            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Sell Product</h3>
               <button
                 onClick={() => setShowSellModal(false)}
-                className={`transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -4654,31 +4523,28 @@ export default function Dashboard() {
                   placeholder="Product name"
                   value={sellFormData.productName || ''}
                   onChange={(e) => setSellFormData(prev => ({ ...prev, productName: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <input
                   type="number"
                   placeholder="Price"
                   value={sellFormData.price || ''}
                   onChange={(e) => setSellFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <select
                   value={sellFormData.condition || 'New'}
                   onChange={(e) => setSellFormData(prev => ({ ...prev, condition: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 >
                   <option value="New">New</option>
                   <option value="Used">Used</option>
@@ -4692,9 +4558,8 @@ export default function Dashboard() {
                     onChange={(e) => setSellFormData(prev => ({ ...prev, negotiable: e.target.checked }))}
                     className={`w-3 xs:w-4 h-3 xs:h-4 text-blue-600 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} rounded focus:ring-blue-500`}
                   />
-                  <label htmlFor="negotiable" className={`text-sm transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>Price negotiable</label>
+                  <label htmlFor="negotiable" className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Price negotiable</label>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -4727,20 +4592,16 @@ export default function Dashboard() {
       {/* Create Poll Modal */}
       {showPollModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${
-            isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-          }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
             }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Create Poll</h3>
+            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Create Poll</h3>
               <button
                 onClick={() => setShowPollModal(false)}
-                className={`transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -4754,55 +4615,50 @@ export default function Dashboard() {
                   placeholder="Poll question"
                   value={pollFormData.question || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, question: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <input
                   type="text"
                   placeholder="Option 1"
                   value={pollFormData.option1 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option1: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <input
                   type="text"
                   placeholder="Option 2"
                   value={pollFormData.option2 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option2: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <input
                   type="text"
                   placeholder="Option 3 (optional)"
                   value={pollFormData.option3 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option3: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <input
                   type="text"
                   placeholder="Option 4 (optional)"
                   value={pollFormData.option4 || ''}
                   onChange={(e) => setPollFormData(prev => ({ ...prev, option4: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-300 bg-white text-gray-900'
+                    }`}
                 />
                 <div className="flex items-center gap-2">
                   <input
@@ -4812,9 +4668,8 @@ export default function Dashboard() {
                     onChange={(e) => setPollFormData(prev => ({ ...prev, isMultipleChoice: e.target.checked }))}
                     className={`w-3 xs:w-4 h-3 xs:h-4 text-blue-600 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} rounded focus:ring-blue-500`}
                   />
-                  <label htmlFor="multipleChoice" className={`text-sm transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>Allow multiple choices</label>
+                  <label htmlFor="multipleChoice" className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>Allow multiple choices</label>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -4855,20 +4710,16 @@ export default function Dashboard() {
       {/* Location Modal */}
       {showLocationModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${
-            isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-          }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
             }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Add Location</h3>
+            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Add Location</h3>
               <button
                 onClick={() => setShowLocationModal(false)}
-                className={`transition-colors duration-200 ${
-                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                }`}
+                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                  }`}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -4879,9 +4730,8 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {/* Worldwide Location Search */}
                 <div className="space-y-2">
-                  <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     🌍 Search Worldwide Location
                   </label>
                   <div className="relative">
@@ -4893,11 +4743,10 @@ export default function Dashboard() {
                         setLocationSearchQuery(e.target.value);
                         searchWorldwideLocation(e.target.value);
                       }}
-                      className={`w-full px-3 py-2 border rounded-lg pr-10 transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'border-gray-600 bg-gray-700 text-white' 
-                          : 'border-gray-300 bg-white text-gray-900'
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-lg pr-10 transition-colors duration-200 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700 text-white'
+                        : 'border-gray-300 bg-white text-gray-900'
+                        }`}
                     />
                     {locationSearchLoading && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -4908,11 +4757,10 @@ export default function Dashboard() {
 
                   {/* Search Results */}
                   {locationSearchResults.length > 0 && (
-                    <div className={`max-h-40 overflow-y-auto border rounded-lg transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'border-gray-600 bg-gray-700' 
-                        : 'border-gray-200 bg-white'
-                    }`}>
+                    <div className={`max-h-40 overflow-y-auto border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700'
+                      : 'border-gray-200 bg-white'
+                      }`}>
                       {locationSearchResults.map((result, index) => (
                         <button
                           key={index}
@@ -4929,20 +4777,17 @@ export default function Dashboard() {
                             setLocationSearchQuery(result.display_name);
                             setLocationSearchResults([]);
                           }}
-                          className={`w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors duration-200 ${
-                            isDarkMode 
-                              ? 'hover:bg-gray-600 border-gray-600' 
-                              : 'hover:bg-gray-100 border-gray-100'
-                          }`}
+                          className={`w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors duration-200 ${isDarkMode
+                            ? 'hover:bg-gray-600 border-gray-600'
+                            : 'hover:bg-gray-100 border-gray-100'
+                            }`}
                         >
-                          <div className={`font-medium text-sm transition-colors duration-200 ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>
+                          <div className={`font-medium text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                             {result.display_name.split(',')[0]}
                           </div>
-                          <div className={`text-xs transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
+                          <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                             {result.display_name}
                           </div>
                         </button>
@@ -4995,9 +4840,8 @@ export default function Dashboard() {
 
                 {/* Manual Location Input */}
                 <div className="space-y-2">
-                  <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
+                  <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
                     📝 Manual Location Input
                   </label>
                   <input
@@ -5005,31 +4849,28 @@ export default function Dashboard() {
                     placeholder="Location name"
                     value={locationFormData.name || ''}
                     onChange={(e) => setLocationFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'border-gray-600 bg-gray-700 text-white' 
-                        : 'border-gray-300 bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
                   />
                   <input
                     type="text"
                     placeholder="Address"
                     value={locationFormData.address || ''}
                     onChange={(e) => setLocationFormData(prev => ({ ...prev, address: e.target.value }))}
-                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'border-gray-600 bg-gray-700 text-white' 
-                        : 'border-gray-300 bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
                   />
                   <select
                     value={locationFormData.category || ''}
                     onChange={(e) => setLocationFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'border-gray-600 bg-gray-700 text-white' 
-                        : 'border-gray-300 bg-white text-gray-900'
-                    }`}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
                   >
                     <option value="">Select category</option>
                     <option value="restaurant">Restaurant</option>
@@ -5043,24 +4884,20 @@ export default function Dashboard() {
                   {/* Map Preview */}
                   {locationFormData.coordinates && (
                     <div className="space-y-2">
-                      <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
+                      <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>
                         🗺️ Location Preview
                       </label>
-                      <div className={`w-full h-32 rounded-lg flex items-center justify-center transition-colors duration-200 ${
-                        isDarkMode ? 'bg-gray-600' : 'bg-gray-100'
-                      }`}>
+                      <div className={`w-full h-32 rounded-lg flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-100'
+                        }`}>
                         <div className="text-center">
                           <div className="text-lg">📍</div>
-                          <div className={`text-sm transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}>
+                          <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
                             {locationFormData.name}
                           </div>
-                          <div className={`text-xs transition-colors duration-200 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
+                          <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                             {locationFormData.coordinates.lat.toFixed(6)}, {locationFormData.coordinates.lng.toFixed(6)}
                           </div>
                         </div>
@@ -5100,39 +4937,39 @@ export default function Dashboard() {
 }
 
 // AddCommentForm component for handling comment submissions
-const AddCommentForm = ({ postId, onAddComment }: { postId: string, onAddComment: (postId: string, text: string) => void }) => {
-  const { isDarkMode } = useDarkMode();
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+// const AddCommentForm = ({ postId, onAddComment }: { postId: string, onAddComment: (postId: string, text: string) => void }) => {
+//   const { isDarkMode } = useDarkMode();
+//   const [text, setText] = useState('');
+//   const [loading, setLoading] = useState(false);
+//   const inputRef = useRef<HTMLInputElement>(null);
 
-  return (
-    <form
-      className="flex items-center gap-2"
-      onSubmit={async e => {
-        e.preventDefault();
-        setLoading(true);
-        await onAddComment(postId, text);
-        setText(''); // Clear input after successful comment
-        setLoading(false);
-      }}
-    >
-      <input
-        type="text"
-        className={`flex-1 border rounded-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'}`}
-        placeholder="Add a comment..."
-        value={text}
-        onChange={e => setText(e.target.value)}
-        ref={inputRef}
-        disabled={loading}
-      />
-      <button
-        type="submit"
-        className="bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm flex-shrink-0 hover:bg-blue-600 transition-colors duration-200"
-        disabled={loading || !text.trim()}
-      >
-        {loading ? 'Posting...' : 'Comment'}
-      </button>
-    </form>
-  );
-};
+//   return (
+//     <form
+//       className="flex items-center gap-2"
+//       onSubmit={async e => {
+//         e.preventDefault();
+//         setLoading(true);
+//         await onAddComment(postId, text);
+//         setText(''); // Clear input after successful comment
+//         setLoading(false);
+//       }}
+//     >
+//       <input
+//         type="text"
+//         className={`flex-1 border rounded-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400' : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'}`}
+//         placeholder="Add a comment..."
+//         value={text}
+//         onChange={e => setText(e.target.value)}
+//         ref={inputRef}
+//         disabled={loading}
+//       />
+//       <button
+//         type="submit"
+//         className="bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm flex-shrink-0 hover:bg-blue-600 transition-colors duration-200"
+//         disabled={loading || !text.trim()}
+//       >
+//         {loading ? 'Posting...' : 'Comment'}
+//       </button>
+//     </form>
+//   );
+// };

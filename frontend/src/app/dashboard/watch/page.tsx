@@ -72,13 +72,13 @@ function extractYoutubeId(url: string) {
 function getMediaUrl(url: string) {
   if (!url) return '';
   if (url.startsWith('http')) return url;
-  
+
   // Always use HTTPS to avoid mixed content errors
   const secureUrl = API_URL.replace('http://', 'https://');
-  
+
   // Ensure proper URL construction with forward slash
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
-  
+
   return `${secureUrl}${cleanPath}`;
 }
 
@@ -118,11 +118,11 @@ const WatchPage: React.FC = () => {
         setLoading(true);
       }
       console.log('Fetching videos from backend...');
-      
+
       // Try to fetch videos from all sources with individual error handling
       let allVideos: Video[] = [];
       let fetchErrors: string[] = [];
-      
+
       try {
         console.log('Fetching from /api/videos endpoint...');
         const videosResponse = await axios.get(`${API_URL}/api/videos`);
@@ -132,7 +132,7 @@ const WatchPage: React.FC = () => {
         console.error('Error fetching videos:', err);
         fetchErrors.push('Videos');
       }
-      
+
       try {
         console.log('Fetching from /api/posts/videos endpoint...');
         const postsResponse = await axios.get(`${API_URL}/api/posts/videos`);
@@ -142,7 +142,7 @@ const WatchPage: React.FC = () => {
         console.error('Error fetching posts videos:', err);
         fetchErrors.push('Posts with videos');
       }
-      
+
       try {
         console.log('Fetching from /api/albums/videos endpoint...');
         const albumsResponse = await axios.get(`${API_URL}/api/albums/videos`);
@@ -154,18 +154,18 @@ const WatchPage: React.FC = () => {
       }
 
       console.log('📊 Total videos found:', allVideos.length);
-      
+
       // Sort videos by creation date (newest first)
-      allVideos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // allVideos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       console.log('Final videos array:', allVideos);
       setVideos(allVideos);
-      
+
       // Show warning if some sources failed but we have videos
       if (fetchErrors.length > 0 && allVideos.length > 0) {
         console.warn('Some video sources failed to load:', fetchErrors.join(', '));
       }
-      
+
       // Only set error if no videos were loaded at all
       if (allVideos.length === 0 && fetchErrors.length > 0) {
         setError(`Failed to load videos from: ${fetchErrors.join(', ')}`);
@@ -209,9 +209,9 @@ const WatchPage: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setVideos(prevVideos => 
-        prevVideos.map(video => 
-          video._id === videoId 
+      setVideos(prevVideos =>
+        prevVideos.map(video =>
+          video._id === videoId
             ? { ...video, likes: response.data.likes || response.data.likes?.length || [] }
             : video
         )
@@ -250,9 +250,9 @@ const WatchPage: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setVideos(prevVideos => 
-        prevVideos.map(video => 
-          video._id === videoId 
+      setVideos(prevVideos =>
+        prevVideos.map(video =>
+          video._id === videoId
             ? { ...video, comments: [...video.comments, response.data.comment || response.data] }
             : video
         )
@@ -287,9 +287,9 @@ const WatchPage: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setVideos(prevVideos => 
-        prevVideos.map(video => 
-          video._id === videoId 
+      setVideos(prevVideos =>
+        prevVideos.map(video =>
+          video._id === videoId
             ? { ...video, shares: response.data.shares || [] }
             : video
         )
@@ -353,9 +353,9 @@ const WatchPage: React.FC = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      setVideos(prevVideos => 
-        prevVideos.map(video => 
-          video._id === videoId 
+      setVideos(prevVideos =>
+        prevVideos.map(video =>
+          video._id === videoId
             ? { ...video, savedBy: response.data.savedBy || [] }
             : video
         )
@@ -400,7 +400,7 @@ const WatchPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('Reaction added successfully:', data);
-        
+
         // Show success feedback
         const reactionEmojis: { [key: string]: string } = {
           'like': '👍',
@@ -410,10 +410,10 @@ const WatchPage: React.FC = () => {
           'sad': '😢',
           'angry': '😠'
         };
-        
+
         const emoji = reactionEmojis[reactionType] || '😊';
         alert(`${emoji} Reaction added successfully!`);
-        
+
         // Update local state to reflect the new reaction
         // For now, we'll refresh the page to get updated data
         // In a real app, you'd update the local state
@@ -438,7 +438,7 @@ const WatchPage: React.FC = () => {
     // Check if user has any reaction on this video
     if (video.reactions && video.reactions.length > 0) {
       // Find user's reaction
-      const userReaction = video.reactions.find((r: any) => 
+      const userReaction = video.reactions.find((r: any) =>
         r.user === getCurrentUserId() || r.userId === getCurrentUserId()
       );
       return userReaction ? userReaction.type : null;
@@ -448,16 +448,16 @@ const WatchPage: React.FC = () => {
 
   const getMostCommonReactionEmoji = (video: Video) => {
     if (!video.reactions || video.reactions.length === 0) return '👍';
-    
+
     const reactionCounts: { [key: string]: number } = {};
     video.reactions.forEach((reaction: any) => {
       reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
     });
-    
-    const mostCommon = Object.keys(reactionCounts).reduce((a, b) => 
+
+    const mostCommon = Object.keys(reactionCounts).reduce((a, b) =>
       reactionCounts[a] > reactionCounts[b] ? a : b
     );
-    
+
     const reactionEmojis: { [key: string]: string } = {
       'like': '👍',
       'love': '❤️',
@@ -466,7 +466,7 @@ const WatchPage: React.FC = () => {
       'sad': '😢',
       'angry': '😠'
     };
-    
+
     return reactionEmojis[mostCommon] || '👍';
   };
 
@@ -522,7 +522,7 @@ const WatchPage: React.FC = () => {
       const date = new Date(dateString);
       const now = new Date();
       const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-      
+
       if (diffInSeconds < 60) return `${diffInSeconds}s`;
       if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
       if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
@@ -548,8 +548,8 @@ const WatchPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full overflow-hidden mr-3">
-                  <img 
-                    src={video.user.avatar ? (video.user.avatar.startsWith('http') ? video.user.avatar : `${API_URL}/${video.user.avatar}`) : '/avatars/1.png.png'} 
+                <img
+                  src={video.user.avatar ? (video.user.avatar.startsWith('http') ? video.user.avatar : `${API_URL}/${video.user.avatar}`) : '/avatars/1.png.png'}
                   alt={video.user.name}
                   className="w-full h-full object-cover"
                   onError={(e) => {
@@ -596,7 +596,7 @@ const WatchPage: React.FC = () => {
         </div>
 
         {/* Video Container */}
-        <div className="relative bg-black mx-4 mb-4 rounded-lg overflow-hidden" style={{aspectRatio: '16/9'}}>
+        <div className="relative bg-black mx-4 mb-4 rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
           {playingVideoId === video._id ? (
             video.isYoutube ? (
               <iframe
@@ -628,31 +628,31 @@ const WatchPage: React.FC = () => {
             )
           ) : (
             <>
-          {/* Video Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-900 to-black">
-            {video.videoThumbnail ? (
-              <img 
-                src={video.videoThumbnail} 
-                alt="Video thumbnail"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-white text-lg font-medium">Video Content</div>
+              {/* Video Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-900 to-black">
+                {video.videoThumbnail ? (
+                  <img
+                    src={video.videoThumbnail}
+                    alt="Video thumbnail"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-white text-lg font-medium">Video Content</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          {/* Play Button */}
-          <div className="absolute inset-0 flex items-center justify-center">
+              {/* Play Button */}
+              <div className="absolute inset-0 flex items-center justify-center">
                 <button
                   className="w-16 h-16 bg-blue-500 hover:bg-blue-600 rounded-full flex items-center justify-center shadow-lg transition-colors"
                   onClick={async () => {
                     setPlayingVideoId(video._id);
-                    
+
                     // Track view when video is played
                     try {
                       const token = localStorage.getItem('token');
@@ -664,7 +664,7 @@ const WatchPage: React.FC = () => {
                           const albumId = video._id.split('_')[0];
                           endpoint = `${API_URL}/api/albums/${albumId}/view`;
                         }
-                        
+
                         await fetch(endpoint, {
                           method: 'POST',
                           headers: { Authorization: `Bearer ${token}` }
@@ -675,29 +675,29 @@ const WatchPage: React.FC = () => {
                     }
                   }}
                 >
-              <Play className="w-8 h-8 text-white ml-1" />
-            </button>
-          </div>
-          {/* YouTube Badge */}
-          {video.isYoutube && (
-            <div className="absolute bottom-3 right-3 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs flex items-center">
-              <div className="w-4 h-4 bg-red-600 rounded-sm mr-2 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">▶</span>
+                  <Play className="w-8 h-8 text-white ml-1" />
+                </button>
               </div>
-              YouTube
-            </div>
-          )}
-          {/* Sponsored Badge */}
-          {video.isSponsored && (
-            <div className="absolute top-3 left-3 bg-orange-500 text-white px-2 py-1 rounded text-xs">
-              Sponsored
-            </div>
+              {/* YouTube Badge */}
+              {video.isYoutube && (
+                <div className="absolute bottom-3 right-3 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs flex items-center">
+                  <div className="w-4 h-4 bg-red-600 rounded-sm mr-2 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">▶</span>
+                  </div>
+                  YouTube
+                </div>
+              )}
+              {/* Sponsored Badge */}
+              {video.isSponsored && (
+                <div className="absolute top-3 left-3 bg-orange-500 text-white px-2 py-1 rounded text-xs">
+                  Sponsored
+                </div>
               )}
             </>
           )}
         </div>
 
-                {/* Post Actions - Same as Feed Posts */}
+        {/* Post Actions - Same as Feed Posts */}
         <div className="px-4 pb-4">
           <div className="flex items-center justify-center space-x-8">
             {/* React Button */}
@@ -706,21 +706,20 @@ const WatchPage: React.FC = () => {
                 onReaction={(reactionType) => handleReaction(video._id, reactionType, video.category || 'video')}
                 currentReaction={getCurrentReaction(video)}
               >
-                <button 
+                <button
                   onClick={() => onLike(video._id, video.category || 'video')}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                    getCurrentReaction(video) ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${getCurrentReaction(video) ? 'bg-red-100 text-red-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
                 >
                   <span className="text-xl">{getMostCommonReactionEmoji(video)}</span>
                 </button>
               </ReactionPopup>
               <span className="text-xs text-gray-600 mt-1">React</span>
             </div>
-            
+
             {/* Comment Button */}
             <div className="flex flex-col items-center">
-              <button 
+              <button
                 className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors"
                 onClick={() => {
                   const commentInput = document.querySelector(`input[placeholder="Add a comment..."]`) as HTMLInputElement;
@@ -733,23 +732,22 @@ const WatchPage: React.FC = () => {
               </button>
               <span className="text-xs text-gray-600 mt-1">Comment</span>
             </div>
-            
+
             {/* Share Button */}
             <div className="flex flex-col items-center">
-                <button 
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                  isShared ? 'bg-green-100 text-green-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-                  onClick={() => onShare(video._id, video.category || 'video')}
-                >
-                  <Share2 className="w-5 h-5" />
-                </button>
+              <button
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isShared ? 'bg-green-100 text-green-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                onClick={() => onShare(video._id, video.category || 'video')}
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
               <span className="text-xs text-gray-600 mt-1">Share</span>
             </div>
-            
+
             {/* Review Button */}
             <div className="flex flex-col items-center px-1">
-              <button 
+              <button
                 className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-yellow-500 hover:bg-gray-200 transition-colors"
                 onClick={() => {
                   const rating = prompt('Rate this video (1-5 stars):', '5');
@@ -762,13 +760,12 @@ const WatchPage: React.FC = () => {
               </button>
               <span className="text-xs text-gray-600 mt-1 whitespace-nowrap">Review</span>
             </div>
-            
+
             {/* Save Button */}
             <div className="flex flex-col items-center">
-              <button 
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                  isSaved ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+              <button
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${isSaved ? 'bg-blue-100 text-blue-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 onClick={() => onSave(video._id, video.category || 'video')}
               >
                 <Bookmark className="w-5 h-5" />
@@ -787,7 +784,7 @@ const WatchPage: React.FC = () => {
                     video.reactions.forEach((reaction: any) => {
                       reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
                     });
-                    
+
                     const reactionEmojis: { [key: string]: string } = {
                       'like': '👍',
                       'love': '❤️',
@@ -796,7 +793,7 @@ const WatchPage: React.FC = () => {
                       'sad': '😢',
                       'angry': '😠'
                     };
-                    
+
                     return Object.entries(reactionCounts).map(([type, count]) => (
                       <div key={type} className="flex items-center space-x-1 bg-blue-50 dark:bg-blue-900/20 rounded-full px-3 py-1 border border-blue-200 dark:border-blue-700">
                         <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
@@ -854,8 +851,8 @@ const WatchPage: React.FC = () => {
             <div className="mt-4 space-y-3">
               {video.comments.slice(0, 3).map((comment) => (
                 <div key={comment._id} className="flex items-start space-x-2">
-                  <img 
-                    src={comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${API_URL}/${comment.user.avatar}`) : '/avatars/1.png.png'} 
+                  <img
+                    src={comment.user.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${API_URL}/${comment.user.avatar}`) : '/avatars/1.png.png'}
                     alt={comment.user.name}
                     className="w-6 h-6 rounded-full"
                     onError={(e) => {
@@ -879,8 +876,8 @@ const WatchPage: React.FC = () => {
 
           {/* Add Comment */}
           <div className="mt-4 flex items-center space-x-2">
-            <img 
-              src="/avatars/1.png.png" 
+            <img
+              src="/avatars/1.png.png"
               alt="Your avatar"
               className="w-6 h-6 rounded-full"
             />
@@ -891,7 +888,7 @@ const WatchPage: React.FC = () => {
               onChange={(e) => setCommentText(prev => ({ ...prev, [video._id]: e.target.value }))}
               className="flex-1 text-sm border-none outline-none bg-transparent"
             />
-            <button 
+            <button
               className="text-blue-600 text-sm font-medium hover:text-blue-700"
               onClick={() => onComment(video._id, commentText[video._id] || '', video.category || 'video')}
             >
@@ -924,14 +921,14 @@ const WatchPage: React.FC = () => {
           <p className={`text-lg mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{error}</p>
           <p className={`text-sm mb-6 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Unable to load videos from the feed.</p>
           <div className="space-x-4">
-            <button 
+            <button
               onClick={() => fetchAllVideos(true)}
               disabled={refreshing}
               className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
             >
               {refreshing ? 'Refreshing...' : 'Retry'}
             </button>
-            <button 
+            <button
               onClick={() => {
                 // Load mock videos directly
                 const mockVideos: Video[] = [
@@ -1091,7 +1088,7 @@ const WatchPage: React.FC = () => {
             )}
           </div>
           <div className="flex items-center space-x-3">
-            <button 
+            <button
               onClick={() => fetchAllVideos(true)}
               disabled={refreshing}
               className={`p-2 rounded-full transition-colors disabled:opacity-50 ${isDarkMode ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
@@ -1121,9 +1118,9 @@ const WatchPage: React.FC = () => {
         {/* Video Posts */}
         {videos.length > 0 ? (
           videos.map((video: Video) => (
-            <VideoPost 
-              key={video._id} 
-              video={video} 
+            <VideoPost
+              key={video._id}
+              video={video}
               onLike={handleLike}
               onComment={handleComment}
               onShare={handleShare}

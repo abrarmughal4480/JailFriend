@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDarkMode } from "@/contexts/DarkModeContext";
+import { Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const AiSettingsPage = () => {
   const { isDarkMode } = useDarkMode();
@@ -30,6 +31,10 @@ const AiSettingsPage = () => {
   const [textCreditEnabled, setTextCreditEnabled] = useState(true);
   const [textPrice, setTextPrice] = useState("1");
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
+
   const pageBg = isDarkMode ? "bg-gray-900" : "bg-gray-50";
   const textPrimary = isDarkMode ? "text-white" : "text-gray-900";
   const textSecondary = isDarkMode ? "text-gray-300" : "text-gray-600";
@@ -37,11 +42,78 @@ const AiSettingsPage = () => {
     ? "bg-gray-800 border-gray-700 shadow-gray-900/50"
     : "bg-white border-gray-200 shadow-md";
 
-  const inputStyles = `w-full rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 ${
-    isDarkMode
+  const inputStyles = `w-full rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 ${isDarkMode
       ? "bg-gray-900 border-gray-700 text-white focus:ring-red-500"
       : "bg-white border-gray-300 text-gray-900 focus:ring-red-400"
-  }`;
+    }`;
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/website-settings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data && data.data.ai) {
+          const aiSettings = data.data.ai;
+          if (aiSettings.openai) {
+            setOpenAiKey(aiSettings.openai.apiKey || '');
+            setOpenAiModel(aiSettings.openai.model || 'gpt-3.5-turbo');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      setMessage({ type: 'error', text: 'Failed to load settings' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/website-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ai: {
+            openai: {
+              enabled: true,
+              apiKey: openAiKey,
+              model: openAiModel
+            }
+          }
+        })
+      });
+
+      if (response.ok) {
+        setMessage({ type: 'success', text: 'Settings saved successfully' });
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      } else {
+        setMessage({ type: 'error', text: 'Failed to save settings' });
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      setMessage({ type: 'error', text: 'Error saving settings' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const Toggle = ({
     enabled,
@@ -52,14 +124,12 @@ const AiSettingsPage = () => {
   }) => (
     <button
       onClick={onToggle}
-      className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
-        enabled ? "bg-green-500" : "bg-red-500"
-      }`}
+      className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${enabled ? "bg-green-500" : "bg-red-500"
+        }`}
     >
       <span
-        className={`inline-block h-6 w-6 transform rounded-full bg-white transition ${
-          enabled ? "translate-x-8" : "translate-x-2"
-        }`}
+        className={`inline-block h-6 w-6 transform rounded-full bg-white transition ${enabled ? "translate-x-8" : "translate-x-2"
+          }`}
       />
       {!enabled && (
         <span className="absolute inset-0 flex items-center justify-center text-white text-sm font-semibold">
@@ -101,6 +171,14 @@ const AiSettingsPage = () => {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen ${pageBg} p-6 md:p-10`}>
       <div className="mb-6">
@@ -116,6 +194,14 @@ const AiSettingsPage = () => {
           <span className={isDarkMode ? "text-red-400" : "text-red-500"}>AI Settings</span>
         </div>
       </div>
+
+      {message.text && (
+        <div className={`p-4 rounded-lg mb-6 flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+          {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          {message.text}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* OpenAI Settings */}
@@ -143,7 +229,7 @@ const AiSettingsPage = () => {
               >
                 <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
                 <option value="gpt-4o">gpt-4o</option>
-                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+                <option value="gpt-4-turbo">gpt-4-turbo</option>
               </select>
             </div>
           </div>
@@ -344,11 +430,29 @@ const AiSettingsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Save Button */}
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+        >
+          {saving ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="w-4 h-4" />
+              Save Settings
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 };
 
 export default AiSettingsPage;
-
-
-

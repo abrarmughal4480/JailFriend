@@ -131,10 +131,20 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
 
   const filteredPosts = getFilteredPosts();
 
-  const combinedFeed = useMemo(() => [
-    ...filteredPosts.map((post: any) => ({ ...post, type: 'post' })),
-    ...albums.map((album: any) => ({ ...album, type: 'album' }))
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [filteredPosts, albums]);
+  const combinedFeed = useMemo(() => {
+    const feed = [
+      ...filteredPosts.map((post: any) => ({ ...post, type: 'post' })),
+      ...albums.map((album: any) => ({ ...album, type: 'album' }))
+    ];
+
+    // Shuffle the combined feed
+    for (let i = feed.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [feed[i], feed[j]] = [feed[j], feed[i]];
+    }
+
+    return feed;
+  }, [filteredPosts, albums]);
 
   // Memoize current user to avoid repeated localStorage access
   const currentUser = useMemo(() => {
@@ -152,14 +162,12 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
     if (combinedFeed.length === 0) {
       return (
         <div className="text-center py-8">
-          <div className={`text-lg mb-2 transition-colors duration-200 ${
-            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}>
+          <div className={`text-lg mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+            }`}>
             📭 No {activeFilter === 'all' ? '' : activeFilter} posts found
           </div>
-          <div className={`text-sm transition-colors duration-200 ${
-            isDarkMode ? 'text-gray-500' : 'text-gray-400'
-          }`}>
+          <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+            }`}>
             Try changing your filter or create a new post
           </div>
         </div>
@@ -177,7 +185,7 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
             onLike={onAlbumLike}
             onReaction={onAlbumReaction}
             onComment={onAlbumComment}
-            onDeleteComment={() => {}}
+            onDeleteComment={() => { }}
             onSave={onAlbumSave}
             onShare={onAlbumShare}
             deletingComments={deletingComments}
@@ -215,9 +223,8 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
     return (
       <div className="text-center py-6 sm:py-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
-        <p className={`text-sm transition-colors duration-200 ${
-          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-        }`}>Loading your feed...</p>
+        <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>Loading your feed...</p>
       </div>
     );
   }
@@ -226,12 +233,10 @@ const DashboardPostsFeed: React.FC<DashboardPostsFeedProps> = ({
     return (
       <div className="text-center py-8">
         <div className="text-4xl mb-3">📱</div>
-        <h3 className={`text-lg font-semibold mb-2 transition-colors duration-200 ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>No posts yet</h3>
-        <p className={`text-sm transition-colors duration-200 ${
-          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-        }`}>Be the first to share something amazing!</p>
+        <h3 className={`text-lg font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>No posts yet</h3>
+        <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>Be the first to share something amazing!</p>
       </div>
     );
   }

@@ -5,6 +5,7 @@ const Group = require('../models/group');
 const Page = require('../models/page');
 const Game = require('../models/game');
 const Message = require('../models/message');
+const BankReceipt = require('../models/BankReceipt');
 
 // Get dashboard statistics
 const getDashboardStats = async (req, res) => {
@@ -313,7 +314,7 @@ const getMessages = async (req, res) => {
 const verifyUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
       { isVerified: true },
@@ -345,7 +346,7 @@ const verifyUser = async (req, res) => {
 const unverifyUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
       { isVerified: false },
@@ -377,7 +378,7 @@ const unverifyUser = async (req, res) => {
 const blockUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
       { isBlocked: true },
@@ -409,7 +410,7 @@ const blockUser = async (req, res) => {
 const unblockUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
       { isBlocked: false },
@@ -441,7 +442,7 @@ const unblockUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndDelete(userId);
 
     if (!user) {
@@ -579,14 +580,14 @@ const getOnlineUsers = async (req, res) => {
 
     // Get users who are currently online (active in last 5 minutes)
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
+
     const onlineUsers = await User.find({
       lastActive: { $gte: fiveMinutesAgo }
     })
-    .select('-password')
-    .sort({ [sortBy]: sortOrder })
-    .skip(skip)
-    .limit(limit);
+      .select('-password')
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(limit);
 
     const totalOnlineUsers = await User.countDocuments({
       lastActive: { $gte: fiveMinutesAgo }
@@ -630,10 +631,10 @@ const getOnlineUsers = async (req, res) => {
 const kickUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    
+
     const user = await User.findByIdAndUpdate(
       userId,
-      { 
+      {
         isOnline: false,
         lastActive: new Date()
       },
@@ -661,6 +662,143 @@ const kickUser = async (req, res) => {
   }
 };
 
+// Get bank receipts with filtering
+const getBankReceipts = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+
+    console.log('getBankReceipts called with status:', status);
+
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    console.log('Filter:', filter);
+
+    const receipts = await BankReceipt.find(filter)
+      .populate('userId', 'name email avatar')
+      .populate('processedBy', 'name email')
+      .sort({ createdAt: -1 });
+
+    console.log('Found receipts:', receipts.length);
+    console.log('Receipts:', JSON.stringify(receipts, null, 2));
+
+    res.json({
+      success: true,
+      receipts
+    });
+  } catch (error) {
+    console.error('Error getting bank receipts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching bank receipts'
+    });
+  }
+};
+
+// Approve bank receipt and add balance
+const approveBankReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+
+    // Find the receipt
+    const receipt = await BankReceipt.findById(id);
+    if (!receipt) {
+      return res.status(404).json({
+        success: false,
+        message: 'Receipt not found'
+      });
+    }
+
+    // Check if already processed
+    if (receipt.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Receipt already ${receipt.status}`
+      });
+    }
+
+    // Update receipt status
+    receipt.status = 'approved';
+    receipt.processedAt = new Date();
+    receipt.processedBy = adminId;
+    await receipt.save();
+
+    // Add balance to user
+    const user = await User.findById(receipt.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.balance = (user.balance || 0) + receipt.amount;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Receipt approved and balance updated successfully',
+      receipt,
+      newBalance: user.balance
+    });
+  } catch (error) {
+    console.error('Error approving bank receipt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error approving receipt'
+    });
+  }
+};
+
+// Reject bank receipt
+const rejectBankReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const adminId = req.user.id;
+
+    // Find the receipt
+    const receipt = await BankReceipt.findById(id);
+    if (!receipt) {
+      return res.status(404).json({
+        success: false,
+        message: 'Receipt not found'
+      });
+    }
+
+    // Check if already processed
+    if (receipt.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Receipt already ${receipt.status}`
+      });
+    }
+
+    // Update receipt status
+    receipt.status = 'rejected';
+    receipt.processedAt = new Date();
+    receipt.processedBy = adminId;
+    receipt.rejectionReason = reason || 'No reason provided';
+    await receipt.save();
+
+    res.json({
+      success: true,
+      message: 'Receipt rejected successfully',
+      receipt
+    });
+  } catch (error) {
+    console.error('Error rejecting bank receipt:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error rejecting receipt'
+    });
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getUsers,
@@ -678,5 +816,8 @@ module.exports = {
   bulkAction,
   getUserStats,
   getOnlineUsers,
-  kickUser
+  kickUser,
+  getBankReceipts,
+  approveBankReceipt,
+  rejectBankReceipt
 }; 

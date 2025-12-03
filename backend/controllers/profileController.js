@@ -72,6 +72,9 @@ exports.getMyProfile = async (req, res) => {
     const UserImage = require('../models/userImage');
     const userImage = await UserImage.findOne({ userId: user._id });
     
+    console.log('💰 User balance from DB:', user.balance);
+    console.log('💰 User balance type:', typeof user.balance);
+
     const profileData = {
       id: user._id,
       name: user.name || user.fullName || 'User',
@@ -88,6 +91,7 @@ exports.getMyProfile = async (req, res) => {
       website: user.website,
       phone: user.phone,
       dateOfBirth: user.dateOfBirth,
+      balance: `₹${(user.balance || 0).toFixed(2)}`,
       following: user.following?.length || 0,
       followers: user.followers?.length || 0,
       posts: user.posts?.length || 0,
@@ -106,6 +110,7 @@ exports.getMyProfile = async (req, res) => {
       followersList: user.followers || []
     };
 
+    console.log('💰 Formatted balance in response:', profileData.balance);
     res.json(profileData);
   } catch (error) {
     console.error('Error getting profile:', error);

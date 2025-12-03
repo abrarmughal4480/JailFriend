@@ -6,6 +6,7 @@ import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import SharePopup, { ShareOptions } from './SharePopup';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
+import ProBadge from './ProBadge';
 
 
 interface AlbumDisplayProps {
@@ -18,13 +19,13 @@ interface AlbumDisplayProps {
   onDeleteComment?: (albumId: string, commentId: string) => void;
   onSave?: (albumId: string) => void;
   onShare?: (albumId: string, shareOptions?: ShareOptions) => void;
-  deletingComments?: {[key: string]: boolean};
+  deletingComments?: { [key: string]: boolean };
   onWatch?: (album: any) => void;
 }
 
-export default function AlbumDisplay({ 
-  album, 
-  onDelete, 
+export default function AlbumDisplay({
+  album,
+  onDelete,
   isOwner = false,
   onLike,
   onReaction,
@@ -65,7 +66,7 @@ export default function AlbumDisplay({
         }
       }
     };
-    
+
     trackView();
   }, [album._id]);
 
@@ -76,20 +77,20 @@ export default function AlbumDisplay({
         console.warn('Invalid URL provided to getMediaUrl:', url);
         return '/default-avatar.svg';
       }
-      
+
       if (url.startsWith('http')) {
         return url;
       }
-      
-      // Handle placeholder avatars that don't exist
-      if (url.includes('/avatars/') || url.includes('/covers/')) {
-        return '/default-avatar.svg';
-      }
-      
+
+      // Handle placeholder avatars that don't exist - REMOVED to allow valid avatars
+      // if (url.includes('/avatars/') || url.includes('/covers/')) {
+      //   return '/default-avatar.svg';
+      // }
+
       // Remove leading slash to avoid double slashes
       const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
       const constructedUrl = `${API_URL}/${cleanUrl}`;
-      
+
       return constructedUrl;
     } catch (error) {
       console.error('Error in getMediaUrl:', error, 'URL:', url);
@@ -128,7 +129,7 @@ export default function AlbumDisplay({
       'video/mov': video.canPlayType('video/quicktime'),
       'video/avi': video.canPlayType('video/x-msvideo')
     };
-    
+
     // console.log('Browser video format support:', formats);
     return formats;
   };
@@ -151,14 +152,14 @@ export default function AlbumDisplay({
     //   createdAt: album.createdAt,
     //   updatedAt: album.updatedAt
     // });
-    
+
     // Check for common issues
     const issues = [];
-    
+
     if (!album.media || album.media.length === 0) {
       issues.push('❌ No media items in album');
     }
-    
+
     album.media?.forEach((item: any, index: number) => {
       if (!item.url) {
         issues.push(`❌ Media item ${index} has no URL`);
@@ -169,29 +170,29 @@ export default function AlbumDisplay({
         issues.push(`❌ Media item ${index} has no type specified`);
       }
     });
-    
+
     if (issues.length > 0) {
       // console.log('🚨 Album Issues Found:', issues);
     } else {
       // console.log('✅ Album appears to be properly formatted');
     }
-    
+
     return issues;
   };
 
   // Enhanced video handling
   const renderVideo = (mediaItem: any, index: number) => {
     const videoUrl = getMediaUrl(mediaItem.url);
-    
+
     // Better video type detection
-    const isVideo = mediaItem.type === 'video' || 
-                   /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
-                   mediaItem.mimetype?.startsWith('video/');
-    
+    const isVideo = mediaItem.type === 'video' ||
+      /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+      mediaItem.mimetype?.startsWith('video/');
+
     if (!isVideo) {
       console.warn('Item marked as video but URL suggests it might not be:', mediaItem);
     }
-    
+
     console.log('Rendering video:', {
       url: mediaItem.url,
       fullUrl: videoUrl,
@@ -199,15 +200,15 @@ export default function AlbumDisplay({
       mimetype: mediaItem.mimetype,
       isVideo: isVideo
     });
-    
+
     // Test video URL accessibility
     if (videoUrl) {
       testVideoUrl(videoUrl);
     }
-    
+
     return (
       <div className="relative" data-video-index={index}>
-        <video 
+        <video
           key={`${mediaItem.url}-${index}`}
           className="w-full object-contain rounded-lg shadow-lg hover:opacity-90 transition-opacity"
           style={{ maxHeight: '40vh' }}
@@ -220,13 +221,13 @@ export default function AlbumDisplay({
           onError={async (e) => {
             const video = e.currentTarget;
             const error = e.nativeEvent;
-            
+
             // Validate video element exists
             if (!video) {
               console.error('Video element is null in error handler');
               return;
             }
-            
+
             // Better error handling with fallbacks
             console.error('Video loading error details:', {
               videoElement: video,
@@ -242,16 +243,16 @@ export default function AlbumDisplay({
               errorTarget: error?.target || 'unknown',
               timestamp: new Date().toISOString()
             });
-            
+
             // Check if it's a format issue
             if (video.error) {
               console.error('Video error code:', video.error.code);
               console.error('Video error message:', video.error.message);
             }
-            
+
             // Show fallback content with clear error message
             video.style.display = 'none';
-            
+
             const fallback = document.createElement('div');
             fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
             fallback.innerHTML = `
@@ -273,7 +274,7 @@ export default function AlbumDisplay({
                 </div>
               </div>
             `;
-            
+
             // Find the parent container to append the fallback
             const parentContainer = video.parentNode;
             if (parentContainer) {
@@ -349,7 +350,7 @@ export default function AlbumDisplay({
             🎥 Video
           </div>
         </div>
-        
+
         {/* Debug info overlay (only in development) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs p-2 rounded opacity-0 hover:opacity-100 transition-opacity">
@@ -422,11 +423,11 @@ export default function AlbumDisplay({
       album.reactions.forEach((reaction: any) => {
         reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
       });
-      
-      const mostCommon = Object.keys(reactionCounts).reduce((a, b) => 
+
+      const mostCommon = Object.keys(reactionCounts).reduce((a, b) =>
         reactionCounts[a] > reactionCounts[b] ? a : b
       );
-      
+
       const reactionEmojis: { [key: string]: string } = {
         like: '👍',
         love: '❤️',
@@ -435,7 +436,7 @@ export default function AlbumDisplay({
         sad: '😢',
         angry: '😠'
       };
-      
+
       return reactionEmojis[mostCommon] || '👍';
     }
     return '👍';
@@ -450,7 +451,7 @@ export default function AlbumDisplay({
   // Get current user ID for save checking
   const currentUserId = getCurrentUserId();
   // Check if current user has saved this album
-  const isSaved = album.savedBy && Array.isArray(album.savedBy) && 
+  const isSaved = album.savedBy && Array.isArray(album.savedBy) &&
     album.savedBy.some((savedUser: any) => {
       // Handle both user ID strings and user objects
       if (typeof savedUser === 'string') {
@@ -484,7 +485,7 @@ export default function AlbumDisplay({
   const actionText = `added new ${mediaCount > 0 ? `${mediaCount} ${mediaLabel}` : 'media'} to ${album.name || 'an album'}`;
 
   return (
-    <div 
+    <div
       className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow p-3 sm:p-4 mb-4 sm:mb-6 transition-colors duration-200 relative cursor-pointer`}
       onClick={(e) => {
         // Don't open modal if clicking on delete button or user profile link
@@ -498,17 +499,17 @@ export default function AlbumDisplay({
       }}
     >
       <div className="flex items-center gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
-        <img 
-          src={album.user?.avatar ? (album.user.avatar.startsWith('http') ? album.user.avatar : `${API_URL}/${album.user.avatar}`) : '/avatars/1.png.png'} 
-          alt="avatar" 
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" 
+        <img
+          src={album.user?.avatar ? getMediaUrl(album.user.avatar) : '/default-avatar.svg'}
+          alt="avatar"
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full"
         />
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             {album.user?._id ? (
-              <a 
-                href={`/dashboard/profile/${String(album.user._id)}`} 
-                target="_blank" 
+              <a
+                href={`/dashboard/profile/${String(album.user._id)}`}
+                target="_blank"
                 rel="noopener noreferrer"
                 className={`font-semibold text-sm sm:text-base hover:underline cursor-pointer truncate inline-flex transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
@@ -516,6 +517,10 @@ export default function AlbumDisplay({
               </a>
             ) : (
               <div className={`font-semibold text-sm sm:text-base truncate inline-flex transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{album.user?.name || 'Unknown User'}</div>
+            )}
+            {/* Pro Badge */}
+            {album.user?.plan && album.user.plan !== 'Free' && (
+              <ProBadge plan={album.user.plan} size="sm" />
             )}
             <span className={`text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-blue-200' : 'text-blue-600'}`}>
               {actionText}
@@ -557,17 +562,17 @@ export default function AlbumDisplay({
             // Using 6-column grid: first row (2 photos × 3 cols each), second row (3 photos × 2 cols each)
             <div className="grid grid-cols-6 gap-1 sm:gap-2">
               {displayedMedia.map((mediaItem: any, index: number) => {
-                const isVideo = mediaItem.type === 'video' || 
-                               /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
-                               mediaItem.mimetype?.startsWith('video/');
-                
+                const isVideo = mediaItem.type === 'video' ||
+                  /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+                  mediaItem.mimetype?.startsWith('video/');
+
                 // First row: first 2 photos (index 0 and 1) - each spans 3 columns
                 // Second row: last 3 photos (index 2, 3, 4) - each spans 2 columns
                 const colSpan = index < 2 ? 'col-span-3' : 'col-span-2';
-                
+
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className={`relative overflow-hidden rounded-lg aspect-square ${colSpan}`}
                   >
                     {isVideo ? (
@@ -604,17 +609,17 @@ export default function AlbumDisplay({
             // Show first 5 photos in 2-3 layout (2 on top, 3 on bottom) with overlay on 5th photo if more than 5
             <div className="grid grid-cols-6 gap-1 sm:gap-2">
               {displayedMedia.map((mediaItem: any, index: number) => {
-                const isVideo = mediaItem.type === 'video' || 
-                               /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
-                               mediaItem.mimetype?.startsWith('video/');
-                
+                const isVideo = mediaItem.type === 'video' ||
+                  /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+                  mediaItem.mimetype?.startsWith('video/');
+
                 // First row: first 2 photos (index 0 and 1) - each spans 3 columns
                 // Second row: last 3 photos (index 2, 3, 4) - each spans 2 columns
                 const colSpan = index < 2 ? 'col-span-3' : 'col-span-2';
-                
+
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className={`relative overflow-hidden rounded-lg aspect-square ${colSpan}`}
                   >
                     {isVideo ? (
@@ -659,13 +664,13 @@ export default function AlbumDisplay({
             // 2-column grid layout for other cases (less than 5 photos, or showAllPhotos)
             <div className="grid grid-cols-2 gap-1 sm:gap-2">
               {displayedMedia.map((mediaItem: any, index: number) => {
-                const isVideo = mediaItem.type === 'video' || 
-                               /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
-                               mediaItem.mimetype?.startsWith('video/');
-                
+                const isVideo = mediaItem.type === 'video' ||
+                  /\.(mp4|webm|ogg|mov|avi|mkv)$/i.test(mediaItem.url) ||
+                  mediaItem.mimetype?.startsWith('video/');
+
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="relative overflow-hidden rounded-lg aspect-square"
                   >
                     {isVideo ? (
@@ -701,7 +706,7 @@ export default function AlbumDisplay({
           )}
         </div>
       )}
-      
+
       {/* Debug: Show when no media */}
       {(!album.media || album.media.length === 0) && (
         <div className={`mb-3 p-4 ${isDarkMode ? 'bg-yellow-900/20 border-yellow-700' : 'bg-yellow-50 border-yellow-200'} border rounded-lg transition-colors duration-200`}>
@@ -709,14 +714,14 @@ export default function AlbumDisplay({
             <div className="text-2xl mb-2">⚠️</div>
             <div className="text-sm font-medium">No media found in album</div>
             <div className={`text-xs mt-1 transition-colors duration-200 ${isDarkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-              Album ID: {album._id}<br/>
-              Media array: {JSON.stringify(album.media)}<br/>
+              Album ID: {album._id}<br />
+              Media array: {JSON.stringify(album.media)}<br />
               Media length: {album.media?.length || 'undefined'}
             </div>
-          
-          {/* Right side - Empty for balance */}
-          <div className="w-16 sm:w-20"></div>
-        </div>
+
+            {/* Right side - Empty for balance */}
+            <div className="w-16 sm:w-20"></div>
+          </div>
         </div>
       )}
 
@@ -730,11 +735,11 @@ export default function AlbumDisplay({
             <div className="flex items-center space-x-1 sm:space-x-2">
               <span className="text-xs sm:text-sm">{album.comments?.length || 0} Comments</span>
             </div>
-            
+
             <div className="flex items-center space-x-1 sm:space-x-2">
               <span className="text-xs sm:text-sm">{album.views?.length || 0} Views</span>
             </div>
-            
+
             <div className="flex items-center space-x-1 sm:space-x-2">
               <span className="text-xs sm:text-sm">{album.reviews?.length || 0} Reviews</span>
             </div>
@@ -750,7 +755,7 @@ export default function AlbumDisplay({
                 album.reactions.forEach((reaction: any) => {
                   reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
                 });
-                
+
                 const reactionEmojis: { [key: string]: string } = {
                   'like': '👍',
                   'love': '❤️',
@@ -759,7 +764,7 @@ export default function AlbumDisplay({
                   'sad': '😢',
                   'angry': '😠'
                 };
-                
+
                 return Object.entries(reactionCounts).map(([type, count]) => (
                   <div key={type} className={`flex items-center space-x-1 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-full px-3 py-1 border`}>
                     <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
@@ -780,31 +785,29 @@ export default function AlbumDisplay({
               currentReaction={getCurrentReaction()}
               isDarkMode={isDarkMode}
             >
-              <button 
+              <button
                 className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative z-50"
                 style={{ touchAction: 'manipulation' }}
               >
                 {/* Reaction Button - Same size as other buttons */}
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center ${isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'} transition-colors ${
-                  getCurrentReaction() 
-                    ? isDarkMode ? 'bg-pink-900/30' : 'bg-pink-100'
-                    : isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                }`}>
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center ${isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'} transition-colors ${getCurrentReaction()
+                  ? isDarkMode ? 'bg-pink-900/30' : 'bg-pink-100'
+                  : isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                  }`}>
                   <span className="text-lg sm:text-xl md:text-2xl">{getReactionEmoji(getCurrentReaction())}</span>
                 </div>
-                <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${
-                  getCurrentReaction()
-                    ? isDarkMode ? 'text-pink-400' : 'text-pink-600'
-                    : isDarkMode ? 'text-white hover:text-pink-400' : 'text-gray-600 hover:text-pink-600'
-                }`}>
+                <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${getCurrentReaction()
+                  ? isDarkMode ? 'text-pink-400' : 'text-pink-600'
+                  : isDarkMode ? 'text-white hover:text-pink-400' : 'text-gray-600 hover:text-pink-600'
+                  }`}>
                   {getReactionText(getCurrentReaction())}
                 </span>
               </button>
             </ReactionPopup>
           </div>
-          
+
           {/* Comment Button */}
-            <button
+          <button
             onClick={() => {
               setShowComments(!showComments);
               if (!showComments) {
@@ -816,61 +819,60 @@ export default function AlbumDisplay({
           >
             <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
               <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
               </svg>
             </div>
             <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${isDarkMode ? 'text-white' : 'text-gray-600'}`}>Comment</span>
           </button>
-          
+
           {/* Share Button */}
-          <button 
+          <button
             onClick={() => setShowSharePopup(true)}
             className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation ${isDarkMode ? 'text-gray-300 hover:text-green-400' : 'text-gray-600 hover:text-green-600'}`}
             style={{ touchAction: 'manipulation' }}
           >
             <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
               <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
               </svg>
             </div>
             <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${isDarkMode ? 'text-white' : 'text-gray-600'}`}>Share</span>
           </button>
-          
+
           {/* Review Button */}
           <button
-            onClick={() => {}} // Add review functionality if needed
+            onClick={() => { }} // Add review functionality if needed
             className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation px-1 ${isDarkMode ? 'text-gray-300 hover:text-yellow-400' : 'text-gray-600 hover:text-yellow-600'}`}
             style={{ touchAction: 'manipulation' }}
           >
             <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'} flex items-center justify-center transition-colors`}>
               <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             </div>
             <span className={`text-xs sm:text-sm md:text-base font-medium whitespace-nowrap transition-colors ${isDarkMode ? 'text-white' : 'text-gray-600'}`}>Review</span>
           </button>
-        
+
           {/* Save Button */}
-        <button 
-          onClick={() => onSave && onSave(album._id)}
+          <button
+            onClick={() => onSave && onSave(album._id)}
             className={`flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation ${isDarkMode ? 'text-gray-300 hover:text-purple-400' : 'text-gray-600 hover:text-purple-600'}`}
-          style={{ touchAction: 'manipulation' }}
-        >
-            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${
-              isSaved 
-                ? isDarkMode ? 'bg-gray-900/20 text-purple-400' : 'bg-purple-100 text-purple-600'
-                : isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
-            }`}>
+            style={{ touchAction: 'manipulation' }}
+          >
+            <div className={`w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-colors ${isSaved
+              ? isDarkMode ? 'bg-gray-900/20 text-purple-400' : 'bg-purple-100 text-purple-600'
+              : isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'
+              }`}>
               <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
             </div>
             <span className={`text-xs sm:text-sm md:text-base font-medium transition-colors ${isDarkMode ? 'text-white' : 'text-gray-600'}`}>{isSaved ? 'Saved' : 'Save'}</span>
-        </button>
+          </button>
+        </div>
       </div>
-      </div>
-      
-      
+
+
 
       {/* Comment Input - Only Show When Comments Are Visible - Hidden by default */}
       {showComments === true && (
@@ -909,24 +911,24 @@ export default function AlbumDisplay({
             // Check if current user is the comment author
             const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
             const isCommentAuthor = comment.user && (
-              comment.user._id === currentUser._id || 
-              comment.user.id === currentUser.id || 
+              comment.user._id === currentUser._id ||
+              comment.user.id === currentUser.id ||
               comment.user.userId === currentUser.id
             );
-            
+
             return (
               <div key={index} className={`flex items-start gap-2 p-2 rounded-lg group transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                <img 
-                  src={comment.user?.avatar ? (comment.user.avatar.startsWith('http') ? comment.user.avatar : `${API_URL}/${comment.user.avatar}`) : '/avatars/1.png.png'} 
-                  alt="avatar" 
-                  className="w-6 h-6 rounded-full" 
+                <img
+                  src={comment.user?.avatar ? getMediaUrl(comment.user.avatar) : '/default-avatar.svg'}
+                  alt="avatar"
+                  className="w-6 h-6 rounded-full"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     {comment.user?._id ? (
-                      <a 
-                        href={`/dashboard/profile/${String(comment.user._id)}`} 
-                        target="_blank" 
+                      <a
+                        href={`/dashboard/profile/${String(comment.user._id)}`}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className={`text-sm font-medium hover:underline cursor-pointer transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       >
@@ -935,19 +937,18 @@ export default function AlbumDisplay({
                     ) : (
                       <span className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{comment.user?.name || 'User'}</span>
                     )}
-                    
+
                     {/* Delete button for comment author */}
                     {isCommentAuthor && onDeleteComment && (
                       <button
                         onClick={() => onDeleteComment(album._id, comment._id || comment.id)}
                         disabled={deletingComments[`album-${album._id}-${comment._id || comment.id}`]}
-                        className={`opacity-0 group-hover:opacity-100 ml-auto p-1 rounded transition-all duration-200 text-xs ${
-                          deletingComments[`album-${album._id}-${comment._id || comment.id}`]
-                            ? 'text-gray-400 cursor-not-allowed'
-                            : isDarkMode 
-                              ? 'text-red-400 hover:text-red-300 hover:bg-red-900/20'
-                              : 'text-red-500 hover:text-red-700 hover:bg-red-50'
-                        }`}
+                        className={`opacity-0 group-hover:opacity-100 ml-auto p-1 rounded transition-all duration-200 text-xs ${deletingComments[`album-${album._id}-${comment._id || comment.id}`]
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : isDarkMode
+                            ? 'text-red-400 hover:text-red-300 hover:bg-red-900/20'
+                            : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                          }`}
                         title={deletingComments[`album-${album._id}-${comment._id || comment.id}`] ? 'Deleting...' : 'Delete comment'}
                       >
                         {deletingComments[`album-${album._id}-${comment._id || comment.id}`] ? '⏳' : '🗑️'}

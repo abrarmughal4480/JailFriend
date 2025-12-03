@@ -37,4 +37,9 @@ router.post('/p2p/categories', authMiddleware, upload.single('image'), createP2P
 router.put('/p2p/categories/:categoryId', authMiddleware, upload.single('image'), updateP2PCategory);
 router.delete('/p2p/categories/:categoryId', authMiddleware, deleteP2PCategory);
 
+// Bank receipts management
+router.get('/bank-receipts', authMiddleware, adminController.getBankReceipts);
+router.post('/bank-receipts/:id/approve', authMiddleware, adminController.approveBankReceipt);
+router.post('/bank-receipts/:id/reject', authMiddleware, adminController.rejectBankReceipt);
+
 module.exports = router; 

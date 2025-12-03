@@ -16,7 +16,7 @@ exports.getUserById = async (req, res) => {
 
     // Handle "me" case - use current user's ID
     const userId = id === 'me' ? currentUserId : id;
-    
+
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
@@ -30,8 +30,8 @@ exports.getUserById = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log('👤 User found:', { 
-      name: user.name || user.fullName, 
+    console.log('👤 User found:', {
+      name: user.name || user.fullName,
       followingCount: user.following?.length || 0,
       followersCount: user.followers?.length || 0
     });
@@ -39,27 +39,27 @@ exports.getUserById = async (req, res) => {
     // Check if current user is following this user
     let isFollowing = false;
     let isBlocked = false;
-    
+
     if (currentUserId) {
       const currentUser = await User.findById(currentUserId);
       isFollowing = currentUser?.following?.includes(userId) || false;
       isBlocked = currentUser?.blockedUsers?.includes(userId) || false;
-      
+
       console.log('👤 Current user status:', { isFollowing, isBlocked });
     }
 
     // Get user's posts count
     const postsCount = await Post.countDocuments({ author: userId });
-    
+
     // Get user's albums count
     const albumsCount = await Album.countDocuments({ user: userId });
 
     // Get user's posts count by type
     const postsWithMedia = await Post.find({ author: userId });
-    const photosCount = postsWithMedia.filter(post => 
+    const photosCount = postsWithMedia.filter(post =>
       post.media && post.media.some(media => media.type === 'image')
     ).length;
-    const videosCount = postsWithMedia.filter(post => 
+    const videosCount = postsWithMedia.filter(post =>
       post.media && post.media.some(media => media.type === 'video')
     ).length;
 
@@ -79,6 +79,7 @@ exports.getUserById = async (req, res) => {
       website: user.website,
       phone: user.phone,
       dateOfBirth: user.dateOfBirth,
+      balance: `₹${(user.balance || 0).toFixed(2)}`,
       following: user.following?.length || 0,
       followers: user.followers?.length || 0,
       posts: postsCount,
@@ -92,10 +93,11 @@ exports.getUserById = async (req, res) => {
       isFollowing,
       isBlocked,
       followingList: user.following || [],
-      followersList: user.followers || []
+      followersList: user.followers || [],
+      plan: user.plan || 'Free'
     };
 
-    console.log('👤 Returning user data:', { 
+    console.log('👤 Returning user data:', {
       followingCount: userData.following,
       followersCount: userData.followers,
       followingListLength: userData.followingList.length,
@@ -150,7 +152,7 @@ exports.followUser = async (req, res) => {
       await User.findByIdAndUpdate(userId, {
         $pull: { followers: currentUserId }
       });
-      
+
       console.log('🔗 User unfollowed successfully');
       res.json({ message: 'Unfollowed successfully', isFollowing: false, currentUserId });
     } else {
@@ -162,13 +164,13 @@ exports.followUser = async (req, res) => {
       await User.findByIdAndUpdate(userId, {
         $addToSet: { followers: currentUserId }
       });
-      
+
       console.log('🔗 User followed successfully');
-      
+
       // Create notification for the user being followed
       try {
         const { createNotification } = require('./notificationController');
-        
+
         await createNotification({
           userId: userId,
           type: 'follow',
@@ -176,13 +178,13 @@ exports.followUser = async (req, res) => {
           message: `${currentUser.name || currentUser.fullName} started following you`,
           relatedUserId: currentUserId
         });
-        
+
         console.log('🔗 Notification created successfully');
       } catch (notificationError) {
         console.log('⚠️ Notification creation failed:', notificationError.message);
         // Don't fail the follow operation if notification fails
       }
-      
+
       res.json({ message: 'Followed successfully', isFollowing: true, currentUserId });
     }
   } catch (error) {
@@ -242,7 +244,7 @@ exports.searchUsers = async (req, res) => {
   try {
     const { q } = req.query;
     const currentUserId = req.user?.id;
-    
+
     console.log('🔍 Search users request:', { query: q, currentUserId, user: req.user, userId: req.userId });
 
     if (!q) {
@@ -250,7 +252,7 @@ exports.searchUsers = async (req, res) => {
     }
 
     const searchRegex = new RegExp(q, 'i');
-    
+
     let query = {
       $or: [
         { name: searchRegex },
@@ -264,8 +266,8 @@ exports.searchUsers = async (req, res) => {
     if (currentUserId) {
       const currentUser = await User.findById(currentUserId);
       if (currentUser?.blockedUsers?.length > 0) {
-        query._id = { 
-          $nin: [...currentUser.blockedUsers, currentUserId] 
+        query._id = {
+          $nin: [...currentUser.blockedUsers, currentUserId]
         };
       } else {
         query._id = { $ne: currentUserId };
@@ -304,7 +306,7 @@ exports.getUserPosts = async (req, res) => {
       }
     }
 
-    const posts = await Post.find({ 
+    const posts = await Post.find({
       $or: [
         { userId: userId },
         { 'user.userId': userId }
@@ -401,7 +403,7 @@ exports.getUserPhotos = async (req, res) => {
       }
     }
 
-    const posts = await Post.find({ 
+    const posts = await Post.find({
       $or: [
         { userId: userId },
         { 'user.userId': userId }
@@ -440,7 +442,7 @@ exports.getUserVideos = async (req, res) => {
       }
     }
 
-    const posts = await Post.find({ 
+    const posts = await Post.find({
       author: userId,
       'media.type': 'video'
     })
@@ -485,7 +487,7 @@ exports.getUserFriends = async (req, res) => {
     const followersIds = user.followers.map(f => f._id.toString());
     const friendsIds = followingIds.filter(id => followersIds.includes(id));
 
-    const friends = user.following.filter(following => 
+    const friends = user.following.filter(following =>
       friendsIds.includes(following._id.toString())
     );
 
@@ -632,6 +634,7 @@ exports.getMyFollowers = async (req, res) => {
 exports.getSuggestedUsers = async (req, res) => {
   try {
     const currentUserId = req.user?.id;
+    const mongoose = require('mongoose');
 
     console.log('👥 Suggested users request:', { currentUserId, user: req.user });
 
@@ -641,48 +644,57 @@ exports.getSuggestedUsers = async (req, res) => {
 
     const currentUser = await User.findById(currentUserId);
     console.log('👤 Current user found:', !!currentUser);
-    
+
     // Get users that the current user is not following and not blocked
+    // Ensure IDs are properly converted to ObjectId for aggregation
     const excludedUsers = [
-      currentUserId,
-      ...(currentUser.following || []),
-      ...(currentUser.blockedUsers || [])
+      new mongoose.Types.ObjectId(currentUserId),
+      ...(currentUser.following || []).map(id => new mongoose.Types.ObjectId(id)),
+      ...(currentUser.blockedUsers || []).map(id => new mongoose.Types.ObjectId(id))
     ];
 
-    console.log('🚫 Excluded users:', excludedUsers);
+    console.log('🚫 Excluded users count:', excludedUsers.length);
 
-    // Find suggested users - first try to get users that are not private
-    let suggestedUsers = await User.find({
-      _id: { $nin: excludedUsers },
-      isPrivate: { $ne: true }
-    })
-      .select('name fullName username avatar bio location isOnline lastSeen isVerified followers following')
-      .limit(20);
+    // Find suggested users using aggregation with $sample for true randomization
+    let suggestedUsers = await User.aggregate([
+      {
+        $match: {
+          _id: { $nin: excludedUsers },
+          isPrivate: { $ne: true }
+        }
+      },
+      { $sample: { size: 20 } },
+      {
+        $project: {
+          name: 1, fullName: 1, username: 1, avatar: 1, bio: 1,
+          location: 1, isOnline: 1, lastSeen: 1, isVerified: 1,
+          followers: 1, following: 1
+        }
+      }
+    ]);
 
     console.log('👥 Found suggested users (non-private):', suggestedUsers.length);
 
-    // If no users found, try less restrictive query - get any users except current user
+    // If no users found, try less restrictive query
     if (suggestedUsers.length === 0) {
       console.log('⚠️ No non-private users found, trying less restrictive...');
-      suggestedUsers = await User.find({
-        _id: { $ne: currentUserId }
-      })
-        .select('name fullName username avatar bio location isOnline lastSeen isVerified followers following')
-        .limit(20);
-      
-      console.log('👥 Found less restrictive users:', suggestedUsers.length);
-    }
+      suggestedUsers = await User.aggregate([
+        {
+          $match: {
+            _id: { $ne: new mongoose.Types.ObjectId(currentUserId) }
+          }
+        },
+        { $sample: { size: 20 } },
+        {
+          $project: {
+            name: 1, fullName: 1, username: 1, avatar: 1, bio: 1,
+            location: 1, isOnline: 1, lastSeen: 1, isVerified: 1,
+            followers: 1, following: 1
+          }
+        }
+      ]);
 
-    // If still no users found, get all users except current user (including private ones)
-    if (suggestedUsers.length === 0) {
-      console.log('⚠️ Still no users found, getting all users...');
-      suggestedUsers = await User.find({
-        _id: { $ne: currentUserId }
-      })
-        .select('name fullName username avatar bio location isOnline lastSeen isVerified followers following')
-        .limit(20);
-      
-      console.log('👥 Found all users:', suggestedUsers.length);
+      console.log('👥 Found less restrictive users:', suggestedUsers.length);
     }
 
     // If still no users, create some sample users for testing
@@ -732,14 +744,29 @@ exports.getSuggestedUsers = async (req, res) => {
       suggestedUsers = sampleUsers;
       console.log('👥 Created sample users:', suggestedUsers.length);
     }
-    
+
     console.log('✅ Returning suggested users:', suggestedUsers.length);
+    if (suggestedUsers.length > 0) {
+      console.log('First user before shuffle:', suggestedUsers[0].name);
+    }
+
+    // Shuffle the suggested users to show random suggestions on every refresh
+    // (Even though $sample does this, we do it again for sample users or combined results)
+    for (let i = suggestedUsers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [suggestedUsers[i], suggestedUsers[j]] = [suggestedUsers[j], suggestedUsers[i]];
+    }
+
+    if (suggestedUsers.length > 0) {
+      console.log('First user after shuffle:', suggestedUsers[0].name);
+    }
+
     res.json(suggestedUsers);
   } catch (error) {
     console.error('❌ Error getting suggested users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}; 
+};
 
 // Update profile photo
 exports.updateProfilePhoto = async (req, res) => {
@@ -764,9 +791,9 @@ exports.updateProfilePhoto = async (req, res) => {
     user.avatar = photoUrl;
     await user.save();
 
-    res.json({ 
-      message: 'Profile photo updated successfully', 
-      avatar: user.avatar 
+    res.json({
+      message: 'Profile photo updated successfully',
+      avatar: user.avatar
     });
   } catch (error) {
     console.error('Error updating profile photo:', error);
@@ -797,9 +824,9 @@ exports.updateCoverPhoto = async (req, res) => {
     user.coverPhoto = coverUrl;
     await user.save();
 
-    res.json({ 
-      message: 'Cover photo updated successfully', 
-      coverPhoto: user.coverPhoto 
+    res.json({
+      message: 'Cover photo updated successfully',
+      coverPhoto: user.coverPhoto
     });
   } catch (error) {
     console.error('Error updating cover photo:', error);
@@ -851,8 +878,8 @@ exports.updateProfile = async (req, res) => {
 
     await user.save();
 
-    res.json({ 
-      message: 'Profile updated successfully', 
+    res.json({
+      message: 'Profile updated successfully',
       user: {
         id: user._id,
         name: user.name || user.fullName,
@@ -898,18 +925,21 @@ exports.getMyProfile = async (req, res) => {
 
     // Get user's posts count
     const postsCount = await Post.countDocuments({ author: currentUserId });
-    
+
     // Get user's albums count
     const albumsCount = await Album.countDocuments({ user: currentUserId });
 
     // Get user's posts count by type
     const postsWithMedia = await Post.find({ author: currentUserId });
-    const photosCount = postsWithMedia.filter(post => 
+    const photosCount = postsWithMedia.filter(post =>
       post.media && post.media.some(media => media.type === 'image')
     ).length;
-    const videosCount = postsWithMedia.filter(post => 
+    const videosCount = postsWithMedia.filter(post =>
       post.media && post.media.some(media => media.type === 'video')
     ).length;
+
+    console.log('💰 User balance from DB:', user.balance);
+    console.log('💰 User balance type:', typeof user.balance);
 
     const userData = {
       id: user._id,
@@ -928,6 +958,7 @@ exports.getMyProfile = async (req, res) => {
       gender: user.gender,
       dateOfBirth: user.dateOfBirth,
       phone: user.phone,
+      balance: `₹${(user.balance || 0).toFixed(2)}`,
       following: user.following?.length || 0,
       followers: user.followers?.length || 0,
       posts: postsCount,
@@ -943,6 +974,7 @@ exports.getMyProfile = async (req, res) => {
       followersList: user.followers || []
     };
 
+    console.log('💰 Formatted balance in response:', userData.balance);
     res.json(userData);
   } catch (error) {
     console.error('Error getting user profile:', error);
@@ -1025,7 +1057,7 @@ exports.getUserActivity = async (req, res) => {
       .skip((parseInt(page) - 1) * parseInt(limit));
 
     // Get posts that user has liked
-    const likedPosts = await Post.find({ 
+    const likedPosts = await Post.find({
       _id: { $in: user.likedPosts || [] }
     })
       .populate('author', 'name avatar username')
@@ -1080,12 +1112,12 @@ exports.toggleVerification = async (req, res) => {
     user.isVerified = !user.isVerified;
     await user.save();
 
-    res.json({ 
+    res.json({
       message: `User ${user.isVerified ? 'verified' : 'unverified'} successfully`,
-      isVerified: user.isVerified 
+      isVerified: user.isVerified
     });
   } catch (error) {
     console.error('Error toggling verification:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}; 
+};

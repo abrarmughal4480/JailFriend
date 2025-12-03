@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   isPrivate: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
+  balance: { type: Number, default: 0, min: 0 },
+  plan: { type: String, enum: ['Free', 'Star', 'Hot', 'Ultima', 'VIP'], default: 'Free' },
+  planExpiresAt: { type: Date, default: null },
   savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
@@ -60,7 +63,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Custom validation: at least one of name or fullName must be present
-userSchema.pre('validate', function(next) {
+userSchema.pre('validate', function (next) {
   if (!this.name && !this.fullName) {
     // Set name to username if neither name nor fullName is provided
     this.name = this.username;
@@ -69,14 +72,14 @@ userSchema.pre('validate', function(next) {
 });
 
 // Update lastSeen when user goes offline
-userSchema.methods.updateLastSeen = function() {
+userSchema.methods.updateLastSeen = function () {
   this.lastSeen = new Date();
   this.isOnline = false;
   return this.save();
 };
 
 // Mark user as online
-userSchema.methods.markOnline = function() {
+userSchema.methods.markOnline = function () {
   this.isOnline = true;
   this.lastSeen = new Date();
   return this.save();

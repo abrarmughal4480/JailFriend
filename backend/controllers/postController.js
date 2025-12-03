@@ -15,12 +15,12 @@ exports.createPost = async (req, res) => {
   try {
     console.log('📥 Received request body:', req.body);
     console.log('📥 Request headers:', req.headers);
-    
-    const { 
-      content, 
-      title, 
-      privacy = 'public', 
-      location, 
+
+    const {
+      content,
+      title,
+      privacy = 'public',
+      location,
       hashtags,
       postType = 'text',
       audio,
@@ -34,7 +34,7 @@ exports.createPost = async (req, res) => {
       groupId
     } = req.body;
     const userId = req.userId;
-    
+
     console.log('📥 Extracted data:', {
       content: content ? `${content.substring(0, 50)}...` : 'undefined',
       title,
@@ -63,7 +63,7 @@ exports.createPost = async (req, res) => {
       const UserImage = require('../models/userImage');
       const userImage = await UserImage.findOne({ userId });
       userAvatar = userImage?.avatar || user.avatar;
-      
+
       // Always include the avatar, even if it's a default one
       // Frontend will handle displaying the appropriate avatar
       if (!userAvatar) {
@@ -72,7 +72,7 @@ exports.createPost = async (req, res) => {
     } catch (error) {
       console.log('⚠️ UserImage model not found, using user.avatar directly');
       userAvatar = user.avatar;
-      
+
       // Always include the avatar, even if it's a default one
       if (!userAvatar) {
         userAvatar = '/avatars/1.png.png'; // Use default avatar path
@@ -85,7 +85,7 @@ exports.createPost = async (req, res) => {
       userAvatar,
       hasCustomAvatar: !!userAvatar
     });
-    
+
     // Debug user data
     console.log('👤 User data for post:', {
       userId,
@@ -109,7 +109,7 @@ exports.createPost = async (req, res) => {
     console.log('  - User-Agent:', req.headers['user-agent']);
     console.log('  - Authorization header present:', !!req.headers['authorization']);
     console.log('  - User ID from token:', req.userId);
-    
+
     try {
       if (req.files && req.files.length > 0) {
         console.log('📁 Processing files:', req.files.length);
@@ -121,20 +121,20 @@ exports.createPost = async (req, res) => {
             path: file.path,
             filename: file.filename
           });
-          
+
           // Validate file upload success
           if (!file.path) {
             console.error(`❌ File ${index + 1} upload failed: No path returned`);
             throw new Error(`File upload failed for ${file.originalname}`);
           }
-          
+
           const isVideo = file.mimetype.startsWith('video/');
           const isAudio = file.mimetype.startsWith('audio/');
           const isGif = file.mimetype === 'image/gif';
           const isDocument = file.mimetype.startsWith('application/') || file.mimetype.startsWith('text/');
           const isPdf = file.mimetype === 'application/pdf';
           const isMp3 = file.mimetype === 'audio/mpeg' || file.mimetype === 'audio/mp3';
-          
+
           // Determine media type with better precision
           let mediaType = 'image'; // default
           if (isVideo) mediaType = 'video';
@@ -143,7 +143,7 @@ exports.createPost = async (req, res) => {
           else if (isPdf) mediaType = 'document'; // PDFs are documents
           else if (isMp3) mediaType = 'audio';
           else if (isDocument) mediaType = 'document';
-          
+
           // Cloudinary provides secure URLs directly
           const mediaItem = {
             url: file.path, // Cloudinary secure URL
@@ -161,7 +161,7 @@ exports.createPost = async (req, res) => {
             isVideo: isVideo,
             isImage: !isVideo && !isAudio && !isDocument && !isPdf
           };
-          
+
           console.log(`📁 Created media item ${index + 1}:`, mediaItem);
           return mediaItem;
         });
@@ -175,9 +175,9 @@ exports.createPost = async (req, res) => {
         error: fileError.message
       });
     }
-    
+
     console.log('📁 Final media array:', media);
-    
+
     // Validate media array
     if (media && media.length > 0) {
       console.log('🔍 Validating media items...');
@@ -190,7 +190,7 @@ exports.createPost = async (req, res) => {
           hasOriginalName: !!item.originalName,
           originalName: item.originalName
         });
-        
+
         // Ensure required fields are present
         if (!item.url) {
           console.error(`❌ Media ${index + 1} missing URL`);
@@ -226,7 +226,7 @@ exports.createPost = async (req, res) => {
     // Prepare post data
     // Ensure content is not empty
     const postContent = content && content.trim() ? content.trim() : ' ';
-    
+
     const postData = {
       content: `<pre class="whitespace-pre-wrap break-words font-sans">${postContent}</pre>`,
       title,
@@ -234,17 +234,17 @@ exports.createPost = async (req, res) => {
       privacy,
       hashtags: parsedHashtags,
       mentions,
-      user: { 
-        userId, 
-        name: user.name || user.username || 'Unknown User', 
-        avatar: userAvatar 
+      user: {
+        userId,
+        name: user.name || user.username || 'Unknown User',
+        avatar: userAvatar
       },
       userId,
       postType,
       pageId,
       groupId
     };
-    
+
     console.log('📝 Post data prepared:', {
       contentLength: postData.content?.length,
       mediaCount: postData.media?.length,
@@ -367,7 +367,7 @@ exports.createPost = async (req, res) => {
     });
 
     console.log('💾 Attempting to save post to database...');
-    
+
     // Validate required fields before saving
     console.log('🔍 Validating post data before save:');
     console.log('  - content:', !!postData.content, 'length:', postData.content?.length);
@@ -375,7 +375,7 @@ exports.createPost = async (req, res) => {
     console.log('  - user.name:', !!postData.user?.name);
     console.log('  - user.userId:', !!postData.user?.userId);
     console.log('  - media:', postData.media?.length || 0);
-    
+
     // Check for required fields
     if (!postData.content || postData.content.trim().length === 0) {
       return res.status(400).json({
@@ -384,7 +384,7 @@ exports.createPost = async (req, res) => {
         details: [{ field: 'content', message: 'Post content cannot be empty' }]
       });
     }
-    
+
     if (!postData.userId) {
       return res.status(400).json({
         message: 'Validation error',
@@ -392,7 +392,7 @@ exports.createPost = async (req, res) => {
         details: [{ field: 'userId', message: 'User ID is missing' }]
       });
     }
-    
+
     if (!postData.user?.name) {
       return res.status(400).json({
         message: 'Validation error',
@@ -400,7 +400,7 @@ exports.createPost = async (req, res) => {
         details: [{ field: 'user.name', message: 'User name is missing' }]
       });
     }
-    
+
     try {
       await post.save();
       console.log('📝 Post saved successfully:', {
@@ -417,7 +417,7 @@ exports.createPost = async (req, res) => {
     // Populate user info
     console.log('👤 Populating user info...');
     try {
-      await post.populate('user.userId', 'name avatar username');
+      await post.populate('user.userId', 'name avatar username plan');
       console.log('✅ User info populated successfully');
     } catch (populateError) {
       console.error('❌ Error populating user info:', populateError);
@@ -429,20 +429,20 @@ exports.createPost = async (req, res) => {
   } catch (err) {
     console.error('❌ Error creating post:', err);
     console.error('❌ Error stack:', err.stack);
-    
+
     // Check if it's a database connection error
     if (err.name === 'MongoNetworkError' || err.name === 'MongoServerSelectionError') {
-      return res.status(503).json({ 
-        message: 'Database connection error', 
-        error: 'Unable to connect to database. Please try again later.' 
+      return res.status(503).json({
+        message: 'Database connection error',
+        error: 'Unable to connect to database. Please try again later.'
       });
     }
-    
+
     // Check if it's a validation error
     if (err.name === 'ValidationError') {
       console.log('❌ Validation error details:', err.errors);
-      return res.status(400).json({ 
-        message: 'Validation error', 
+      return res.status(400).json({
+        message: 'Validation error',
         error: err.message,
         details: Object.values(err.errors).map(e => ({
           field: e.path,
@@ -452,10 +452,10 @@ exports.createPost = async (req, res) => {
         }))
       });
     }
-    
+
     // Generic error
-    res.status(500).json({ 
-      message: 'Error creating post', 
+    res.status(500).json({
+      message: 'Error creating post',
       error: err.message,
       timestamp: new Date().toISOString()
     });
@@ -466,23 +466,23 @@ exports.createPost = async (req, res) => {
 exports.getAllPosts = async (req, res) => {
   try {
     console.log('🔍 getAllPosts called');
-    
-    const posts = await Post.find({ 
+
+    const posts = await Post.find({
       $and: [
         { groupId: { $exists: false } }, // Exclude group posts from main feed
         { pageId: { $exists: false } }   // Exclude page posts from main feed
       ]
     })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
       .limit(50);
-    
+
     console.log(`🔍 Found ${posts.length} posts`);
-    
+
     // Ensure all media URLs are full URLs
     const postsWithFullUrls = posts.map(post => {
       const postObj = post.toObject();
@@ -496,11 +496,11 @@ exports.getAllPosts = async (req, res) => {
         rawMedia: postObj.media,
         userData: postObj.user
       });
-      
+
       if (postObj.media && postObj.media.length > 0) {
         postObj.media = postObj.media.map(media => {
           if (media.url && !media.url.startsWith('http')) {
-            const baseUrl = process.env.NODE_ENV === 'production' 
+            const baseUrl = process.env.NODE_ENV === 'production'
               ? 'https://jaifriend-backend-production.up.railway.app'
               : 'http://localhost:3002';
             const fullUrl = constructFullUrl(baseUrl, media.url);
@@ -508,7 +508,7 @@ exports.getAllPosts = async (req, res) => {
             media.url = fullUrl;
           }
           if (media.thumbnail && !media.thumbnail.startsWith('http')) {
-            const baseUrl = process.env.NODE_ENV === 'production' 
+            const baseUrl = process.env.NODE_ENV === 'production'
               ? 'https://jaifriend-backend-production.up.railway.app'
               : 'http://localhost:3002';
             const fullUrl = constructFullUrl(baseUrl, media.thumbnail);
@@ -520,8 +520,20 @@ exports.getAllPosts = async (req, res) => {
       }
       return postObj;
     });
-    
+
     console.log(`✅ Returning ${postsWithFullUrls.length} posts with full URLs`);
+
+    // Shuffle the posts to show random feed on every refresh
+    for (let i = postsWithFullUrls.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [postsWithFullUrls[i], postsWithFullUrls[j]] = [postsWithFullUrls[j], postsWithFullUrls[i]];
+    }
+
+    // Prevent caching to ensure shuffle works on every request
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     res.json(postsWithFullUrls);
   } catch (error) {
     console.error('❌ Error in getAllPosts:', error);
@@ -534,29 +546,29 @@ exports.getUserPosts = async (req, res) => {
   try {
     const userId = req.userId;
     console.log('🔍 getUserPosts called for userId:', userId);
-    
-    const posts = await Post.find({ 
+
+    const posts = await Post.find({
       $or: [
         { userId: userId },
         { 'user.userId': userId }
       ]
     })
       .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar');
-    
+
     console.log(`🔍 Found ${posts.length} posts for user`);
-    
+
     // Ensure all media URLs are full URLs
     const postsWithFullUrls = posts.map(post => {
       const postObj = post.toObject();
       if (postObj.media && postObj.media.length > 0) {
         postObj.media = postObj.media.map(media => {
           if (media.url && !media.url.startsWith('http')) {
-            const baseUrl = process.env.NODE_ENV === 'production' 
+            const baseUrl = process.env.NODE_ENV === 'production'
               ? 'https://jaifriend-backend-production.up.railway.app'
               : 'http://localhost:3002';
             const fullUrl = constructFullUrl(baseUrl, media.url);
@@ -564,7 +576,7 @@ exports.getUserPosts = async (req, res) => {
             media.url = fullUrl;
           }
           if (media.thumbnail && !media.thumbnail.startsWith('http')) {
-            const baseUrl = process.env.NODE_ENV === 'production' 
+            const baseUrl = process.env.NODE_ENV === 'production'
               ? 'https://jaifriend-backend-production.up.railway.app'
               : 'http://localhost:3002';
             const fullUrl = constructFullUrl(baseUrl, media.thumbnail);
@@ -576,7 +588,7 @@ exports.getUserPosts = async (req, res) => {
       }
       return postObj;
     });
-    
+
     console.log(`✅ Returning ${postsWithFullUrls.length} posts with full URLs`);
     res.json(postsWithFullUrls);
   } catch (err) {
@@ -607,7 +619,7 @@ exports.getPostsByUserId = async (req, res) => {
       const UserImage = require('../models/userImage');
       const userImage = await UserImage.findOne({ userId });
       userAvatar = userImage?.avatar || user.avatar;
-      
+
       // Always include the avatar, even if it's a default one
       if (!userAvatar) {
         userAvatar = '/avatars/1.png.png'; // Use default avatar path
@@ -615,7 +627,7 @@ exports.getPostsByUserId = async (req, res) => {
     } catch (error) {
       console.log('⚠️ UserImage model not found, using user.avatar directly');
       userAvatar = user.avatar;
-      
+
       // Always include the avatar, even if it's a default one
       if (!userAvatar) {
         userAvatar = '/avatars/1.png.png'; // Use default avatar path
@@ -623,32 +635,32 @@ exports.getPostsByUserId = async (req, res) => {
     }
 
     // Get posts by the specific user - check both userId and user.userId fields
-    const posts = await Post.find({ 
+    const posts = await Post.find({
       $or: [
         { userId: userId },
         { 'user.userId': userId }
       ]
     })
       .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar');
-    
+
     // Ensure all media URLs are full URLs
     const postsWithFullUrls = posts.map(post => {
       const postObj = post.toObject();
       if (postObj.media && postObj.media.length > 0) {
         postObj.media = postObj.media.map(media => {
           if (media.url && !media.url.startsWith('http')) {
-            const baseUrl = process.env.NODE_ENV === 'production' 
+            const baseUrl = process.env.NODE_ENV === 'production'
               ? 'https://jaifriend-backend-production.up.railway.app'
               : 'http://localhost:3002';
             media.url = constructFullUrl(baseUrl, media.url);
           }
           if (media.thumbnail && !media.thumbnail.startsWith('http')) {
-            const baseUrl = process.env.NODE_ENV === 'production' 
+            const baseUrl = process.env.NODE_ENV === 'production'
               ? 'https://jaifriend-backend-production.up.railway.app'
               : 'http://localhost:3002';
             media.thumbnail = constructFullUrl(baseUrl, media.thumbnail);
@@ -658,7 +670,7 @@ exports.getPostsByUserId = async (req, res) => {
       }
       return postObj;
     });
-    
+
     res.json(postsWithFullUrls);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -670,15 +682,15 @@ exports.getSavedPosts = async (req, res) => {
   try {
     const userId = req.userId;
     console.log('🔍 Fetching saved posts for user:', userId);
-    
+
     const posts = await Post.find({ savedBy: userId })
       .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar');
-    
+
     console.log('✅ Found', posts.length, 'saved posts for user:', userId);
     res.json(posts);
   } catch (err) {
@@ -721,7 +733,7 @@ exports.deletePost = async (req, res) => {
     // Delete associated media files from Cloudinary
     if (post.media && post.media.length > 0) {
       const { deleteFromCloudinary } = require('../config/cloudinary');
-      
+
       for (const mediaItem of post.media) {
         if (mediaItem.publicId) {
           try {
@@ -737,32 +749,32 @@ exports.deletePost = async (req, res) => {
     // Delete the post from database
     console.log('💾 Deleting post from database...');
     await Post.findByIdAndDelete(id);
-    
+
     console.log('✅ Post deleted successfully:', id);
-    res.json({ 
+    res.json({
       message: 'Post deleted successfully',
       postId: id
     });
   } catch (err) {
     console.error('❌ Error deleting post:', err);
     console.error('❌ Error stack:', err.stack);
-    
+
     // Handle specific error types
     if (err.name === 'CastError') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Invalid post ID format',
-        error: err.message 
+        error: err.message
       });
     }
-    
+
     if (err.name === 'ValidationError') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation error',
-        error: err.message 
+        error: err.message
       });
     }
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       message: 'Error deleting post',
       error: err.message,
       stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
@@ -776,7 +788,7 @@ exports.toggleLike = async (req, res) => {
     console.log('🔍 toggleLike called with params:', req.params);
     console.log('🔍 req.userId:', req.userId);
     console.log('🔍 req.user:', req.user);
-    
+
     const { id } = req.params;
     const userId = req.userId;
 
@@ -787,7 +799,7 @@ exports.toggleLike = async (req, res) => {
 
     console.log('🔍 Looking for post with ID:', id);
     const post = await Post.findById(id);
-    
+
     if (!post) {
       console.log('❌ Post not found with ID:', id);
       return res.status(404).json({ message: 'Post not found' });
@@ -799,20 +811,20 @@ exports.toggleLike = async (req, res) => {
 
     const likeIndex = post.likes.indexOf(userId);
     console.log('🔍 Like index:', likeIndex);
-    
+
     if (likeIndex > -1) {
       post.likes.splice(likeIndex, 1);
       console.log('❌ Removed like, new likes:', post.likes);
     } else {
       post.likes.push(userId);
       console.log('✅ Added like, new likes:', post.likes);
-      
+
       // Create notification for post owner when someone likes their post
       if (post.user?.userId?.toString() !== userId.toString()) {
         console.log('🔔 Creating notification for post owner');
         const { createNotification } = require('./notificationController');
         const currentUser = await User.findById(userId);
-        
+
         if (currentUser) {
           await createNotification({
             userId: post.user?.userId,
@@ -833,21 +845,21 @@ exports.toggleLike = async (req, res) => {
 
     await post.save();
     console.log('💾 Post saved successfully');
-    
+
     // Populate user info for response
-    await post.populate('user.userId', 'name avatar username');
-    await post.populate('comments.user.userId', 'name avatar');
+    await post.populate('user.userId', 'name avatar username plan');
+    await post.populate('comments.user.userId', 'name avatar username plan');
     await post.populate('likes', 'name avatar');
     await post.populate('savedBy', 'name avatar');
     await post.populate('views', 'name avatar');
-    
-    const response = { 
+
+    const response = {
       message: likeIndex > -1 ? 'Post unliked' : 'Post liked',
       post: post,
       likes: post.likes.length,
       isLiked: likeIndex === -1
     };
-    
+
     console.log('✅ Sending response:', response);
     res.json(response);
   } catch (err) {
@@ -884,15 +896,15 @@ exports.toggleSave = async (req, res) => {
 
     await post.save();
     console.log('💾 Post saved, new savedBy:', post.savedBy);
-    
+
     // Populate user info for response
-    await post.populate('user.userId', 'name avatar username');
-    await post.populate('comments.user.userId', 'name avatar');
+    await post.populate('user.userId', 'name avatar username plan');
+    await post.populate('comments.user.userId', 'name avatar username plan');
     await post.populate('likes', 'name avatar');
     await post.populate('savedBy', 'name avatar');
     await post.populate('views', 'name avatar');
-    
-    res.json({ 
+
+    res.json({
       message: saveIndex > -1 ? 'Post unsaved' : 'Post saved',
       post: post,
       savedBy: post.savedBy,
@@ -916,12 +928,12 @@ exports.addComment = async (req, res) => {
     }
 
     const user = await User.findById(userId);
-    
+
     // Get user images from UserImage model
     const UserImage = require('../models/userImage');
     const userImage = await UserImage.findOne({ userId });
     const userAvatar = userImage?.avatar || user.avatar || '/avatars/1.png.png';
-    
+
     const comment = {
       user: { userId, name: user.name, avatar: userAvatar },
       text,
@@ -934,25 +946,25 @@ exports.addComment = async (req, res) => {
     // Create notification for post owner when someone comments on their post
     if (post.user?.userId?.toString() !== userId.toString()) {
       const { createNotification } = require('./notificationController');
-      
-              await createNotification({
-          userId: post.user?.userId,
-          type: 'post_comment',
-          title: 'New Comment',
-          message: `${user.name} commented on your post`,
-          relatedUserId: userId,
-          relatedPostId: post._id
-        });
+
+      await createNotification({
+        userId: post.user?.userId,
+        type: 'post_comment',
+        title: 'New Comment',
+        message: `${user.name} commented on your post`,
+        relatedUserId: userId,
+        relatedPostId: post._id
+      });
     }
 
     // Populate user info for response
-    await post.populate('user.userId', 'name avatar username');
+    await post.populate('user.userId', 'name avatar username plan');
     await post.populate('comments.user.userId', 'name avatar');
     await post.populate('likes', 'name avatar');
     await post.populate('savedBy', 'name avatar');
     await post.populate('views', 'name avatar');
 
-    res.json({ 
+    res.json({
       message: 'Comment added successfully',
       post: post,
       comment,
@@ -985,7 +997,7 @@ exports.editPost = async (req, res) => {
       newMedia = req.files.map(file => {
         const isVideo = file.mimetype.startsWith('video/');
         const isAudio = file.mimetype.startsWith('audio/');
-        
+
         return {
           url: file.path, // Cloudinary secure URL
           publicId: file.filename, // Cloudinary public ID for deletion
@@ -1015,7 +1027,7 @@ exports.editPost = async (req, res) => {
     post.privacy = privacy || post.privacy;
     post.location = location || post.location;
     post.hashtags = parsedHashtags.length > 0 ? parsedHashtags : post.hashtags;
-    
+
     if (newMedia.length > 0) {
       post.media = [...post.media, ...newMedia];
     }
@@ -1071,13 +1083,13 @@ exports.editComment = async (req, res) => {
     comment.text = text.trim();
     comment.edited = true;
     comment.editedAt = new Date();
-    
+
     await post.save();
 
     console.log('✅ Comment updated, saving post...');
 
     // Populate the post with user info before sending response
-    await post.populate('user.userId', 'name avatar username');
+    await post.populate('user.userId', 'name avatar username plan');
     await post.populate('comments.user.userId', 'name avatar');
     await post.populate('likes', 'name avatar');
     await post.populate('savedBy', 'name avatar');
@@ -1085,7 +1097,7 @@ exports.editComment = async (req, res) => {
 
     console.log('✅ Post populated, sending response');
 
-    res.json({ 
+    res.json({
       message: 'Comment updated successfully',
       comment: comment,
       post: post
@@ -1132,7 +1144,7 @@ exports.deleteComment = async (req, res) => {
     console.log('✅ Comment removed, saving post...');
 
     // Populate the post with user info before sending response
-    await post.populate('user.userId', 'name avatar username');
+    await post.populate('user.userId', 'name avatar username plan');
     await post.populate('comments.user.userId', 'name avatar');
     await post.populate('likes', 'name avatar');
     await post.populate('savedBy', 'name avatar');
@@ -1140,7 +1152,7 @@ exports.deleteComment = async (req, res) => {
 
     console.log('✅ Post populated, sending response');
 
-    res.json({ 
+    res.json({
       message: 'Comment deleted successfully',
       post: post
     });
@@ -1168,7 +1180,7 @@ exports.sharePost = async (req, res) => {
       socialPlatforms
     });
 
-    const originalPost = await Post.findById(id).populate('user.userId', 'name avatar username');
+    const originalPost = await Post.findById(id).populate('user.userId', 'name avatar username plan');
     if (!originalPost) {
       return res.status(404).json({ message: 'Post not found' });
     }
@@ -1207,7 +1219,7 @@ exports.sharePost = async (req, res) => {
             userAvatar: originalPost.user?.avatar
           }
         });
-        
+
         await timelinePost.save();
         sharedPosts.push(timelinePost);
         shareCount++;
@@ -1258,7 +1270,7 @@ exports.sharePost = async (req, res) => {
     if (originalPost.user?.userId?.toString() !== userId.toString()) {
       try {
         const { createNotification } = require('./notificationController');
-        
+
         await createNotification({
           userId: originalPost.user?.userId,
           type: 'share',
@@ -1274,8 +1286,8 @@ exports.sharePost = async (req, res) => {
 
     // Populate shared posts for response
     for (let post of sharedPosts) {
-      await post.populate('user.userId', 'name avatar username');
-      await post.populate('comments.user.userId', 'name avatar');
+      await post.populate('user.userId', 'name avatar username plan');
+      await post.populate('comments.user.userId', 'name avatar username plan');
       await post.populate('likes', 'name avatar');
       await post.populate('savedBy', 'name avatar');
       await post.populate('views', 'name avatar');
@@ -1288,7 +1300,7 @@ exports.sharePost = async (req, res) => {
       shareResults
     });
 
-    res.json({ 
+    res.json({
       post: originalPost,
       sharedPosts,
       shares: originalPost.shares,
@@ -1320,9 +1332,9 @@ exports.addView = async (req, res) => {
       await post.save();
     }
 
-    res.json({ 
+    res.json({
       message: 'View added successfully',
-      viewCount: post.views.length 
+      viewCount: post.views.length
     });
   } catch (err) {
     res.status(500).json({ message: 'Error adding view', error: err.message });
@@ -1352,7 +1364,7 @@ exports.addReaction = async (req, res) => {
 
     if (existingReactionIndex !== -1) {
       const existingReaction = post.reactions[existingReactionIndex];
-      
+
       // If same reaction type, remove it (toggle off)
       if (existingReaction.type === reactionType) {
         post.reactions.splice(existingReactionIndex, 1);
@@ -1370,9 +1382,9 @@ exports.addReaction = async (req, res) => {
     }
 
     await post.save();
-    
+
     // Populate user info for response
-    await post.populate('user.userId', 'name avatar username');
+    await post.populate('user.userId', 'name avatar username plan');
     await post.populate('reactions.user', 'name avatar');
 
     res.json({
@@ -1392,14 +1404,14 @@ exports.getPostsWithMedia = async (req, res) => {
     const posts = await Post.find({
       'media.0': { $exists: true }
     })
-    .sort({ createdAt: -1 })
-    .populate('user.userId', 'name avatar username')
-    .populate('comments.user.userId', 'name avatar')
-    .populate('likes', 'name avatar')
-    .populate('savedBy', 'name avatar')
-    .populate('views', 'name avatar')
-    .limit(50);
-    
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar')
+      .populate('likes', 'name avatar')
+      .populate('savedBy', 'name avatar')
+      .populate('views', 'name avatar')
+      .limit(50);
+
     res.json(posts);
   } catch (err) {
     console.error('Error fetching posts with media:', err);
@@ -1413,14 +1425,14 @@ exports.getPostsWithVideos = async (req, res) => {
     const posts = await Post.find({
       'media.type': 'video'
     })
-    .sort({ createdAt: -1 })
-    .populate('user.userId', 'name avatar username')
-    .populate('comments.user.userId', 'name avatar')
-    .populate('likes', 'name avatar')
-    .populate('savedBy', 'name avatar')
-    .populate('views', 'name avatar')
-    .limit(50);
-    
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar')
+      .populate('likes', 'name avatar')
+      .populate('savedBy', 'name avatar')
+      .populate('views', 'name avatar')
+      .limit(50);
+
     res.json(posts);
   } catch (err) {
     console.error('Error fetching posts with videos:', err);
@@ -1432,14 +1444,14 @@ exports.getPostsWithVideos = async (req, res) => {
 exports.getPopularPosts = async (req, res) => {
   try {
     const posts = await Post.find()
-      .sort({ totalEngagement: -1, createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+      .sort({ totalEngagement: -1 })
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
       .limit(20);
-    
+
     res.json(posts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1451,17 +1463,17 @@ exports.getMostEngagedPost = async (req, res) => {
   try {
     const posts = await Post.find();
     if (!posts.length) return res.json(null);
-    
+
     const postsWithEngagement = posts.map(post => ({
       post,
       engagement: post.totalEngagement
     }));
-    
-    const mostEngaged = postsWithEngagement.reduce((max, curr) => 
+
+    const mostEngaged = postsWithEngagement.reduce((max, curr) =>
       curr.engagement > max.engagement ? curr : max, postsWithEngagement[0]
     );
-    
-    await mostEngaged.post.populate('user.userId', 'name avatar username');
+
+    await mostEngaged.post.populate('user.userId', 'name avatar username plan');
     res.json(mostEngaged.post);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1475,14 +1487,14 @@ exports.getPostsByHashtag = async (req, res) => {
     const posts = await Post.find({
       hashtags: { $in: [hashtag] }
     })
-    .sort({ createdAt: -1 })
-    .populate('user.userId', 'name avatar username')
-    .populate('comments.user.userId', 'name avatar')
-    .populate('likes', 'name avatar')
-    .populate('savedBy', 'name avatar')
-    .populate('views', 'name avatar')
-    .limit(50);
-    
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar')
+      .populate('likes', 'name avatar')
+      .populate('savedBy', 'name avatar')
+      .populate('views', 'name avatar')
+      .limit(50);
+
     res.json(posts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1495,19 +1507,19 @@ exports.getTrendingHashtags = async (req, res) => {
     const posts = await Post.find({
       createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // Last 7 days
     });
-    
+
     const hashtagCounts = {};
     posts.forEach(post => {
       post.hashtags.forEach(hashtag => {
         hashtagCounts[hashtag] = (hashtagCounts[hashtag] || 0) + 1;
       });
     });
-    
+
     const trending = Object.entries(hashtagCounts)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([hashtag, count]) => ({ hashtag, count }));
-    
+
     res.json(trending);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1533,7 +1545,7 @@ exports.addReview = async (req, res) => {
     }
 
     // Check if user has already reviewed this post
-    const existingReviewIndex = post.reviews.findIndex(review => 
+    const existingReviewIndex = post.reviews.findIndex(review =>
       review.user.toString() === userId
     );
 
@@ -1597,7 +1609,7 @@ exports.savePost = async (req, res) => {
       // Remove from saved
       post.savedBy = post.savedBy.filter(id => id.toString() !== userId);
       await post.save();
-      
+
       res.json({
         message: 'Post removed from saved',
         saved: false,
@@ -1607,7 +1619,7 @@ exports.savePost = async (req, res) => {
       // Add to saved
       post.savedBy.push(userId);
       await post.save();
-      
+
       res.json({
         message: 'Post saved successfully',
         saved: true,
@@ -1633,11 +1645,11 @@ exports.getSavedPosts = async (req, res) => {
       savedBy: userId,
       privacy: { $ne: 'private' } // Don't show private posts
     })
-    .populate('user.userId', 'name avatar username')
-    .populate('comments.user.userId', 'name avatar username')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     // Get total count for pagination
     const totalSavedPosts = await Post.countDocuments({
@@ -1673,7 +1685,7 @@ exports.checkPostSaved = async (req, res) => {
     }
 
     const isSaved = post.savedBy.includes(userId);
-    
+
     res.json({
       isSaved,
       savedCount: post.savedBy.length
@@ -1790,8 +1802,8 @@ exports.addPollVote = async (req, res) => {
     }
 
     await post.addPollVote(userId, optionIndex);
-    
-    res.json({ 
+
+    res.json({
       message: 'Vote added successfully',
       poll: post.poll
     });
@@ -1817,8 +1829,8 @@ exports.removePollVote = async (req, res) => {
     }
 
     await post.removePollVote(userId, optionIndex);
-    
-    res.json({ 
+
+    res.json({
       message: 'Vote removed successfully',
       poll: post.poll
     });
@@ -1835,15 +1847,15 @@ exports.getPostsByType = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const validTypes = ['text', 'image', 'video', 'audio', 'file', 'gif', 'voice', 'feeling', 'sell', 'poll', 'location', 'mixed'];
-    
+
     if (!validTypes.includes(postType)) {
       return res.status(400).json({ message: 'Invalid post type' });
     }
 
     const posts = await Post.find({ postType })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -1875,9 +1887,9 @@ exports.getPostsWithFeelings = async (req, res) => {
     }
 
     const posts = await Post.find(query)
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -1904,9 +1916,9 @@ exports.getPostsWithPolls = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'poll.question': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -1933,9 +1945,9 @@ exports.getPostsWithLocation = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'location.name': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -1962,9 +1974,9 @@ exports.getPostsWithSell = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'sell.productId': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -1992,9 +2004,9 @@ exports.getPostsWithAudio = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'audio.url': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -2021,9 +2033,9 @@ exports.getPostsWithVoice = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'voice.url': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -2050,9 +2062,9 @@ exports.getPostsWithFiles = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'files.0': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -2080,9 +2092,9 @@ exports.getPostsWithGifs = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
 
     const posts = await Post.find({ 'gif.url': { $exists: true } })
-      .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username')
-      .populate('comments.user.userId', 'name avatar')
+
+      .populate('user.userId', 'name avatar username plan')
+      .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
       .populate('views', 'name avatar')
@@ -2102,3 +2114,4 @@ exports.getPostsWithGifs = async (req, res) => {
     res.status(500).json({ message: 'Error getting posts with GIFs', error: err.message });
   }
 };
+

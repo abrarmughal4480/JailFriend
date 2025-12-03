@@ -1,13 +1,30 @@
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ProfileDropdownProps {
   profile: {
     avatar?: string;
     fullName?: string;
+    plan?: string;
   };
 }
 
 export default function ProfileDropdown({ profile }: ProfileDropdownProps) {
+  const router = useRouter();
+
+  // Get user plan from localStorage
+  const getUserPlan = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return user.plan || 'Free';
+    } catch {
+      return 'Free';
+    }
+  };
+
+  const userPlan = getUserPlan();
+  const isProUser = userPlan && userPlan !== 'Free';
+
   return (
     <div className="absolute right-0 top-12 w-64 sm:w-80 bg-white dark:bg-dark-800 rounded-2xl shadow-2xl z-50 p-3 sm:p-4 flex flex-col gap-2 border border-gray-100 dark:border-dark-700">
       {/* Profile Section */}
@@ -40,17 +57,16 @@ export default function ProfileDropdown({ profile }: ProfileDropdownProps) {
           <span className="font-medium text-sm sm:text-base">Switch Account</span>
         </button>
         <div className="py-1" />
-        <button className="flex items-center gap-2 sm:gap-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg px-2 text-left text-gray-700 dark:text-gray-300">
+        <button
+          onClick={() => router.push('/dashboard/upgrade')}
+          className="flex items-center gap-2 sm:gap-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg px-2 text-left text-gray-700 dark:text-gray-300"
+        >
           <span className="bg-gray-100 dark:bg-dark-700 p-1.5 sm:p-2 rounded-full text-base sm:text-lg">🛠️</span>
-          <span className="font-medium text-sm sm:text-base">Upgrade To Pro</span>
+          <span className="font-medium text-sm sm:text-base">{isProUser ? 'Subscription' : 'Upgrade To Pro'}</span>
         </button>
         <button className="flex items-center gap-2 sm:gap-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg px-2 text-left text-gray-700 dark:text-gray-300">
           <span className="bg-gray-100 dark:bg-dark-700 p-1.5 sm:p-2 rounded-full text-base sm:text-lg">📢</span>
           <span className="font-medium text-sm sm:text-base">Advertising</span>
-        </button>
-        <button className="flex items-center gap-2 sm:gap-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg px-2 text-left text-gray-700 dark:text-gray-300">
-          <span className="bg-gray-100 dark:bg-dark-700 p-1.5 sm:p-2 rounded-full text-base sm:text-lg">💳</span>
-          <span className="font-medium text-sm sm:text-base">Subscriptions</span>
         </button>
         <div className="py-1" />
         <button className="flex items-center gap-2 sm:gap-3 py-2 hover:bg-gray-50 dark:hover:bg-dark-700 rounded-lg px-2 text-left text-gray-700 dark:text-gray-300">

@@ -1,7 +1,6 @@
 'use client';
-import Tippy from '@tippyjs/react';
-import 'tippy.js/dist/tippy.css';
-import { useRef } from 'react';
+import CustomTooltip from './CustomTooltip';
+import { useState } from 'react';
 
 export type ReactionType = 'like' | 'love' | 'haha' | 'wow' | 'sad' | 'angry';
 
@@ -21,37 +20,32 @@ const reactions: { type: ReactionType; emoji: string; label: string; color: stri
   { type: 'angry', emoji: '😠', label: 'Angry', color: 'bg-orange-500' }
 ];
 
-export default function ReactionPopup({ 
+export default function ReactionPopup({
   children,
   onReaction,
   currentReaction,
   isDarkMode = false
 }: ReactionPopupProps) {
-  const tippyInstanceRef = useRef<any>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   const handleReaction = (reactionType: ReactionType, e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
+
     // Call the onReaction callback first
     onReaction(reactionType);
-    
+
     // Hide the popup after a small delay to ensure the reaction is processed
-    if (tippyInstanceRef.current) {
-      setTimeout(() => {
-        tippyInstanceRef.current?.hide();
-      }, 100);
-    }
+    setTimeout(() => {
+      setIsVisible(false);
+    }, 100);
   };
 
   return (
-    <Tippy
-      onCreate={(instance) => {
-        tippyInstanceRef.current = instance;
-      }}
+    <CustomTooltip
       content={
-        <div 
-          className="flex items-center gap-2 p-2 bg-slate-700 dark:bg-slate-700 rounded-full"
+        <div
+          className="flex items-center gap-2 p-2 bg-slate-700 dark:bg-slate-700 rounded-full shadow-lg"
           onClick={(e) => e.stopPropagation()}
         >
           {reactions.map((reaction) => {
@@ -61,13 +55,11 @@ export default function ReactionPopup({
                 key={reaction.type}
                 onClick={(e) => handleReaction(reaction.type, e)}
                 onTouchEnd={(e) => handleReaction(reaction.type, e)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${
-                  reaction.color
-                } ${
-                  isCurrentReaction 
-                    ? `ring-2 ring-blue-300 ring-offset-1` 
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${reaction.color
+                  } ${isCurrentReaction
+                    ? `ring-2 ring-blue-300 ring-offset-1`
                     : 'hover:shadow-md'
-                }`}
+                  }`}
                 title={reaction.label}
                 style={{ touchAction: 'manipulation' }}
               >
@@ -80,34 +72,9 @@ export default function ReactionPopup({
       interactive={true}
       trigger="click"
       placement="top-start"
-      arrow={false}
-      zIndex={99999}
-      offset={[0, 10]}
-      hideOnClick={false}
-      touch={true}
-      appendTo={() => document.body}
-      className="!bg-transparent !shadow-none !border-none !p-0"
-      onClickOutside={(instance, event) => {
-        instance.hide();
-      }}
-      popperOptions={{
-        modifiers: [
-          {
-            name: 'offset',
-            options: {
-              offset: [0, 10],
-            },
-          },
-          {
-            name: 'flip',
-            options: {
-              fallbackPlacements: ['top-start', 'top', 'bottom-start', 'top-end'],
-            },
-          },
-        ],
-      }}
+      onClickOutside={() => setIsVisible(false)}
     >
       {children}
-    </Tippy>
+    </CustomTooltip>
   );
 }

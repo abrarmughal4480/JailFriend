@@ -43,9 +43,11 @@ const videoCallRoutes = require('./routes/videoCallRoutes');
 const session = require('express-session');
 const fs = require('fs');
 const path = require('path');
+const walletRoutes = require('./routes/walletRoutes');
+const advertisementRoutes = require('./routes/advertisementRoutes');
 // Temporarily comment out passport to fix route loading
 const passport = require('passport');
- require('./config/passport'); // Passport strategies config (to be created)
+require('./config/passport'); // Passport strategies config (to be created)
 
 // Set fallback JWT_SECRET if not provided
 if (!process.env.JWT_SECRET) {
@@ -97,7 +99,7 @@ const cors = require('cors');
 // Define allowed origins
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:3001', 
+  'http://localhost:3001',
   'https://jaifriend.hgdjlive.com',
   'http://192.168.43.120:3000',
   'https://jaifriend-backend.hgdjlive.com'
@@ -116,14 +118,14 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     // In development, allow all localhost origins
     if (process.env.NODE_ENV === 'development') {
       if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
         return callback(null, true);
       }
     }
-    
+
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -153,18 +155,18 @@ if (process.env.NODE_ENV === 'development') {
 // Ensure CORS headers are always set, even for error responses
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  
+
   // Set CORS headers for all responses
   if (origin && (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development')) {
     res.header('Access-Control-Allow-Origin', origin);
   } else if (process.env.NODE_ENV === 'development') {
     res.header('Access-Control-Allow-Origin', '*');
   }
-  
+
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-Forwarded-Proto');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
+
   next();
 });
 
@@ -191,7 +193,7 @@ app.use(session({
   saveUninitialized: false,
 }));
 // Temporarily comment out passport middleware
- app.use(passport.initialize());
+app.use(passport.initialize());
 app.use(passport.session());
 
 // Mount auth routes FIRST, before other routes
@@ -243,6 +245,8 @@ app.use('/api/audio-calls', audioCallRoutes);
 app.use('/api/p2p', p2pRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/video-calls', videoCallRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/advertisements', advertisementRoutes);
 // Static file serving for uploads and avatars
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 app.use('/avatars', express.static(require('path').join(__dirname, '../frontend/public/avatars')));
@@ -266,21 +270,21 @@ app.use((error, req, res, next) => {
       error: 'File size exceeds the 100MB limit'
     });
   }
-  
+
   if (error.code === 'LIMIT_FILE_COUNT') {
     return res.status(400).json({
       message: 'Too many files',
       error: 'Maximum 10 files allowed per upload'
     });
   }
-  
+
   if (error.message && error.message.includes('File type not supported')) {
     return res.status(400).json({
       message: 'Unsupported file type',
       error: error.message
     });
   }
-  
+
   // Handle other errors
   if (process.env.NODE_ENV === 'development') {
     console.error('Unhandled error:', error);
@@ -306,9 +310,9 @@ app.use('*', (req, res) => {
   if (process.env.NODE_ENV === 'development') {
     console.log('404 - Route not found:', req.method, req.originalUrl);
   }
-  res.status(404).json({ 
-    message: 'Route not found', 
-    method: req.method, 
+  res.status(404).json({
+    message: 'Route not found',
+    method: req.method,
     url: req.originalUrl
   });
 });
@@ -324,10 +328,10 @@ socketService.initialize(server);
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔌 Socket.IO initialized`);
- 
+
   const fileMonitor = require('./utils/fileMonitor');
   const storyCleanup = require('./utils/storyCleanup');
-  
+
   setTimeout(() => {
     fileMonitor.startWatching();
     storyCleanup.startCleanupScheduler();
