@@ -211,97 +211,187 @@ export default function ManageBankReceiptsPage() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead>
-                                        <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                                            <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                USER
-                                            </th>
-                                            <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                PRICE
-                                            </th>
-                                            <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                CREATED
-                                            </th>
-                                            <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                RECEIPT
-                                            </th>
-                                            <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                ACTION
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {receipts.map((receipt) => (
-                                            <tr 
-                                                key={receipt._id}
-                                                className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50'}`}
-                                            >
-                                                <td className="py-4 px-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <img
-                                                            src={receipt.userId.avatar || '/default-avatar.svg'}
-                                                            alt={receipt.userId.name}
-                                                            className="w-10 h-10 rounded-full object-cover"
-                                                        />
-                                                        <div>
-                                                            <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                                                {receipt.userId.name}
-                                                            </div>
-                                                            <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                                                {receipt.userId.email}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className={`py-4 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                                    {formatAmount(receipt.amount)}
-                                                </td>
-                                                <td className={`py-4 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                                    {formatDate(receipt.createdAt)}
-                                                </td>
-                                                <td className="py-4 px-4">
-                                                    <button
-                                                        onClick={() => setSelectedReceipt(receipt)}
-                                                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                                    >
-                                                        📄 Show Receipt
-                                                    </button>
-                                                </td>
-                                                <td className="py-4 px-4">
-                                                    {receipt.status === 'pending' ? (
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => handleApprove(receipt._id)}
-                                                                disabled={processing === receipt._id}
-                                                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                                                            >
-                                                                Approve
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReject(receipt._id)}
-                                                                disabled={processing === receipt._id}
-                                                                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                                                            >
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
-                                                            receipt.status === 'approved' 
-                                                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                                                : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                                        }`}>
-                                                            {receipt.status.toUpperCase()}
-                                                        </span>
-                                                    )}
-                                                </td>
+                            <>
+                                {/* Desktop table */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead>
+                                            <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                                                <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                    USER
+                                                </th>
+                                                <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                    PRICE
+                                                </th>
+                                                <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                    CREATED
+                                                </th>
+                                                <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                    RECEIPT
+                                                </th>
+                                                <th className={`text-left py-3 px-4 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                    ACTION
+                                                </th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        </thead>
+                                        <tbody>
+                                            {receipts.map((receipt) => (
+                                                <tr 
+                                                    key={receipt._id}
+                                                    className={`border-b ${isDarkMode ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50'}`}
+                                                >
+                                                    <td className="py-4 px-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <img
+                                                                src={receipt.userId.avatar || '/default-avatar.svg'}
+                                                                alt={receipt.userId.name}
+                                                                className="w-10 h-10 rounded-full object-cover"
+                                                            />
+                                                            <div>
+                                                                <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                                                    {receipt.userId.name}
+                                                                </div>
+                                                                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                                    {receipt.userId.email}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className={`py-4 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                                        {formatAmount(receipt.amount)}
+                                                    </td>
+                                                    <td className={`py-4 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                        {formatDate(receipt.createdAt)}
+                                                    </td>
+                                                    <td className="py-4 px-4">
+                                                        <button
+                                                            onClick={() => setSelectedReceipt(receipt)}
+                                                            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                                        >
+                                                            📄 Show Receipt
+                                                        </button>
+                                                    </td>
+                                                    <td className="py-4 px-4">
+                                                        {receipt.status === 'pending' ? (
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleApprove(receipt._id)}
+                                                                    disabled={processing === receipt._id}
+                                                                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                                                >
+                                                                    Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleReject(receipt._id)}
+                                                                    disabled={processing === receipt._id}
+                                                                    className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                receipt.status === 'approved' 
+                                                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                                                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                                            }`}>
+                                                                {receipt.status.toUpperCase()}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile-friendly cards */}
+                                <div className="space-y-4 md:hidden">
+                                    {receipts.map((receipt) => (
+                                        <div
+                                            key={receipt._id}
+                                            className={`rounded-xl border ${isDarkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'} p-4`}
+                                        >
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <img
+                                                    src={receipt.userId.avatar || '/default-avatar.svg'}
+                                                    alt={receipt.userId.name}
+                                                    className="w-10 h-10 rounded-full object-cover"
+                                                />
+                                                <div className="min-w-0">
+                                                    <div className={`font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                                        {receipt.userId.name}
+                                                    </div>
+                                                    <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                        {receipt.userId.email}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                                                <div>
+                                                    <p className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                        Price
+                                                    </p>
+                                                    <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                                        {formatAmount(receipt.amount)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                        Created
+                                                    </p>
+                                                    <p className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                                        {formatDate(receipt.createdAt)}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className={`text-xs uppercase tracking-wide ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                        Status
+                                                    </p>
+                                                    <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                                                        receipt.status === 'approved' 
+                                                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                                            : receipt.status === 'rejected'
+                                                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                                    }`}>
+                                                        {receipt.status.toUpperCase()}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    onClick={() => setSelectedReceipt(receipt)}
+                                                    className="flex-1 min-w-[120px] bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    📄 Show Receipt
+                                                </button>
+
+                                                {receipt.status === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleApprove(receipt._id)}
+                                                            disabled={processing === receipt._id}
+                                                            className="flex-1 min-w-[120px] bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                                        >
+                                                            {processing === receipt._id ? 'Processing...' : 'Approve'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleReject(receipt._id)}
+                                                            disabled={processing === receipt._id}
+                                                            className="flex-1 min-w-[120px] bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </div>
 

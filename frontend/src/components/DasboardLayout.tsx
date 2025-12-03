@@ -273,6 +273,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Check if current route is video call
   const isVideoCallPage = pathname.startsWith('/dashboard/video-call');
 
+  // Check if current route is reels
+  const isReelsPage = pathname.startsWith('/dashboard/reels');
+
   // Handle screen size changes
   useEffect(() => {
     const handleResize = (): void => {
@@ -2797,7 +2800,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {/* Main Content Area */}
         <main className={`
           flex-1 transition-all duration-300 min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900
-          ${isMessagesPage || isVideoCallPage
+          ${isMessagesPage || isVideoCallPage || isReelsPage
             ? 'ml-0 mr-0 pt-0 pb-0'
             : isMobile
               ? 'ml-0 mr-0 pb-20'
@@ -2807,15 +2810,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   ? 'ml-48'
                   : 'ml-64'
           }
-          ${!isMessagesPage && !isVideoCallPage && 'md:mr-20'}
-          ${!isMobile && !isMessagesPage && !isVideoCallPage && profileSidebarOpen ? 'ml-64' : ''}
-          ${!isMessagesPage && !isVideoCallPage && 'pt-16'}
+          ${!isMessagesPage && !isVideoCallPage && !isReelsPage && 'md:mr-20'}
+          ${!isMobile && !isMessagesPage && !isVideoCallPage && !isReelsPage && profileSidebarOpen ? 'ml-64' : ''}
+          ${!isMessagesPage && !isVideoCallPage && !isReelsPage && 'pt-16'}
         `} style={{
             paddingLeft: '0',
             paddingRight: '0'
           }}>
           <div className="w-full h-full overflow-x-hidden max-w-full">
-            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage ? 'max-w-none pt-0 pb-0' : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'}`}>
+            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage || isReelsPage ? 'max-w-none pt-0 pb-0' : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'}`}>
               {children}
             </div>
           </div>
@@ -2823,7 +2826,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {isMobile && !isMessagesPage && !isVideoCallPage && (
+      {isMobile && !isMessagesPage && !isVideoCallPage && !isReelsPage && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-[65] overflow-x-hidden transition-colors duration-200">
           <div className="flex justify-around items-center py-3 w-full max-w-full">
             <Link
@@ -2919,7 +2922,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       )}
 
       {/* Floating Action Button */}
-      {!isMessagesPage && !isVideoCallPage && <FloatingActionButton isAdminPage={isAdminPage} />}
+      {!isMessagesPage && !isVideoCallPage && !isReelsPage && <FloatingActionButton isAdminPage={isAdminPage} />}
 
       <style jsx>{`
         .scrollbar-hide {
