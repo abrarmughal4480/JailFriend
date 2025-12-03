@@ -1377,7 +1377,7 @@ const PagesInterface: React.FC = () => {
     { name: 'Liked Pages', active: false }
   ];
 
-  const categories: string[] = [
+  const [categories, setCategories] = useState<string[]>([
     'Cars and Vehicles',
     'Education',
     'Technology',
@@ -1387,7 +1387,18 @@ const PagesInterface: React.FC = () => {
     'Food & Drink',
     'Travel',
     'Other'
-  ];
+  ]);
+
+  const getCategoryName = (category: any) => {
+    if (!category || typeof category !== 'object') return 'Untitled Category';
+    return (
+      category.english ||
+      category.name ||
+      category.title ||
+      category.categoryName ||
+      'Untitled Category'
+    );
+  };
 
 
   // Fetch pages from backend
@@ -1467,6 +1478,42 @@ const PagesInterface: React.FC = () => {
 
   useEffect(() => {
     fetchPages();
+  }, []);
+
+  // Load page categories created in admin
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/api/categories/pages`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const categoriesList = Array.isArray(data) ? data : data.categories || [];
+        const names: string[] = categoriesList.map((cat: any) => getCategoryName(cat));
+
+        if (names.length) {
+          setCategories(names);
+          setFormData(prev => {
+            const current = prev.pageCategory || 'Cars and Vehicles';
+            const nextCategory = names.includes(current) ? current : names[0];
+            return { ...prev, pageCategory: nextCategory };
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching page categories:', error);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   // Refetch pages when switching to suggested pages tab

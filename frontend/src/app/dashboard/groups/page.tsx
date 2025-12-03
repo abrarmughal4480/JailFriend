@@ -92,6 +92,29 @@ const GroupsPage: React.FC = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  const [groupCategories, setGroupCategories] = useState<string[]>([
+    'general',
+    'business',
+    'education',
+    'entertainment',
+    'health',
+    'sports',
+    'technology',
+    'travel',
+    'other'
+  ]);
+
+  const getCategoryName = (category: any) => {
+    if (!category || typeof category !== 'object') return 'Untitled Category';
+    return (
+      category.english ||
+      category.name ||
+      category.title ||
+      category.categoryName ||
+      'Untitled Category'
+    );
+  };
+
   // Fetch groups from API
   const fetchGroups = async (isRefresh = false) => {
     try {
@@ -144,6 +167,42 @@ const GroupsPage: React.FC = () => {
 
   useEffect(() => {
     fetchGroups();
+  }, []);
+
+  // Load group categories created in admin
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/api/categories/groups`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const categoriesList = Array.isArray(data) ? data : data.categories || [];
+        const names: string[] = categoriesList.map((cat: any) => getCategoryName(cat));
+
+        if (names.length) {
+          setGroupCategories(names);
+          setFormData(prev => {
+            const current = prev.category || 'general';
+            const nextCategory = names.includes(current) ? current : names[0];
+            return { ...prev, category: nextCategory };
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching group categories:', error);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
@@ -976,15 +1035,11 @@ const GroupsPage: React.FC = () => {
                   : 'bg-white border-gray-200 text-gray-900'
               }`}
             >
-              <option value="general">General</option>
-              <option value="business">Business</option>
-              <option value="education">Education</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="health">Health</option>
-              <option value="sports">Sports</option>
-              <option value="technology">Technology</option>
-              <option value="travel">Travel</option>
-              <option value="other">Other</option>
+              {groupCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -1216,33 +1271,23 @@ const GroupsPage: React.FC = () => {
               </div>
               
               <div>
-                <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Category</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                >
-                  <option value="general">General</option>
-                  <option value="business">Business</option>
-                  <option value="education">Education</option>
-                  <option value="entertainment">Entertainment</option>
-                  <option value="health">Health & Fitness</option>
-                  <option value="sports">Sports</option>
-                  <option value="technology">Technology</option>
-                  <option value="travel">Travel</option>
-                  <option value="music">Music</option>
-                  <option value="art">Art & Design</option>
-                  <option value="food">Food & Cooking</option>
-                  <option value="fashion">Fashion & Beauty</option>
-                  <option value="gaming">Gaming</option>
-                  <option value="cars">Cars and Vehicles</option>
-                  <option value="other">Other</option>
-                </select>
+              <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Category</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
+                  isDarkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300 text-gray-900'
+                }`}
+              >
+                {groupCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
               </div>
             </div>
 

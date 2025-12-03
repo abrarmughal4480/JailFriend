@@ -46,6 +46,17 @@ const MarketplaceSeller: React.FC = () => {
   const [showDeletePopup, setShowDeletePopup] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState('');
 
+  const getCategoryName = (category: any) => {
+    if (!category || typeof category !== 'object') return 'Untitled Category';
+    return (
+      category.english ||
+      category.name ||
+      category.title ||
+      category.categoryName ||
+      'Untitled Category'
+    );
+  };
+
   useEffect(() => {
     if (activeTab === 'My Products') {
       setLoading(true);
@@ -111,14 +122,50 @@ const MarketplaceSeller: React.FC = () => {
 
   const currencies: string[] = ['USD ($)', 'EUR (€)', 'GBP (£)', 'CAD ($)', 'AUD ($)'];
   const types: string[] = ['New', 'Used', 'Refurbished'];
-  const categories: string[] = [
+  const [categories, setCategories] = useState<string[]>([
     'Autos & Vehicles',
-    'Baby & Children\'s Products', 
+    'Baby & Children\'s Products',
     'Beauty Products & Services',
     'Computers & Peripherals',
     'Consumer Electronics',
     'Other'
-  ];
+  ]);
+
+  // Load product categories created in admin
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/api/categories/products`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const categoriesList = Array.isArray(data) ? data : data.categories || [];
+        const names: string[] = categoriesList.map((cat: any) => getCategoryName(cat));
+
+        if (names.length) {
+          setCategories(names);
+          setFormData(prev => {
+            const current = prev.category;
+            const nextCategory = names.includes(current) ? current : names[0];
+            return { ...prev, category: nextCategory };
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching product categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>): void => {
     const { name, value } = e.target;

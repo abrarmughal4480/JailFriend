@@ -45,6 +45,7 @@ const fs = require('fs');
 const path = require('path');
 const walletRoutes = require('./routes/walletRoutes');
 const advertisementRoutes = require('./routes/advertisementRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 // Temporarily comment out passport to fix route loading
 const passport = require('passport');
 require('./config/passport'); // Passport strategies config (to be created)
@@ -247,6 +248,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/video-calls', videoCallRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/advertisements', advertisementRoutes);
+app.use('/api/categories', categoryRoutes);
 // Static file serving for uploads and avatars
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 app.use('/avatars', express.static(require('path').join(__dirname, '../frontend/public/avatars')));
