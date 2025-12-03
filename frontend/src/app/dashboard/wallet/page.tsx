@@ -32,7 +32,7 @@ const AddFundsModal: React.FC<AddFundsModalProps> = ({ isOpen, onClose, onContin
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
             <div
                 className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl`}
                 onClick={(e) => e.stopPropagation()}
@@ -99,7 +99,7 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({ isOpen, onClose
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
             <div
                 className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto`}
                 onClick={(e) => e.stopPropagation()}
@@ -185,9 +185,9 @@ const BankTransferModal: React.FC<BankTransferModalProps> = ({ isOpen, onClose, 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
             <div
-                className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl`}
+                className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -301,7 +301,7 @@ const TwoCheckoutModal: React.FC<TwoCheckoutModalProps> = ({ isOpen, onClose, am
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
             <div
                 className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto`}
                 onClick={(e) => e.stopPropagation()}
@@ -452,7 +452,7 @@ const PaystackModal: React.FC<PaystackModalProps> = ({ isOpen, onClose, amount, 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
             <div
                 className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl`}
                 onClick={(e) => e.stopPropagation()}
@@ -514,7 +514,7 @@ const CashfreeModal: React.FC<CashfreeModalProps> = ({ isOpen, onClose, amount, 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
             <div
                 className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl`}
                 onClick={(e) => e.stopPropagation()}

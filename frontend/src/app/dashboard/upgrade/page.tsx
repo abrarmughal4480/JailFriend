@@ -229,7 +229,7 @@ const PricingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-20 md:pb-0">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm sticky top-0 z-30 border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
@@ -253,7 +253,7 @@ const PricingPage = () => {
 
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setShowMobileMenu(false)}>
+        <div className="lg:hidden fixed inset-0 z-[80] bg-black/50" onClick={() => setShowMobileMenu(false)}>
           <div className="absolute right-0 top-0 h-full w-64 bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b">
               <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ const PricingPage = () => {
         </div>
       )}
 
-      <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12">
+      <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 pb-24 md:pb-12">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 mb-8 sm:mb-12 text-white relative overflow-hidden">
@@ -412,7 +412,7 @@ const PricingPage = () => {
           </div>
 
           {/* Pricing Plans */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8 md:mb-0">
             {plans.map((plan) => {
               const IconComponent = plan.icon;
               const currentPrice = getCurrentPrice(plan);
@@ -516,8 +516,8 @@ const PricingPage = () => {
 
       {/* Payment Confirmation Modal */}
       {showPaymentModal && pendingPlan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Pay By Wallet</h3>
             <p className="text-gray-700 mb-6">
               You are about to upgrade to a <span className="font-semibold">{pendingPlan.name}</span> membership.
@@ -566,8 +566,8 @@ const PricingPage = () => {
 
       {/* Success Modal */}
       {showSuccessModal && pendingPlan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-center">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-center max-h-[90vh] overflow-y-auto">
             <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <Check className="w-12 h-12 text-white" />
             </div>
