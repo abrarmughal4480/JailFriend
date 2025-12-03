@@ -269,12 +269,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Check if current route is messages
   const isMessagesPage = pathname.startsWith('/dashboard/messages');
-  
+
   // Check if current route is video call
   const isVideoCallPage = pathname.startsWith('/dashboard/video-call');
-
-  // Check if current route is reels (full-screen style page)
-  const isReelsPage = pathname.startsWith('/dashboard/reels');
 
   // Handle screen size changes
   useEffect(() => {
@@ -1699,13 +1696,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Mobile Profile Sidebar */}
         {isMobile && profileSidebarOpen && (
-          <aside
-            className={`fixed inset-0 z-[60] w-full h-full transform transition-all duration-300 ${
-              isDarkMode
-                ? 'bg-gray-900 border-l border-gray-700'
-                : 'bg-white border-l border-gray-200'
-            }`}
-          >
+          <aside className={`fixed right-0 top-0 h-screen w-80 z-[60] transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-900 border-l border-gray-700'
+            : 'bg-white border-l border-gray-200'
+            }`} style={{ top: '64px', height: 'calc(100vh - 64px)' }}>
             <div className={`px-3 py-2 border-b flex items-center justify-between ${isDarkMode
               ? 'border-gray-700'
               : 'border-gray-200'
@@ -1749,10 +1743,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   >
                     My Profile
                   </span>
-                  <div 
-                    className={`flex items-center gap-2 mt-1 cursor-pointer transition-colors ${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'}`}
-                    onClick={() => router.push('/dashboard/wallet')}
-                  >
+                  <div className="flex items-center gap-2 mt-1">
                     <svg
                       className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       fill="none"
@@ -2782,7 +2773,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {/* Main Content Area */}
         <main className={`
           flex-1 transition-all duration-300 min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900
-          ${isMessagesPage || isVideoCallPage || isReelsPage
+          ${isMessagesPage || isVideoCallPage
             ? 'ml-0 mr-0 pt-0 pb-0'
             : isMobile
               ? 'ml-0 mr-0 pb-20'
@@ -2792,19 +2783,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   ? 'ml-48'
                   : 'ml-64'
           }
-          ${!isMessagesPage && !isVideoCallPage && !isReelsPage && 'md:mr-20'}
-          ${!isMobile && !isMessagesPage && !isVideoCallPage && !isReelsPage && profileSidebarOpen ? 'ml-64' : ''}
-          ${!isMessagesPage && !isVideoCallPage && !isReelsPage && 'pt-16'}
+          ${!isMessagesPage && !isVideoCallPage && 'md:mr-20'}
+          ${!isMobile && !isMessagesPage && !isVideoCallPage && profileSidebarOpen ? 'ml-64' : ''}
+          ${!isMessagesPage && !isVideoCallPage && 'pt-16'}
         `} style={{
             paddingLeft: '0',
             paddingRight: '0'
           }}>
           <div className="w-full h-full overflow-x-hidden max-w-full">
-            <div className={`w-full overflow-x-hidden ${
-              isMessagesPage || isVideoCallPage || isReelsPage
-                ? 'max-w-none pt-0 pb-0'
-                : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'
-            }`}>
+            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage ? 'max-w-none pt-0 pb-0' : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'}`}>
               {children}
             </div>
           </div>
@@ -2812,7 +2799,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {isMobile && !isMessagesPage && !isVideoCallPage && !isReelsPage && (
+      {isMobile && !isMessagesPage && !isVideoCallPage && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-[65] overflow-x-hidden transition-colors duration-200">
           <div className="flex justify-around items-center py-3 w-full max-w-full">
             <Link
