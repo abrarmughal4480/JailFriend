@@ -2818,7 +2818,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             paddingRight: '0'
           }}>
           <div className="w-full h-full overflow-x-hidden max-w-full">
-            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage || isReelsPage ? 'max-w-none pt-0 pb-0' : 'max-w-full md:mr-24 pt-16 pb-24 md:pt-0 md:pb-0'}`}>
+            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage ? 'max-w-none pt-0 pb-0' : isReelsPage ? 'max-w-none pt-0 pb-20' : 'max-w-full md:mr-24 pt-16 pb-20 md:pt-0 md:pb-0'}`}>
               {children}
             </div>
           </div>
@@ -2826,7 +2826,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {isMobile && !isMessagesPage && !isVideoCallPage && !isReelsPage && (
+      {isMobile && !isMessagesPage && !isVideoCallPage && (
         <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-[65] overflow-x-hidden transition-colors duration-200">
           <div className="flex justify-around items-center py-3 w-full max-w-full">
             <Link

@@ -623,9 +623,9 @@ export default function ReelsPage() {
         </div>
       </div>
 
-      {/* Reels Container - Full height minus header with enhanced touch */}
+      {/* Reels Container - Full height minus header and bottom nav with enhanced touch */}
       <div 
-        className={`relative h-[calc(100vh-120px)] flex items-center touch-pan-y transition-all duration-300 ${
+        className={`relative h-[calc(100vh-180px)] sm:h-[calc(100vh-120px)] flex items-center touch-pan-y transition-all duration-300 ${
           isDarkMode ? 'bg-gray-900' : 'bg-black'
         } ${
           showComments ? 'justify-start sm:justify-start' : 'justify-center'
@@ -642,8 +642,8 @@ export default function ReelsPage() {
               isDarkMode ? 'bg-gray-900' : 'bg-black'
             } ${
               showComments 
-                ? 'w-full sm:w-[calc(100%-24rem)] md:w-[calc(100%-420px)] max-w-none mx-0 h-[calc(100vh-120px)]' 
-                : 'w-full max-w-[350px] h-[calc(100vh-140px)] mx-auto sm:max-w-[380px] sm:h-[calc(100vh-140px)] md:max-w-[400px] md:h-[calc(100vh-160px)]'
+                ? 'w-full sm:w-[calc(100%-24rem)] md:w-[calc(100%-420px)] max-w-none mx-0 h-[calc(100vh-180px)] sm:h-[calc(100vh-120px)]' 
+                : 'w-full max-w-[350px] h-full mx-auto sm:max-w-[380px] sm:h-full md:max-w-[400px] md:h-full'
             }`}
             onDoubleClick={handleDoubleTap}
           >
@@ -854,7 +854,7 @@ export default function ReelsPage() {
       {/* Comments Panel - Right Side */}
       {showComments && (
         <div 
-          className={`fixed right-0 top-[120px] bottom-0 w-full sm:w-96 md:w-[420px] z-40 flex flex-col shadow-2xl sm:rounded-l-3xl p-4 sm:p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}
+          className={`fixed right-0 top-[120px] bottom-0 w-full sm:w-96 md:w-[420px] z-[70] flex flex-col shadow-2xl sm:rounded-l-3xl p-4 sm:p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}
         >
             {/* Header */}
             <div className={`flex items-center justify-between mb-4 pb-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
