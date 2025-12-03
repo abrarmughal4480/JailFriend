@@ -826,6 +826,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }, 1000);
   };
 
+  const closeProfileSidebar = (): void => {
+    setProfileSidebarOpen(false);
+  };
+
   // Sidebar Functions
   const renderMenuItems = (items: MenuItem[], collapsed: boolean = false): React.ReactElement => {
     if (collapsed) {
@@ -1696,10 +1700,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Mobile Profile Sidebar */}
         {isMobile && profileSidebarOpen && (
-          <aside className={`fixed right-0 top-0 h-screen w-80 z-[60] transform transition-all duration-300 ${isDarkMode
-            ? 'bg-gray-900 border-l border-gray-700'
-            : 'bg-white border-l border-gray-200'
-            }`} style={{ top: '64px', height: 'calc(100vh - 64px)' }}>
+          <aside
+            className={`fixed inset-0 z-[60] w-full h-full transform transition-all duration-300 ${
+              isDarkMode
+                ? 'bg-gray-900 border-l border-gray-700'
+                : 'bg-white border-l border-gray-200'
+            }`}
+          >
             <div className={`px-3 py-2 border-b flex items-center justify-between ${isDarkMode
               ? 'border-gray-700'
               : 'border-gray-200'
@@ -1743,7 +1750,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   >
                     My Profile
                   </span>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div 
+                    className={`flex items-center gap-2 mt-1 cursor-pointer transition-colors ${
+                      isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'
+                    }`}
+                    onClick={() => router.push('/dashboard/wallet')}
+                  >
                     <svg
                       className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                       fill="none"
@@ -1763,7 +1775,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
               <div className="space-y-1">
                 <button
                   className="flex items-center gap-2 py-2 px-3 rounded-md text-left w-full transition-all duration-200"
-                  onClick={handleSwitchAccount}
+                  onClick={() => {
+                    handleSwitchAccount();
+                    closeProfileSidebar();
+                  }}
                   style={{
                     background: '#ffffff',
                     borderRadius: '8px',
@@ -1791,7 +1806,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     ? 'hover:bg-gray-700'
                     : 'hover:bg-gray-50'
                     }`}
-                  onClick={() => router.push('/dashboard/upgrade')}
+                  onClick={() => {
+                    router.push('/dashboard/upgrade');
+                    closeProfileSidebar();
+                  }}
                 >
                   <span className={`p-1.5 rounded-full text-sm ${isDarkMode
                     ? 'bg-gray-700'
@@ -1817,7 +1835,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     ? 'hover:bg-gray-700'
                     : 'hover:bg-gray-50'
                     }`}
-                  onClick={() => router.push('/dashboard/advertising')}
+                  onClick={() => {
+                    router.push('/dashboard/advertising');
+                    closeProfileSidebar();
+                  }}
                 >
                   <span className={`p-1.5 rounded-full text-sm ${isDarkMode
                     ? 'bg-gray-700'
@@ -1863,7 +1884,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     }`}
                   onClick={() => {
                     router.push('/dashboard/settings');
-                    setProfileSidebarOpen(false);
+                    closeProfileSidebar();
                   }}
                 >
                   <span className={`p-1.5 rounded-full text-sm ${isDarkMode
@@ -1881,7 +1902,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                     ? 'hover:bg-gray-700'
                     : 'hover:bg-gray-50'
                     }`}
-                  onClick={() => router.push('/dashboard/invite')}
+                  onClick={() => {
+                    router.push('/dashboard/invite');
+                    closeProfileSidebar();
+                  }}
                 >
                   <span className={`p-1.5 rounded-full text-sm ${isDarkMode
                     ? 'bg-gray-700'
