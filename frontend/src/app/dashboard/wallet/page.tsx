@@ -700,7 +700,8 @@ export default function WalletPage() {
                         Transactions
                     </h2>
 
-                    <div className="overflow-x-auto">
+                    {/* Desktop / Tablet Table */}
+                    <div className="overflow-x-auto hidden md:block">
                         <table className="w-full">
                             <thead>
                                 <tr className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -736,6 +737,39 @@ export default function WalletPage() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden space-y-3">
+                        {transactions.length > 0 ? (
+                            transactions.map((transaction) => (
+                                <div
+                                    key={transaction._id}
+                                    className={`rounded-xl px-4 py-3 border ${isDarkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                            {transaction.type}
+                                        </span>
+                                        <span className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                            {formatAmount(transaction.amount)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs mt-1">
+                                        <span className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                                            {transaction.status}
+                                        </span>
+                                        <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
+                                            {new Date(transaction.date).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className={`py-6 text-center text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                No transactions yet
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
