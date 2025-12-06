@@ -2254,7 +2254,7 @@ export default function Dashboard() {
         </div>
 
         {/* Two Section Layout - Feed Left, Pro Members Right */}
-        <div className="w-full max-w-full overflow-x-hidden pb-8" style={{
+        <div className="w-full max-w-full overflow-x-auto pb-8" style={{
           maxWidth: '100%',
           boxSizing: 'border-box',
           display: 'grid',
@@ -2268,7 +2268,7 @@ export default function Dashboard() {
             {/* Left Section - Feed */}
             <div
               id="left-section"
-              className={`w-full overflow-x-hidden lg:overflow-y-auto scrollbar-thin flex flex-col order-1 lg:order-1 transition-colors duration-200 ${isDarkMode
+              className={`w-full overflow-auto  lg:overflow-y-auto scrollbar-thin flex flex-col order-1 lg:order-1 transition-colors duration-200 ${isDarkMode
                 ? 'scrollbar-thumb-gray-600 scrollbar-track-gray-800'
                 : 'scrollbar-thumb-gray-300 scrollbar-track-gray-100'
                 }`}

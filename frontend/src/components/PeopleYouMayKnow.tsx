@@ -59,7 +59,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         setUsers([]);
         return;
@@ -88,15 +88,15 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
       if (response.ok) {
         const data = await response.json();
         const usersArray = Array.isArray(data) ? data : (data.users || []);
-        
+
         if (usersArray && usersArray.length > 0) {
           // Get current user to exclude from suggestions
           const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
           const currentUserId = currentUser._id || currentUser.id;
-          
+
           // Filter out current user and map user data
           const filteredUsers = usersArray.filter((user: any) => user._id !== currentUserId);
-          
+
           const mappedUsers = filteredUsers.map((user: any) => ({
             _id: user._id,
             name: user.name || user.fullName || 'User',
@@ -116,7 +116,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
             if (!a.isVerified && b.isVerified) return 1;
             return (b.followers || 0) - (a.followers || 0);
           });
-          
+
           // Limit to 10 users
           const limitedUsers = sortedUsers.slice(0, 10);
           setUsers(limitedUsers);
@@ -145,7 +145,7 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
       }
 
       const isFollowing = followedUsers.has(userId);
-      
+
       // Optimistically update UI
       setFollowedUsers(prev => {
         const newSet = new Set(prev);
@@ -167,17 +167,17 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
 
       if (response.ok) {
         // Update user followers count in the UI
-        setUsers(prev => prev.map(user => 
-          user._id === userId 
-            ? { 
-                ...user, 
-                followers: isFollowing 
-                  ? Math.max(0, (user.followers || 0) - 1)
-                  : (user.followers || 0) + 1
-              }
+        setUsers(prev => prev.map(user =>
+          user._id === userId
+            ? {
+              ...user,
+              followers: isFollowing
+                ? Math.max(0, (user.followers || 0) - 1)
+                : (user.followers || 0) + 1
+            }
             : user
         ));
-        
+
         if (onFollow) {
           onFollow(userId);
         }
@@ -265,10 +265,11 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
 
       {/* Users List - Horizontal Scroll */}
       <div className="p-4">
-        <div className="people-scroll-container flex space-x-4 overflow-x-auto pb-2">
+        <div className="people-scroll-container flex space-x-4 overflow-x-auto w-full pb-2 touch-pan-x"
+          style={{ WebkitOverflowScrolling: 'touch' }}>
           {users.map((user) => {
             const isFollowing = followedUsers.has(user._id);
-            
+
             return (
               <div
                 key={user._id}
@@ -311,17 +312,16 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
                     {user.followers} followers
                   </p>
                 </div>
-                
+
                 {/* Follow Button */}
                 <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleFollow(user._id);
-                    }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFollow(user._id);
+                  }}
                   disabled={loading}
-                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 ${
-                    isFollowing ? followBtnFollowing : followBtnDefault
-                  }`}
+                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-105 ${isFollowing ? followBtnFollowing : followBtnDefault
+                    }`}
                 >
                   {loading ? (
                     <div className="flex items-center justify-center">
@@ -334,17 +334,10 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
               </div>
             );
           })}
-          </div>
-          
-          {/* Scroll Indicator */}
-          {users.length > 4 && (
-            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-              <div className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-            </div>
-          )}
         </div>
+
+
+      </div>
     </div>
   );
 };

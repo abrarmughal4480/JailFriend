@@ -80,9 +80,9 @@ interface Group {
     avatar?: string;
   };
   members: Array<{
-  user: {
-    _id: string;
-    name: string;
+    user: {
+      _id: string;
+      name: string;
       username?: string;
       avatar?: string;
     };
@@ -178,11 +178,11 @@ const UserProfile: React.FC = () => {
 
   // Tabs configuration
   const tabs = [
-    { id: 'timeline', label: 'Timeline', count: posts.length },
-    { id: 'albums', label: 'Albums', count: albums.length },
-    { id: 'groups', label: 'Groups', count: groups.length },
-    { id: 'products', label: 'Products', count: products.length },
-    { id: 'activities', label: 'Activities', count: activities.length }
+    { id: 'timeline', label: 'Timeline', count: posts?.length },
+    { id: 'albums', label: 'Albums', count: albums?.length },
+    { id: 'groups', label: 'Groups', count: groups?.length },
+    { id: 'products', label: 'Products', count: products?.length },
+    { id: 'activities', label: 'Activities', count: activities?.length }
   ];
 
   // Filters configuration
@@ -340,24 +340,24 @@ const UserProfile: React.FC = () => {
       });
 
       if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-          setIsFollowing(userData.isFollowing);
-          setIsBlocked(userData.isBlocked);
-        
+        const userData = await response.json();
+        setUser(userData);
+        setIsFollowing(userData.isFollowing);
+        setIsBlocked(userData.isBlocked);
+
         // Check if this is the current user's profile
         const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (currentUserResponse.ok) {
-            const currentUser = await currentUserResponse.json();
-            setIsCurrentUser(currentUser.id === actualUserId);
+          const currentUser = await currentUserResponse.json();
+          setIsCurrentUser(currentUser.id === actualUserId);
         }
       } else {
-          const errorData = await response.json();
+        const errorData = await response.json();
         setError(errorData.error || 'Failed to load user profile');
         showPopup('error', 'Error', errorData.error || 'Failed to load user profile');
       }
@@ -394,10 +394,10 @@ const UserProfile: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      
+
       // Skip content fetching if userId is "me" (will be handled after redirect)
       if (actualUserId === 'me') return;
-      
+
       // Fetch posts
       const postsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${actualUserId}/posts`, {
         headers: {
@@ -406,9 +406,9 @@ const UserProfile: React.FC = () => {
       });
 
       if (postsResponse.ok) {
-          const postsData = await postsResponse.json();
-          setPosts(postsData);
-        }
+        const postsData = await postsResponse.json();
+        setPosts(postsData);
+      }
     } catch (error) {
       console.error('Error fetching user content:', error);
     }
@@ -530,7 +530,7 @@ const UserProfile: React.FC = () => {
       // Generate analytics from existing posts data as fallback
       const analyticsData = generateAnalyticsFromPosts(posts);
       setAnalyticsData(analyticsData);
-      
+
       // Generate QR code
       await generateQRCode();
     }
@@ -540,14 +540,14 @@ const UserProfile: React.FC = () => {
   const generateAnalyticsFromPosts = (posts: Post[]) => {
     const now = new Date();
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    const allPosts = posts.length;
+
+    const allPosts = posts?.length;
     const thisMonthPosts = posts.filter(post => new Date(post.createdAt) >= thisMonth).length;
-    
+
     const totalLikes = posts.reduce((sum, post) => sum + (post.likes?.length || 0), 0);
     const totalComments = posts.reduce((sum, post) => sum + (post.comments?.length || 0), 0);
     const totalShares = posts.reduce((sum, post) => sum + (post.shares?.length || 0), 0);
-    
+
     return {
       posts: {
         all: allPosts,
@@ -571,7 +571,7 @@ const UserProfile: React.FC = () => {
   // Generate activities from real posts data
   const generateActivitiesFromPosts = (posts: Post[]) => {
     const activities: any[] = [];
-    
+
     // Generate activities from posts (likes, comments, shares)
     posts.forEach((post, index) => {
       // Add post creation activity
@@ -593,7 +593,7 @@ const UserProfile: React.FC = () => {
       });
 
       // Add like activities for posts with likes
-      if (post.likes && post.likes.length > 0) {
+      if (post.likes && post.likes?.length > 0) {
         post.likes.forEach((likeId, likeIndex) => {
           activities.push({
             id: `like-${post._id}-${likeIndex}`,
@@ -615,7 +615,7 @@ const UserProfile: React.FC = () => {
       }
 
       // Add comment activities for posts with comments
-      if (post.comments && post.comments.length > 0) {
+      if (post.comments && post.comments?.length > 0) {
         post.comments.forEach((comment, commentIndex) => {
           activities.push({
             id: `comment-${post._id}-${commentIndex}`,
@@ -637,7 +637,7 @@ const UserProfile: React.FC = () => {
       }
 
       // Add share activities for posts with shares
-      if (post.shares && post.shares.length > 0) {
+      if (post.shares && post.shares?.length > 0) {
         post.shares.forEach((shareId, shareIndex) => {
           activities.push({
             id: `share-${post._id}-${shareIndex}`,
@@ -667,7 +667,7 @@ const UserProfile: React.FC = () => {
   const generateQRCode = async () => {
     try {
       const profileUrl = `${window.location.origin}/dashboard/profile/${actualUserId}`;
-      
+
       // Simple QR code generation using canvas
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -680,21 +680,21 @@ const UserProfile: React.FC = () => {
       // Create a simple QR-like pattern
       const cellSize = 8;
       const cells = size / cellSize;
-      
+
       // Clear canvas
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, size, size);
 
       // Create QR-like pattern
       ctx.fillStyle = '#000000';
-      
+
       // Corner squares
       const drawCornerSquare = (x: number, y: number) => {
         ctx.fillRect(x, y, cellSize * 7, cellSize);
         ctx.fillRect(x, y, cellSize, cellSize * 7);
         ctx.fillRect(x + cellSize * 6, y, cellSize, cellSize * 7);
         ctx.fillRect(x, y + cellSize * 6, cellSize * 7, cellSize);
-        
+
         // Inner square
         ctx.fillRect(x + cellSize * 2, y + cellSize * 2, cellSize * 3, cellSize * 3);
       };
@@ -788,7 +788,7 @@ const UserProfile: React.FC = () => {
       }
 
       console.log('🔗 Frontend: Following user by ID:', followById);
-      
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${followById.trim()}/follow`, {
         method: 'POST',
         headers: {
@@ -800,7 +800,7 @@ const UserProfile: React.FC = () => {
         const data = await response.json();
         const action = data.isFollowing ? 'followed' : 'unfollowed';
         showPopup('success', 'Success!', `User ${action} successfully`);
-        
+
         // Clear the input
         setFollowById('');
       } else {
@@ -850,7 +850,7 @@ const UserProfile: React.FC = () => {
 
   const handleSaveAvatar = async () => {
     if (!newAvatar) return;
-    
+
     try {
       setUploadingAvatar(true);
       const token = localStorage.getItem('token');
@@ -862,7 +862,7 @@ const UserProfile: React.FC = () => {
       const formData = new FormData();
       formData.append('avatar', newAvatar);
 
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/avatar`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/avatar`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -895,7 +895,7 @@ const UserProfile: React.FC = () => {
 
   const handleSaveCoverPhoto = async () => {
     if (!newCoverPhoto) return;
-    
+
     try {
       setUploadingCover(true);
       const token = localStorage.getItem('token');
@@ -907,7 +907,7 @@ const UserProfile: React.FC = () => {
       const formData = new FormData();
       formData.append('cover', newCoverPhoto);
 
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/cover`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/cover`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -939,10 +939,10 @@ const UserProfile: React.FC = () => {
 
   const handleDeletePost = async (postId: string) => {
     if (!confirm('Are you sure you want to delete this post?')) return;
-    
+
     try {
       const token = localStorage.getItem('token');
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -963,18 +963,18 @@ const UserProfile: React.FC = () => {
 
   const getFilteredContent = () => {
     let filtered: ContentItem[] = [
-      ...posts, 
+      ...posts,
       ...albums.map(album => ({ ...album, type: 'album' as const }))
     ];
-    
+
     if (activeFilter !== 'all') {
       filtered = filtered.filter(item => {
         if (isAlbum(item)) {
           return activeFilter === 'photos';
         }
-        
+
         // For posts, check media type
-        if (item.media && item.media.length > 0) {
+        if (item.media && item.media?.length > 0) {
           const mediaTypes = item.media.map((media: any) => media.type);
           switch (activeFilter) {
             case 'photos':
@@ -996,7 +996,7 @@ const UserProfile: React.FC = () => {
         }
       });
     }
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(item => {
@@ -1006,7 +1006,7 @@ const UserProfile: React.FC = () => {
         return item.content?.toLowerCase().includes(query) || item.title?.toLowerCase().includes(query);
       });
     }
-    
+
     return filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
 
@@ -1027,7 +1027,7 @@ const UserProfile: React.FC = () => {
             const isLiked = post.likes?.includes(user?._id || '');
             return {
               ...post,
-              likes: isLiked 
+              likes: isLiked
                 ? post.likes?.filter(id => id !== (user?._id || '')) || []
                 : [...(post.likes || []), user?._id || '']
             };
@@ -1126,7 +1126,7 @@ const UserProfile: React.FC = () => {
             const isSaved = post.savedBy?.includes(user?._id || '');
             return {
               ...post,
-              savedBy: isSaved 
+              savedBy: isSaved
                 ? post.savedBy?.filter(id => id !== (user?._id || '')) || []
                 : [...(post.savedBy || []), user?._id || '']
             };
@@ -1155,7 +1155,7 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${editingPost._id}`, { 
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${editingPost._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1212,21 +1212,21 @@ const UserProfile: React.FC = () => {
   const getMediaUrl = (url: string) => {
     if (!url) return '/default-avatar.svg';
     if (url.startsWith('http')) return url;
-    
+
     // Handle localhost URLs that might be stored incorrectly
     if (url.includes('localhost:3000')) {
-              const correctedUrl = url.replace('http://localhost:3000', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
+      const correctedUrl = url.replace('http://localhost:3000', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
       console.log('🔗 getMediaUrl - Fixed localhost URL:', { original: url, corrected: correctedUrl });
       return correctedUrl;
     }
-    
+
     // Handle hardcoded placeholder avatars that don't exist
     if (url.includes('/avatars/') || url.includes('/covers/')) {
       console.log('🔗 getMediaUrl - Placeholder avatar detected:', url);
       return '/default-avatar.svg';
     }
-    
-          return `${API_URL}/${url}`;
+
+    return `${API_URL}/${url}`;
   };
 
   if (loading) {
@@ -1288,15 +1288,15 @@ const UserProfile: React.FC = () => {
           scrollbar-width: none;
         }
       `}</style>
-      
+
       {/* Cover Photo Section */}
       <div className="relative h-32 sm:h-48 md:h-64 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-800 overflow-hidden">
         {userImages.cover ? (
-        <img
-            src={getMediaUrl(userImages.cover)} 
-          alt="Cover"
-          className="w-full h-full object-cover"
-        />
+          <img
+            src={getMediaUrl(userImages.cover)}
+            alt="Cover"
+            className="w-full h-full object-cover"
+          />
         ) : (
           /* Particle effect overlay */
           <div className="absolute inset-0" style={{
@@ -1306,23 +1306,23 @@ const UserProfile: React.FC = () => {
             backgroundSize: '100px 100px, 80px 80px, 60px 60px'
           }}></div>
         )}
-      
+
         {/* Cover actions - only show for current user */}
         {isCurrentUser && (
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex gap-1 sm:gap-2">
             <label className="px-2 py-1 sm:px-3 sm:py-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all flex items-center gap-1 text-xs sm:text-sm cursor-pointer">
               <span className="text-sm">📷</span>
               <span className="hidden xs:inline">Cover</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverPhotoUpload}
-                  className="hidden"
-                />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleCoverPhotoUpload}
+                className="hidden"
+              />
             </label>
             <button className="p-1 sm:p-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all">
               <span className="text-sm">➕</span>
-              </button>
+            </button>
           </div>
         )}
       </div>
@@ -1332,40 +1332,40 @@ const UserProfile: React.FC = () => {
         <div className="w-full max-w-full">
           {/* Profile Picture and Actions */}
           <div className="flex flex-col items-center gap-3 mb-4">
-              {/* Profile Picture */}
-              <div className="relative">
-                <img
-                  src={avatarPreview || (userImages.avatar ? getMediaUrl(userImages.avatar) : (user.avatar && user.avatar !== '/avatars/1.png.png' ? getMediaUrl(user.avatar) : '/default-avatar.svg'))}
-                  alt={user.name}
-                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-xl object-cover bg-gray-200"
-                  onError={(e) => {
-                    console.log('❌ Avatar load failed for user:', user.name, 'URL:', user.avatar);
-                    e.currentTarget.src = '/default-avatar.svg';
-                  }}
-                />
-                {isCurrentUser && (
+            {/* Profile Picture */}
+            <div className="relative">
+              <img
+                src={avatarPreview || (userImages.avatar ? getMediaUrl(userImages.avatar) : (user.avatar && user.avatar !== '/avatars/1.png.png' ? getMediaUrl(user.avatar) : '/default-avatar.svg'))}
+                alt={user.name}
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-xl object-cover bg-gray-200"
+                onError={(e) => {
+                  console.log('❌ Avatar load failed for user:', user.name, 'URL:', user.avatar);
+                  e.currentTarget.src = '/default-avatar.svg';
+                }}
+              />
+              {isCurrentUser && (
                 <label className="absolute bottom-1 right-1 w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors shadow-lg">
                   {uploadingAvatar ? (
                     <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
                     <span className="text-sm">📷</span>
                   )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarUpload}
-                        className="hidden"
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
                     disabled={uploadingAvatar}
-                      />
-                    </label>
-                )}
-                {user.isOnline && (
+                  />
+                </label>
+              )}
+              {user.isOnline && (
                 <div className="absolute bottom-3 right-3 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                )}
-              </div>
+              )}
+            </div>
 
-              {/* User Info */}
-              <div className="text-center">
+            {/* User Info */}
+            <div className="text-center">
               <h1 className={`text-xl sm:text-2xl font-bold mb-1 break-words transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name}</h1>
               <p className={`text-sm sm:text-base mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>@{user.username}</p>
             </div>
@@ -1374,35 +1374,33 @@ const UserProfile: React.FC = () => {
             <div className="flex gap-1 flex-wrap justify-center">
               {!isCurrentUser && (
                 <>
-                  <button 
+                  <button
                     onClick={handleFollow}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      isFollowing 
-                        ? isDarkMode 
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isFollowing
+                        ? isDarkMode
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                         : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
+                      }`}
                   >
                     {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
                     <span>{isFollowing ? 'Following' : 'Follow'}</span>
                   </button>
-                  <button 
+                  <button
                     onClick={handleMessage}
                     className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
                   >
                     <MessageCircle className="w-4 h-4" />
                     <span>Message</span>
                   </button>
-                  <button 
+                  <button
                     onClick={handleBlock}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      isBlocked 
-                        ? 'bg-red-200 text-red-700 hover:bg-red-300' 
-                        : isDarkMode 
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isBlocked
+                        ? 'bg-red-200 text-red-700 hover:bg-red-300'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                   >
                     <span>{isBlocked ? 'Unblock' : 'Block'}</span>
                   </button>
@@ -1411,40 +1409,40 @@ const UserProfile: React.FC = () => {
               {isCurrentUser && (
                 <>
                   <div className="relative">
-                    <button 
+                    <button
                       onClick={() => setShowThreeDotMenu(!showThreeDotMenu)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        isDarkMode 
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      className={`p-2 rounded-lg transition-colors ${isDarkMode
+                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                           : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                      }`}
+                        }`}
                     >
                       <MoreVertical className="w-4 h-4" />
                     </button>
-                    
+
                     {/* Three-dot dropdown menu */}
                     {showThreeDotMenu && (
                       <>
-                        <div 
-                          className="fixed inset-0 z-10" 
+                        {/* Full-screen backdrop to close the menu on outside click.
+                            Use a high z-index so it sits above sticky headers. */}
+                        <div
+                          className="fixed inset-0 z-40"
                           onClick={() => setShowThreeDotMenu(false)}
                         />
-                        <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg z-20 ${
-                          isDarkMode 
-                            ? 'bg-gray-800 border border-gray-700' 
+                        {/* Dropdown panel – z-50 to ensure it's above everything else */}
+                        <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg z-50 ${isDarkMode
+                            ? 'bg-gray-800 border border-gray-700'
                             : 'bg-white border border-gray-200'
-                        }`}>
+                          }`}>
                           <button
                             onClick={() => {
                               setShowThreeDotMenu(false);
                               fetchAnalyticsData();
                               setShowAnalyticsModal(true);
                             }}
-                            className={`w-full text-left px-4 py-3 text-sm rounded-t-lg transition-colors ${
-                              isDarkMode 
-                                ? 'text-gray-300 hover:bg-gray-700' 
+                            className={`w-full text-left px-4 py-3 text-sm rounded-t-lg transition-colors ${isDarkMode
+                                ? 'text-gray-300 hover:bg-gray-700'
                                 : 'text-gray-700 hover:bg-gray-50'
-                            }`}
+                              }`}
                           >
                             <BarChart3 className="w-4 h-4 inline mr-2" />
                             Analytics Dashboard
@@ -1454,11 +1452,10 @@ const UserProfile: React.FC = () => {
                               setShowThreeDotMenu(false);
                               // Add other actions here
                             }}
-                            className={`w-full text-left px-4 py-3 text-sm rounded-b-lg transition-colors ${
-                              isDarkMode 
-                                ? 'text-gray-300 hover:bg-gray-700' 
+                            className={`w-full text-left px-4 py-3 text-sm rounded-b-lg transition-colors ${isDarkMode
+                                ? 'text-gray-300 hover:bg-gray-700'
                                 : 'text-gray-700 hover:bg-gray-50'
-                            }`}
+                              }`}
                           >
                             <Settings className="w-4 h-4 inline mr-2" />
                             Settings
@@ -1467,20 +1464,19 @@ const UserProfile: React.FC = () => {
                       </>
                     )}
                   </div>
-                    <button 
-                      onClick={handleEditProfile}
-                      className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors text-sm"
-                    >
-                      <Edit className="w-4 h-4" />
+                  <button
+                    onClick={handleEditProfile}
+                    className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+                  >
+                    <Edit className="w-4 h-4" />
                     <span>Edit</span>
-                    </button>
-                  <button 
+                  </button>
+                  <button
                     onClick={() => setActiveTab('activities')}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${
-                      isDarkMode 
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                      }`}
                   >
                     <Eye className="w-4 h-4" />
                     <span>Activities</span>
@@ -1488,7 +1484,7 @@ const UserProfile: React.FC = () => {
                 </>
               )}
             </div>
-            </div>
+          </div>
 
           {/* User Details */}
           <div className="mb-4 text-center">
@@ -1501,7 +1497,7 @@ const UserProfile: React.FC = () => {
                 <div className="flex items-center gap-1">
                   <MapPin className="w-3 h-3 flex-shrink-0" />
                   <span className="truncate">{user.location}</span>
-            </div>
+                </div>
               )}
               {user.website && (
                 <div className="flex items-center gap-1">
@@ -1509,7 +1505,7 @@ const UserProfile: React.FC = () => {
                   <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
                     {user.website}
                   </a>
-          </div>
+                </div>
               )}
               {user.joinedDate && (
                 <div className="flex items-center gap-1">
@@ -1530,21 +1526,19 @@ const UserProfile: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-colors whitespace-nowrap min-w-fit ${
-                  activeTab === tab.id
+                className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-colors whitespace-nowrap min-w-fit ${activeTab === tab.id
                     ? 'border-blue-500 text-blue-600 font-medium'
-                    : isDarkMode 
+                    : isDarkMode
                       ? 'border-transparent text-gray-300 hover:text-white hover:border-gray-500'
-                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                }`}
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
               >
                 <span className="text-sm font-medium">{tab.label}</span>
                 {tab.count !== undefined && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 text-gray-300' 
+                  <span className={`px-2 py-0.5 rounded-full text-xs transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 text-gray-300'
                       : 'bg-gray-200 text-gray-600'
-                  }`}>
+                    }`}>
                     {tab.count}
                   </span>
                 )}
@@ -1564,20 +1558,19 @@ const UserProfile: React.FC = () => {
               <div className="lg:col-span-1 space-y-4">
                 {/* Search Box */}
                 <div className={`rounded-xl shadow-sm p-3 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <div className="relative">
-                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
-                <input
-                  type="text"
+                  <div className="relative">
+                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
+                    <input
+                      type="text"
                       placeholder="Search for posts"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 border-0 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 text-white placeholder-gray-400' 
-                        : 'bg-gray-100 text-gray-900 placeholder-gray-500'
-                    }`}
-                />
-              </div>
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className={`w-full pl-10 pr-4 py-2 border-0 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${isDarkMode
+                          ? 'bg-gray-700 text-white placeholder-gray-400'
+                          : 'bg-gray-100 text-gray-900 placeholder-gray-500'
+                        }`}
+                    />
+                  </div>
                 </div>
 
                 {/* Follow by ID Section */}
@@ -1590,7 +1583,7 @@ const UserProfile: React.FC = () => {
                       Enter a user ID to follow them directly
                     </p>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="relative">
                       <UserPlus className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
@@ -1599,24 +1592,22 @@ const UserProfile: React.FC = () => {
                         placeholder="Enter User ID"
                         value={followById}
                         onChange={(e) => setFollowById(e.target.value)}
-                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500' 
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${isDarkMode
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
                             : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
-                        }`}
+                          }`}
                       />
                     </div>
-                    
+
                     <button
                       onClick={handleFollowById}
                       disabled={isFollowingById || !followById.trim()}
-                      className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-                        isFollowingById || !followById.trim()
+                      className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${isFollowingById || !followById.trim()
                           ? isDarkMode
                             ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg'
-                      }`}
+                        }`}
                     >
                       {isFollowingById ? (
                         <>
@@ -1651,14 +1642,12 @@ const UserProfile: React.FC = () => {
                     <div className="text-center mb-3">
                       <h4 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Connections</h4>
                     </div>
-                    <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                      isDarkMode 
-                        ? 'bg-blue-900/20 border-blue-700 hover:bg-blue-900/30' 
+                    <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isDarkMode
+                        ? 'bg-blue-900/20 border-blue-700 hover:bg-blue-900/30'
                         : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
-                    }`}>
-                      <div className={`flex items-center gap-2 transition-colors duration-200 ${
-                        isDarkMode ? 'text-blue-300' : 'text-blue-700'
                       }`}>
+                      <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
+                        }`}>
                         <Users className={`w-5 h-5 flex-shrink-0 ${isDarkMode ? 'text-blue-400' : 'text-blue-500'}`} />
                         <span className="text-lg font-bold">
                           {user.following?.length || user.followingList?.length || 0}
@@ -1666,14 +1655,12 @@ const UserProfile: React.FC = () => {
                         <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Following</span>
                       </div>
                     </div>
-                    <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                      isDarkMode 
-                        ? 'bg-green-900/20 border-green-700 hover:bg-green-900/30' 
+                    <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isDarkMode
+                        ? 'bg-green-900/20 border-green-700 hover:bg-green-900/30'
                         : 'bg-green-50 border-green-200 hover:bg-green-100'
-                    }`}>
-                      <div className={`flex items-center gap-2 transition-colors duration-200 ${
-                        isDarkMode ? 'text-green-300' : 'text-green-700'
                       }`}>
+                      <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-green-300' : 'text-green-700'
+                        }`}>
                         <Users className={`w-5 h-5 flex-shrink-0 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`} />
                         <span className="text-lg font-bold">
                           {user.followers?.length || user.followersList?.length || 0}
@@ -1691,42 +1678,42 @@ const UserProfile: React.FC = () => {
 
                   {/* Gender */}
                   {user.gender && (
-                  <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <span className="text-lg">👤</span>
+                    <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <span className="text-lg">👤</span>
                       <span>{user.gender}</span>
-                  </div>
+                    </div>
                   )}
 
                   {/* Work */}
                   {user.workplace && (
-                  <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <span className="text-lg">💼</span>
+                    <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <span className="text-lg">💼</span>
                       <span>{user.workplace}</span>
-                </div>
+                    </div>
                   )}
 
                   {/* Education */}
                   {user.education && (
-                  <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <span className="text-lg">🎓</span>
+                    <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <span className="text-lg">🎓</span>
                       <span>{user.education}</span>
-                            </div>
+                    </div>
                   )}
 
                   {/* Location */}
                   {user.location && (
-                  <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <span className="text-lg">🏠</span>
+                    <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <span className="text-lg">🏠</span>
                       <span>{user.location}</span>
-                  </div>
+                    </div>
                   )}
 
                   {/* Specific Location */}
                   {user.address && (
-                  <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <MapPin className="w-4 h-4 flex-shrink-0" />
+                    <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
                       <span>{user.address}</span>
-                  </div>
+                    </div>
                   )}
 
                   {/* Country */}
@@ -1734,7 +1721,7 @@ const UserProfile: React.FC = () => {
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <span className="text-lg">🌍</span>
                       <span>{user.country}</span>
-                </div>
+                    </div>
                   )}
 
                   {/* Phone */}
@@ -1742,7 +1729,7 @@ const UserProfile: React.FC = () => {
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <Phone className="w-4 h-4 flex-shrink-0" />
                       <span>{user.phone}</span>
-                      </div>
+                    </div>
                   )}
 
                   {/* Date of Birth */}
@@ -1750,7 +1737,7 @@ const UserProfile: React.FC = () => {
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <span className="text-lg">🎂</span>
                       <span>{new Date(user.dateOfBirth).toLocaleDateString()}</span>
-                        </div>
+                    </div>
                   )}
 
                   {/* Joined Date */}
@@ -1765,17 +1752,17 @@ const UserProfile: React.FC = () => {
                   {user.website && (
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <Globe className="w-4 h-4 flex-shrink-0" />
-                      <a 
-                        href={user.website.startsWith('http') ? user.website : `https://${user.website}`} 
-                        target="_blank" 
+                      <a
+                        href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline truncate"
                       >
                         {user.website}
                       </a>
-              </div>
-                        )}
-            </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Right Content Area - Posts and Content */}
@@ -1784,89 +1771,83 @@ const UserProfile: React.FC = () => {
                 <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                   <div className="flex items-center gap-2 overflow-x-auto">
                     <div className="filter-scroll flex items-center gap-2">
-                  <button
+                      <button
                         onClick={() => setActiveFilter('all')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                          activeFilter === 'all'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'all'
                             ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode 
+                            : isDarkMode
                               ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm font-medium">All</span>
-                  </button>
-                      
+                      </button>
+
                       <button
                         onClick={() => setActiveFilter('text')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                          activeFilter === 'text'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'text'
                             ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode 
+                            : isDarkMode
                               ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         <div className="w-4 h-4 flex items-center justify-center">
                           <div className="w-3 h-0.5 bg-current rounded-full"></div>
                           <div className="w-3 h-0.5 bg-current rounded-full mt-1"></div>
                           <div className="w-3 h-0.5 bg-current rounded-full mt-1"></div>
-                      </div>
+                        </div>
                         <span className="text-sm font-medium">Text</span>
                       </button>
-                      
+
                       <button
                         onClick={() => setActiveFilter('photos')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                          activeFilter === 'photos'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'photos'
                             ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode 
+                            : isDarkMode
                               ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         <Camera className="w-4 h-4" />
                         <span className="text-sm font-medium">Photos</span>
                       </button>
-                      
+
                       <button
                         onClick={() => setActiveFilter('videos')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                          activeFilter === 'videos'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'videos'
                             ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode 
+                            : isDarkMode
                               ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         <Video className="w-4 h-4" />
                         <span className="text-sm font-medium">Videos</span>
-                  </button>
+                      </button>
 
                       <button
                         onClick={() => setActiveFilter('sounds')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                          activeFilter === 'sounds'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'sounds'
                             ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode 
+                            : isDarkMode
                               ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         <Music className="w-4 h-4" />
                         <span className="text-sm font-medium">Sounds</span>
                       </button>
-                      
+
                       <button
                         onClick={() => setActiveFilter('files')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${
-                          activeFilter === 'files'
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'files'
                             ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode 
+                            : isDarkMode
                               ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm font-medium">Files</span>
@@ -1877,112 +1858,112 @@ const UserProfile: React.FC = () => {
 
                 {/* Posts Feed */}
                 <div className="space-y-4">
-              {(() => {
-                const filteredContent = getFilteredContent();
+                  {(() => {
+                    const filteredContent = getFilteredContent();
 
-                if (filteredContent.length === 0) {
-                  return (
-                    <div className={`rounded-xl shadow-sm p-6 text-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                      <div className="text-gray-400 mb-3">
-                        <FileText className="w-16 h-16 mx-auto" />
-                      </div>
-                      <h3 className={`text-lg font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No content found</h3>
-                      <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {searchQuery ? 'Try adjusting your search terms' : 'This user hasn\'t shared anything yet'}
-                      </p>
-                    </div>
-                  );
-                }
-
-                return filteredContent.map((item: ContentItem) => {
-                  if (isAlbum(item)) {
-                    return (
-                      <div key={item._id} className={`rounded-xl shadow-sm overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                        <div className="p-4">
-                          <div className="flex items-center gap-3 mb-3">
-                            <img
-                              src={user?.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${API_URL}/${user.avatar}`) : '/default-avatar.svg'}
-                              alt={user?.name || 'User'}
-                              className="w-10 h-10 rounded-full border-2 border-blue-400"
-                              onError={(e) => {
-                                console.log('❌ Avatar load failed for user:', user?.name, 'URL:', user?.avatar);
-                                e.currentTarget.src = '/default-avatar.svg';
-                              }}
-                            />
-                            <div>
-                              <h4 className={`font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user?.name || 'User'}</h4>
-                              <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Created an album • {new Date(item.createdAt).toLocaleDateString()}</p>
-                            </div>
+                    if (filteredContent.length === 0) {
+                      return (
+                        <div className={`rounded-xl shadow-sm p-6 text-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                          <div className="text-gray-400 mb-3">
+                            <FileText className="w-16 h-16 mx-auto" />
                           </div>
-                          
-                          <h3 className={`text-lg font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
-                          
-                          {/* Album Media Grid */}
-                          {item.media && item.media.length > 0 && (
-                            <div className="grid grid-cols-3 gap-2 mb-3">
-                              {item.media.slice(0, 6).map((media: any, index: number) => (
+                          <h3 className={`text-lg font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No content found</h3>
+                          <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {searchQuery ? 'Try adjusting your search terms' : 'This user hasn\'t shared anything yet'}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return filteredContent.map((item: ContentItem) => {
+                      if (isAlbum(item)) {
+                        return (
+                          <div key={item._id} className={`rounded-xl shadow-sm overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                            <div className="p-4">
+                              <div className="flex items-center gap-3 mb-3">
                                 <img
-                                  key={index}
-                                  src={getMediaUrl(media.url)}
-                                  alt={`Album media ${index + 1}`}
-                                  className="w-full aspect-square object-cover rounded-lg"
+                                  src={user?.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${API_URL}/${user.avatar}`) : '/default-avatar.svg'}
+                                  alt={user?.name || 'User'}
+                                  className="w-10 h-10 rounded-full border-2 border-blue-400"
+                                  onError={(e) => {
+                                    console.log('❌ Avatar load failed for user:', user?.name, 'URL:', user?.avatar);
+                                    e.currentTarget.src = '/default-avatar.svg';
+                                  }}
                                 />
-                              ))}
-                              {item.media.length > 6 && (
-                                <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-500">
-                                  +{item.media.length - 6}
+                                <div>
+                                  <h4 className={`font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user?.name || 'User'}</h4>
+                                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Created an album • {new Date(item.createdAt).toLocaleDateString()}</p>
+                                </div>
+                              </div>
+
+                              <h3 className={`text-lg font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
+
+                              {/* Album Media Grid */}
+                              {item.media && item.media.length > 0 && (
+                                <div className="grid grid-cols-3 gap-2 mb-3">
+                                  {item.media.slice(0, 6).map((media: any, index: number) => (
+                                    <img
+                                      key={index}
+                                      src={getMediaUrl(media.url)}
+                                      alt={`Album media ${index + 1}`}
+                                      className="w-full aspect-square object-cover rounded-lg"
+                                    />
+                                  ))}
+                                  {item.media.length > 6 && (
+                                    <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-500">
+                                      +{item.media.length - 6}
+                                    </div>
+                                  )}
                                 </div>
                               )}
+
+                              {/* Album Actions */}
+                              <div className={`flex items-center gap-4 pt-3 border-t transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+                                <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'}`}>
+                                  <span>❤️</span>
+                                  <span className="text-sm">{item.likes?.length || 0}</span>
+                                </button>
+                                <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}>
+                                  <span>💬</span>
+                                  <span className="text-sm">{item.comments?.length || 0}</span>
+                                </button>
+                                <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-500'}`}>
+                                  <span>📤</span>
+                                  <span className="text-sm">{item.shares?.length || 0}</span>
+                                </button>
+                              </div>
                             </div>
-                          )}
-                          
-                          {/* Album Actions */}
-                          <div className={`flex items-center gap-4 pt-3 border-t transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-                            <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'}`}>
-                              <span>❤️</span>
-                              <span className="text-sm">{item.likes?.length || 0}</span>
-                            </button>
-                            <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}>
-                              <span>💬</span>
-                              <span className="text-sm">{item.comments?.length || 0}</span>
-                            </button>
-                            <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-500'}`}>
-                              <span>📤</span>
-                              <span className="text-sm">{item.shares?.length || 0}</span>
-                            </button>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  } else {
-                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                    const isOwnPost = item.user === currentUser._id || item.user === currentUser.id;
-                    
-                    return (
-                      <FeedPost
-                        key={item._id}
-                        post={{
-                          ...item,
-                          user: {
-                            _id: user._id,
-                            name: user.name,
-                            username: user.username,
-                            avatar: userImages.avatar || user.avatar
-                          }
-                        }}
-                        onLike={handleLike}
-                        onReaction={handleReaction}
-                        onComment={handleComment}
-                        onShare={handleShare}
-                        onSave={handleSave}
-                        onDelete={handleDeletePost}
-                        onEdit={handleEdit}
-                        isOwnPost={isOwnPost}
-                      />
-                    );
-                  }
-                });
-              })()}
+                        );
+                      } else {
+                        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                        const isOwnPost = item.user === currentUser._id || item.user === currentUser.id;
+
+                        return (
+                          <FeedPost
+                            key={item._id}
+                            post={{
+                              ...item,
+                              user: {
+                                _id: user._id,
+                                name: user.name,
+                                username: user.username,
+                                avatar: userImages.avatar || user.avatar
+                              }
+                            }}
+                            onLike={handleLike}
+                            onReaction={handleReaction}
+                            onComment={handleComment}
+                            onShare={handleShare}
+                            onSave={handleSave}
+                            onDelete={handleDeletePost}
+                            onEdit={handleEdit}
+                            isOwnPost={isOwnPost}
+                          />
+                        );
+                      }
+                    });
+                  })()}
                 </div>
               </div>
             </div>
@@ -2005,15 +1986,14 @@ const UserProfile: React.FC = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {albums.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {albums.map((album) => (
-                      <div key={album._id} className={`rounded-lg p-4 border transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gray-700 border-gray-600' 
+                      <div key={album._id} className={`rounded-lg p-4 border transition-colors duration-200 ${isDarkMode
+                          ? 'bg-gray-700 border-gray-600'
                           : 'bg-gray-50 border-gray-200'
-                      }`}>
+                        }`}>
                         <h4 className={`font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{album.name}</h4>
                         <div className="grid grid-cols-3 gap-1 mb-2">
                           {album.media && album.media.length > 0 ? (
@@ -2037,16 +2017,15 @@ const UserProfile: React.FC = () => {
                         <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           Created: {new Date(album.createdAt).toLocaleDateString()}
                         </p>
-                </div>
-              ))}
-            </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-8">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-200 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                    }`}>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
                       <Camera className="w-8 h-8 text-gray-400" />
-          </div>
+                    </div>
                     <h4 className={`text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>No albums yet</h4>
                     <p className={`mb-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>No albums to display</p>
                     {isCurrentUser && (
@@ -2057,9 +2036,9 @@ const UserProfile: React.FC = () => {
                         Create Album
                       </button>
                     )}
-          </div>
-        )}
-          </div>
+                  </div>
+                )}
+              </div>
             ) : activeTab === 'groups' ? (
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -2073,7 +2052,7 @@ const UserProfile: React.FC = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {groups.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {groups.map((group) => (
@@ -2083,7 +2062,7 @@ const UserProfile: React.FC = () => {
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Users className="w-3 h-3" />
                           <span>{group.stats.memberCount} members</span>
-          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2118,7 +2097,7 @@ const UserProfile: React.FC = () => {
                     </button>
                   )}
                 </div>
-                
+
                 {products.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {products.map((product) => (
@@ -2157,30 +2136,28 @@ const UserProfile: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className={`text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Activities</h3>
                 </div>
-                
+
                 {activities.length > 0 ? (
                   <div className="space-y-4">
                     {activities.map((activity) => (
-                      <div key={activity.id} className={`rounded-lg p-4 border transition-colors duration-200 ${
-                        isDarkMode 
-                          ? 'bg-gray-800 border-gray-700' 
+                      <div key={activity.id} className={`rounded-lg p-4 border transition-colors duration-200 ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700'
                           : 'bg-white border-gray-200'
-                      }`}>
+                        }`}>
                         <div className="flex items-start gap-3">
                           {/* Activity Icon */}
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                            activity.type === 'follow' 
-                              ? 'bg-blue-100 text-blue-600' 
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${activity.type === 'follow'
+                              ? 'bg-blue-100 text-blue-600'
                               : activity.type === 'like'
-                              ? 'bg-red-100 text-red-600'
-                              : activity.type === 'comment'
-                              ? 'bg-green-100 text-green-600'
-                              : activity.type === 'share'
-                              ? 'bg-purple-100 text-purple-600'
-                              : activity.type === 'post'
-                              ? 'bg-indigo-100 text-indigo-600'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
+                                ? 'bg-red-100 text-red-600'
+                                : activity.type === 'comment'
+                                  ? 'bg-green-100 text-green-600'
+                                  : activity.type === 'share'
+                                    ? 'bg-purple-100 text-purple-600'
+                                    : activity.type === 'post'
+                                      ? 'bg-indigo-100 text-indigo-600'
+                                      : 'bg-gray-100 text-gray-600'
+                            }`}>
                             {activity.type === 'follow' ? (
                               <Users className="w-5 h-5" />
                             ) : activity.type === 'like' ? (
@@ -2195,7 +2172,7 @@ const UserProfile: React.FC = () => {
                               <Activity className="w-5 h-5" />
                             )}
                           </div>
-                          
+
                           {/* Activity Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
@@ -2207,21 +2184,18 @@ const UserProfile: React.FC = () => {
                                   e.currentTarget.src = '/default-avatar.svg';
                                 }}
                               />
-                              <span className={`font-medium transition-colors duration-200 ${
-                                isDarkMode ? 'text-white' : 'text-gray-900'
-                              }`}>
+                              <span className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 {activity.user.name}
                               </span>
-                              <span className={`text-sm transition-colors duration-200 ${
-                                isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                              }`}>
+                              <span className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                }`}>
                                 {activity.description}
                               </span>
                               {activity.target.name && (
                                 <>
-                                  <span className={`text-sm transition-colors duration-200 ${
-                                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                                  }`}>
+                                  <span className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                    }`}>
                                     {activity.target.name}
                                   </span>
                                   <img
@@ -2235,21 +2209,19 @@ const UserProfile: React.FC = () => {
                                 </>
                               )}
                             </div>
-                            
+
                             {activity.target.title && (
-                              <div className={`text-sm transition-colors duration-200 ${
-                                isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                              }`}>
+                              <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                }`}>
                                 <span className="font-medium">{activity.target.title}</span>
                                 {activity.target.content && (
                                   <span className="ml-2">- {activity.target.content.length > 50 ? activity.target.content.substring(0, 50) + '...' : activity.target.content}</span>
                                 )}
                               </div>
                             )}
-                            
-                            <div className={`text-xs mt-1 transition-colors duration-200 ${
-                              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
+
+                            <div className={`text-xs mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>
                               {new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString()}
                             </div>
                           </div>
@@ -2259,24 +2231,21 @@ const UserProfile: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                    }`}>
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                      }`}>
                       <Activity className="w-8 h-8 text-gray-400" />
                     </div>
-                    <h4 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>No activities yet</h4>
-                    <p className={`transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>No activities to display</p>
+                    <h4 className={`text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>No activities yet</h4>
+                    <p className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>No activities to display</p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="text-center py-8">
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {tabs.find(tab => tab.id === activeTab)?.label}
+                  {tabs.find(tab => tab.id === activeTab)?.label}
                 </h3>
                 <p className="text-gray-600">This section is coming soon!</p>
               </div>
@@ -2293,11 +2262,10 @@ const UserProfile: React.FC = () => {
             <textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              className={`w-full h-24 sm:h-32 p-2 sm:p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+              className={`w-full h-24 sm:h-32 p-2 sm:p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-              }`}
+                }`}
               placeholder="What's on your mind?"
             />
             <div className="flex space-x-2 sm:space-x-3 mt-3 sm:mt-4">
@@ -2307,11 +2275,10 @@ const UserProfile: React.FC = () => {
                   setEditingPost(null);
                   setEditContent('');
                 }}
-                className={`flex-1 px-3 sm:px-4 py-2 border rounded-lg transition-colors text-sm sm:text-base ${
-                  isDarkMode 
-                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
+                className={`flex-1 px-3 sm:px-4 py-2 border rounded-lg transition-colors text-sm sm:text-base ${isDarkMode
+                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -2329,40 +2296,34 @@ const UserProfile: React.FC = () => {
       {/* Enhanced Analytics Modal */}
       {showAnalyticsModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black bg-opacity-60 backdrop-blur-sm">
-          <div className={`rounded-2xl shadow-2xl max-w-3xl w-full max-h-[65vh] overflow-y-auto scrollbar-hide transform transition-all duration-300 scale-100 ${
-            isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
-          }`}>
-            {/* Enhanced Modal Header */}
-            <div className={`relative p-3 border-b transition-colors duration-200 ${
-              isDarkMode ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50'
+          <div className={`rounded-2xl shadow-2xl max-w-3xl w-full max-h-[65vh] overflow-y-auto scrollbar-hide transform transition-all duration-300 scale-100 ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
             }`}>
+            {/* Enhanced Modal Header */}
+            <div className={`relative p-3 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700 bg-gradient-to-r from-gray-800 to-gray-900' : 'border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
-                    isDarkMode ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                  }`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${isDarkMode ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                    }`}>
                     <BarChart3 className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className={`text-2xl font-bold transition-colors duration-200 ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
+                    <h2 className={`text-2xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>
                       {user?.name}'s Dashboard
                     </h2>
-                    <p className={`text-sm transition-colors duration-200 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>
+                    <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
                       Analytics & Profile Information
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowAnalyticsModal(false)}
-                  className={`p-3 rounded-full transition-all duration-200 ${
-                    isDarkMode 
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-800' 
+                  className={`p-3 rounded-full transition-all duration-200 ${isDarkMode
+                      ? 'text-gray-400 hover:text-white hover:bg-gray-800'
                       : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -2375,23 +2336,20 @@ const UserProfile: React.FC = () => {
                 {/* Left Side - QR Code and My Info */}
                 <div className="space-y-3">
                   {/* Enhanced QR Code Section */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
-                    isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200'
-                  }`}>
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200'
+                    }`}>
                     <div className="text-center">
-                      <h3 className={`text-sm font-semibold mb-2 transition-colors duration-200 ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <h3 className={`text-sm font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         Profile QR Code
                       </h3>
                       <div className="relative inline-block">
-                        <div className={`p-2 rounded-lg shadow-lg transition-all duration-200 ${
-                          isDarkMode ? 'bg-white' : 'bg-white'
-                        }`}>
+                        <div className={`p-2 rounded-lg shadow-lg transition-all duration-200 ${isDarkMode ? 'bg-white' : 'bg-white'
+                          }`}>
                           {qrCodeDataUrl ? (
-                            <img 
-                              src={qrCodeDataUrl} 
-                              alt="Profile QR Code" 
+                            <img
+                              src={qrCodeDataUrl}
+                              alt="Profile QR Code"
                               className="w-28 h-28 mx-auto rounded-lg"
                             />
                           ) : (
@@ -2400,42 +2358,36 @@ const UserProfile: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${
-                          isDarkMode ? 'bg-blue-500' : 'bg-blue-500'
-                        }`}>
+                        <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${isDarkMode ? 'bg-blue-500' : 'bg-blue-500'
+                          }`}>
                           <div className="w-4 h-4 bg-white rounded-full"></div>
                         </div>
                       </div>
-                      <p className={`text-sm mt-4 transition-colors duration-200 ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                      }`}>
+                      <p className={`text-sm mt-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                        }`}>
                         Scan to visit {user?.name}'s profile
                       </p>
                     </div>
                   </div>
 
                   {/* Enhanced My Info Section */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
-                    isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-200'
-                  }`}>
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-200'
+                    }`}>
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
+                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           Download My Information
                         </h3>
-                        <p className={`text-xs transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           Export your profile data
                         </p>
                       </div>
-                      <button className={`px-2 py-1 rounded-lg font-medium transition-all duration-200 shadow-lg ${
-                        isDarkMode 
-                          ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white' 
+                      <button className={`px-2 py-1 rounded-lg font-medium transition-all duration-200 shadow-lg ${isDarkMode
+                          ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
                           : 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
-                      }`}>
+                        }`}>
                         <div className="flex items-center gap-1">
                           <Gift className="w-3 h-3" />
                           <span className="text-xs">Download</span>
@@ -2443,9 +2395,8 @@ const UserProfile: React.FC = () => {
                       </button>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shadow-lg ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shadow-lg ${isDarkMode ? 'bg-gray-700' : 'bg-white'
+                        }`}>
                         <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                           <div className="w-3 h-3 bg-white rounded flex items-center justify-center">
                             <div className="w-1 h-1 bg-blue-500 rounded"></div>
@@ -2453,14 +2404,12 @@ const UserProfile: React.FC = () => {
                         </div>
                       </div>
                       <div>
-                        <p className={`font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
+                        <p className={`font-medium transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           Secure Data Export
                         </p>
-                        <p className={`text-sm transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           Your data is encrypted and secure
                         </p>
                       </div>
@@ -2471,181 +2420,145 @@ const UserProfile: React.FC = () => {
                 {/* Right Side - Enhanced Analytics */}
                 <div className="space-y-2">
                   {/* Enhanced Post Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
-                    isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-red-50 to-pink-50 border border-red-200'
-                  }`}>
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-red-50 to-pink-50 border border-red-200'
+                    }`}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-6 h-6 bg-gradient-to-br from-red-500 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
                         <FileText className="w-3 h-3 text-white" />
                       </div>
                       <div>
-                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>Post Analytics</h3>
-                        <p className={`text-xs transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Content performance metrics</p>
+                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Post Analytics</h3>
+                        <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Content performance metrics</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.posts?.all || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>ALL POSTS</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>ALL POSTS</div>
                       </div>
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.posts?.thisMonth || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>THIS MONTH</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>THIS MONTH</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Enhanced Reaction Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
-                    isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200'
-                  }`}>
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-pink-50 to-rose-50 border border-pink-200'
+                    }`}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-6 h-6 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center shadow-lg">
                         <Heart className="w-3 h-3 text-white" />
                       </div>
                       <div>
-                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>Reaction Analytics</h3>
-                        <p className={`text-xs transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Engagement metrics</p>
+                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Reaction Analytics</h3>
+                        <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Engagement metrics</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.reactions?.total || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>REACTED POSTS</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>REACTED POSTS</div>
                       </div>
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.reactions?.received || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>REACTIONS BY</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>REACTIONS BY</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Enhanced Comment Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
-                    isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200'
-                  }`}>
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200'
+                    }`}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-lg">
                         <MessageCircle className="w-3 h-3 text-white" />
                       </div>
                       <div>
-                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>Comment Analytics</h3>
-                        <p className={`text-xs transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Interaction metrics</p>
+                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Comment Analytics</h3>
+                        <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Interaction metrics</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.comments?.total || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>COMMENTS</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>COMMENTS</div>
                       </div>
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.comments?.received || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>COMMENT BY</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>COMMENT BY</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Enhanced Share Analytics */}
-                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${
-                    isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200'
-                  }`}>
+                  <div className={`p-3 rounded-lg transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700' : 'bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200'
+                    }`}>
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg">
                         <Share2 className="w-3 h-3 text-white" />
                       </div>
                       <div>
-                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>Share Analytics</h3>
-                        <p className={`text-xs transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Viral reach metrics</p>
+                        <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>Share Analytics</h3>
+                        <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Viral reach metrics</p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.shares?.total || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>SHARED</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>SHARED</div>
                       </div>
-                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-white'
-                      }`}>
-                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`text-center p-2 rounded-lg transition-all duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-white'
                         }`}>
+                        <div className={`text-xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {analyticsData.shares?.received || 0}
                         </div>
-                        <div className={`text-xs font-medium transition-colors duration-200 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                        }`}>SHARED BY</div>
+                        <div className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>SHARED BY</div>
                       </div>
                     </div>
                   </div>

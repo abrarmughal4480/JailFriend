@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
 import PostOptionsDropdown from './PostOptionsDropdown';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
+import ReactionAvatarDisplay from './ReactionAvatarDisplay';
 import { toggleCommentsApi, pinPostApi, boostPostApi } from '@/utils/api';
 import SharePopup, { ShareOptions } from './SharePopup';
 import { getCurrentUserId } from '@/utils/auth';
@@ -1078,6 +1079,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
                 >
                   {post.user?.name || 'User'}
                 </div>
+                {/* Verified Badge */}
+                {(post.user?.isVerified || post.user?.userId?.isVerified) && (
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">✓</span>
+                  </div>
+                )}
                 {/* Pro Badge */}
                 {(() => {
                   const userPlan = post.user?.plan || post.user?.userId?.plan;
@@ -1086,10 +1093,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                   }
                   return null;
                 })()}
-                {/* Verified Badge */}
-                <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">✓</span>
-                </div>
+
               </div>
               <div className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span>{formatDate(post.createdAt)}</span>
@@ -1603,8 +1607,19 @@ const FeedPost: React.FC<FeedPostProps> = ({
 
       {/* Action Buttons - Matching the image structure */}
       <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-        {/* Top Section: Engagement Metrics */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-0 mb-3 sm:mb-4">
+        {/* Top Section: Engagement Metrics & Reactions */}
+        <div className="flex flex-row items-center justify-between mb-3 sm:mb-4">
+          {/* Left Side: Reactions */}
+          <div className="flex items-center">
+            {(post.reactions?.length > 0 || post.likes?.length > 0) && (
+              <ReactionAvatarDisplay
+                likes={post.likes}
+                reactions={post.reactions}
+                currentUserLike={isLiked}
+              />
+            )}
+          </div>
+
           {/* Right Side: Engagement Metrics */}
           <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             <div className="flex items-center space-x-1 sm:space-x-2">
@@ -1630,38 +1645,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Removed temporary reaction display */}
-
-        {/* Single Reaction Display - Shows all reactions like Jaifriend */}
-        {post.reactions && Array.isArray(post.reactions) && post.reactions.length > 0 && (
-          <div className={`px-4 py-2 border-b ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}>
-            <div className="flex flex-wrap gap-2">
-              {(() => {
-                const reactionCounts: { [key: string]: number } = {};
-                post.reactions.forEach((reaction: any) => {
-                  reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
-                });
-
-                const reactionEmojis: { [key: string]: string } = {
-                  'like': '👍',
-                  'love': '❤️',
-                  'haha': '😂',
-                  'wow': '😮',
-                  'sad': '😢',
-                  'angry': '😠'
-                };
-
-                return Object.entries(reactionCounts).map(([type, count]) => (
-                  <div key={type} className={`flex items-center space-x-1 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-full px-3 py-1 border`}>
-                    <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
-                    <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} font-medium`}>{count}</span>
-                  </div>
-                ));
-              })()}
-            </div>
-          </div>
-        )}
 
         {/* Bottom Section: Action Buttons */}
         <div className="flex justify-around  items-center ">

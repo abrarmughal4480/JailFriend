@@ -7,6 +7,7 @@ import { useDarkMode } from '@/contexts/DarkModeContext';
 import SharePopup, { ShareOptions } from './SharePopup';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
 import ProBadge from './ProBadge';
+import ReactionAvatarDisplay from './ReactionAvatarDisplay';
 
 
 interface AlbumDisplayProps {
@@ -728,8 +729,20 @@ export default function AlbumDisplay({
 
       {/* Action Buttons - Matching FeedPost structure */}
       <div className="px-3 sm:px-4 pb-3 sm:pb-4" onClick={(e) => e.stopPropagation()}>
-        {/* Top Section: Engagement Metrics */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 sm:gap-0 mb-3 sm:mb-4">
+
+        {/* Top Section: Engagement Metrics & Reactions */}
+        <div className="flex flex-row items-center justify-between mb-3 sm:mb-4">
+          {/* Left Side: Reactions */}
+          <div className="flex items-center">
+            {((album.reactions && album.reactions.length > 0) || (album.likes && album.likes.length > 0)) && (
+              <ReactionAvatarDisplay
+                likes={album.likes}
+                reactions={album.reactions}
+                currentUserLike={!!getCurrentReaction()}
+              />
+            )}
+          </div>
+
           {/* Right Side: Engagement Metrics */}
           <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             <div className="flex items-center space-x-1 sm:space-x-2">
@@ -745,36 +758,6 @@ export default function AlbumDisplay({
             </div>
           </div>
         </div>
-
-        {/* Single Reaction Display - Shows all reactions like FeedPost */}
-        {album.reactions && Array.isArray(album.reactions) && album.reactions.length > 0 && (
-          <div className={`px-4 py-2 border-b mb-3 sm:mb-4 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}>
-            <div className="flex flex-wrap gap-2">
-              {(() => {
-                const reactionCounts: { [key: string]: number } = {};
-                album.reactions.forEach((reaction: any) => {
-                  reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
-                });
-
-                const reactionEmojis: { [key: string]: string } = {
-                  'like': '👍',
-                  'love': '❤️',
-                  'haha': '😂',
-                  'wow': '😮',
-                  'sad': '😢',
-                  'angry': '😠'
-                };
-
-                return Object.entries(reactionCounts).map(([type, count]) => (
-                  <div key={type} className={`flex items-center space-x-1 ${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} rounded-full px-3 py-1 border`}>
-                    <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
-                    <span className={`text-sm ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} font-medium`}>{count}</span>
-                  </div>
-                ));
-              })()}
-            </div>
-          </div>
-        )}
 
         {/* Bottom Section: Action Buttons */}
         <div className="flex justify-around items-center">

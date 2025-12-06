@@ -7,5 +7,6 @@ const { upload } = require('../config/cloudinary');
 // Wallet routes
 router.get('/', authMiddleware, walletController.getWalletData);
 router.post('/bank-transfer', authMiddleware, upload.single('receipt'), walletController.submitBankReceipt);
+router.post('/instant-payment', authMiddleware, walletController.processInstantPayment);
 
 module.exports = router;

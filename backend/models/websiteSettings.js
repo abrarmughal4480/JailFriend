@@ -7,7 +7,15 @@ const websiteSettingsSchema = new mongoose.Schema({
     enum: ['public', 'private', 'maintenance'],
     default: 'public'
   },
-  
+
+  // Pro System Settings
+  proSystem: {
+    enabled: { type: Boolean, default: true },
+    recurringPayment: { type: Boolean, default: true },
+    refundSystem: { type: Boolean, default: true },
+    proMembershipOnSignUp: { type: Boolean, default: true }
+  },
+
   // General Configuration
   siteName: {
     type: String,
@@ -25,7 +33,7 @@ const websiteSettingsSchema = new mongoose.Schema({
     type: String,
     default: 'Social media platform, online communities, connect with friends, Jaifriend networking'
   },
-  
+
   // Features Configuration
   features: {
     registration: {
@@ -141,7 +149,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: true
     }
   },
-  
+
   // General Settings
   general: {
     // User Configuration
@@ -182,7 +190,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       enum: ['1 Day', '1 Week', '1 Month', '3 Months', '6 Months'],
       default: '1 Month'
     },
-    
+
     // Security Settings
     accountValidation: {
       type: Boolean,
@@ -229,7 +237,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       type: String,
       default: 'maintenance,get_news_feed,home,welcome,register,confirm-sms,confirm-sms-password,forgot-password,reset-password,start-up,activate,search,timeline,pages,suggested-pages,liked-pages,joined_groups,go-pro,page,poke,most_liked,groups,suggested-groups,liked-groups,joined_groups,group,game,games,most_liked_games,liked-games,played-games,game,post,posts,most_liked_posts,liked-posts,my_posts,my-posts,create-post,create_post,edit-post,edit_post,delete-post,delete_post,share-post,share_post,comment,comments,like,likes,dislike,dislikes,share,shares,report,reports,block,blocks,unblock,unblocks,delete,deletes,edit,edits,create,creates,update,updates,remove,removes,add,adds,get,gets,set,sets,put,puts,post,posts,delete,deletes,edit,edits,create,creates,update,updates,remove,removes,add,adds,get,gets,set,sets,put,puts'
     },
-    
+
     // System Settings
     censoredWords: {
       type: String,
@@ -253,7 +261,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
-    
+
     // Notifications
     emailNotifications: {
       type: Boolean,
@@ -268,7 +276,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: true
     }
   },
-  
+
   // API Keys
   apiKeys: {
     googleMaps: {
@@ -324,7 +332,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // Native App Links
   nativeApps: {
     android: {
@@ -354,7 +362,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // Analytics
   analytics: {
     googleAnalytics: {
@@ -362,7 +370,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: ''
     }
   },
-  
+
   // Maintenance Mode
   maintenance: {
     enabled: {
@@ -377,7 +385,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       type: String
     }]
   },
-  
+
   // Cache Settings
   cache: {
     enabled: {
@@ -389,7 +397,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: 3600 // 1 hour in seconds
     }
   },
-  
+
   // Security Settings
   security: {
     maxLoginAttempts: {
@@ -413,7 +421,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: 86400 // 24 hours in seconds
     }
   },
-  
+
   // Email Settings
   email: {
     provider: {
@@ -446,7 +454,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: 'Jaifriend'
     }
   },
-  
+
   // SMS Settings
   sms: {
     provider: {
@@ -467,7 +475,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: ''
     }
   },
-  
+
   // File Upload Settings
   fileUpload: {
     enabled: {
@@ -684,7 +692,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // Social Login Settings
   socialLogin: {
     google: {
@@ -730,7 +738,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // NodeJS Settings
   nodejs: {
     port: {
@@ -747,7 +755,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       default: '*'
     }
   },
-  
+
   // CronJob Settings
   cronJobs: {
     cleanupTempFiles: {
@@ -781,7 +789,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // AI Settings
   ai: {
     openai: {
@@ -822,7 +830,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       }
     }
   },
-  
+
   // Legal Documents
   privacyPolicy: {
     type: String,
@@ -837,7 +845,7 @@ const websiteSettingsSchema = new mongoose.Schema({
 });
 
 // Create a single document for website settings
-websiteSettingsSchema.statics.getSettings = async function() {
+websiteSettingsSchema.statics.getSettings = async function () {
   let settings = await this.findOne();
   if (!settings) {
     settings = await this.create({});

@@ -1,20 +1,20 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  Edit, 
-  Trash2, 
-  Eye, 
-  CheckCircle, 
-  XCircle, 
-  UserCheck, 
-  UserX, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Globe, 
+import {
+  Search,
+  Filter,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Eye,
+  CheckCircle,
+  XCircle,
+  UserCheck,
+  UserX,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
   Calendar,
   Users,
   Activity,
@@ -117,27 +117,52 @@ const VerificationRequestsPage: React.FC = () => {
     }
   ];
 
-  // Fetch verification requests from API (mock implementation)
-  const fetchVerificationRequests = async (page = 1) => {
+  // Fetch verification requests from API
+  const fetchVerificationRequests = async () => {
     try {
       setLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setRequests(mockRequests);
-      setFilteredRequests(mockRequests);
-      setCurrentPage(1);
-      setTotalPages(1);
-      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/verification/all`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch requests');
+      }
+
+      const data = await response.json();
+      console.log('Verification requests fetched:', data);
+
+      // Transform data if needed to match interface or direct usage
+      // Assuming API returns array of verification objects that match or are close to interface
+      // We might need to map if backend field names differ
+      const mappedData = data.map((item: any) => ({
+        ...item,
+        id: item._id.substring(item._id.length - 6), // Generate short ID for display
+        type: 'Profile', // Defaulting to Profile as per current backend schema
+        information: item.message,
+        category: 'Person'
+      }));
+
+      setRequests(mappedData);
+      setFilteredRequests(mappedData);
+
       // Calculate stats
-      const totalRequests = mockRequests.length;
-      const pendingRequests = mockRequests.filter(r => r.status === 'pending').length;
-      const approvedRequests = mockRequests.filter(r => r.status === 'approved').length;
-      const rejectedRequests = mockRequests.filter(r => r.status === 'rejected').length;
-      const ignoredRequests = mockRequests.filter(r => r.status === 'ignored').length;
-      const pageRequests = mockRequests.filter(r => r.type === 'Page').length;
-      const profileRequests = mockRequests.filter(r => r.type === 'Profile').length;
-      
+      const totalRequests = mappedData.length;
+      const pendingRequests = mappedData.filter((r: any) => r.status === 'pending').length;
+      const approvedRequests = mappedData.filter((r: any) => r.status === 'approved').length;
+      const rejectedRequests = mappedData.filter((r: any) => r.status === 'rejected').length;
+      const ignoredRequests = mappedData.filter((r: any) => r.status === 'ignored').length;
+      const pageRequests = mappedData.filter((r: any) => r.type === 'Page').length;
+      const profileRequests = mappedData.filter((r: any) => r.type === 'Profile').length;
+
       setStats({
         totalRequests,
         pendingRequests,
@@ -164,8 +189,8 @@ const VerificationRequestsPage: React.FC = () => {
 
     if (searchQuery) {
       filtered = filtered.filter(request =>
-        request.user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        request.user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.user?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         request.information?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         request.type?.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -189,7 +214,7 @@ const VerificationRequestsPage: React.FC = () => {
     // Sort requests
     filtered.sort((a, b) => {
       let aValue: any, bValue: any;
-      
+
       switch (sortBy) {
         case 'id':
           aValue = a.id;
@@ -204,8 +229,8 @@ const VerificationRequestsPage: React.FC = () => {
           bValue = new Date(b.createdAt);
           break;
         case 'user':
-          aValue = a.user.name;
-          bValue = b.user.name;
+          aValue = a.user?.name || '';
+          bValue = b.user?.name || '';
           break;
         default:
           aValue = a.id;
@@ -226,28 +251,38 @@ const VerificationRequestsPage: React.FC = () => {
   const handleRequestAction = async (requestId: string, action: string) => {
     try {
       setActionLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (action === 'verify') {
-        setRequests(requests.map(r => 
-          r._id === requestId ? { ...r, status: 'approved' } : r
-        ));
-        alert('Request verified successfully');
-      } else if (action === 'ignore') {
-        setRequests(requests.map(r => 
-          r._id === requestId ? { ...r, status: 'ignored' } : r
-        ));
-        alert('Request ignored successfully');
-      } else if (action === 'reject') {
-        setRequests(requests.map(r => 
-          r._id === requestId ? { ...r, status: 'rejected' } : r
-        ));
-        alert('Request rejected successfully');
+      const token = localStorage.getItem('token');
+
+      let status = '';
+      if (action === 'verify') status = 'approved';
+      else if (action === 'reject') status = 'rejected';
+      else return; // Ignore not implemented in backend yet or handled differently
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/verification/${requestId}/review`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update request');
       }
+
+      const updatedData = await response.json();
+      console.log('Request updated:', updatedData);
+
+      // Update local state
+      setRequests(requests.map(r =>
+        r._id === requestId ? { ...r, status: status as any } : r
+      ));
+
+      alert(`Request ${status} successfully`);
     } catch (error) {
       console.error(`Error ${action}ing request:`, error);
-      alert(`Error ${action}ing request`);
+      alert(`Error updating request`);
     } finally {
       setActionLoading(false);
     }
@@ -257,21 +292,40 @@ const VerificationRequestsPage: React.FC = () => {
   const handleBulkAction = async () => {
     if (selectedRequests.length === 0) return;
 
+    // Bulk action not implemented in backend yet, so implementing loop for now
+    // Ideally this should be a single API call
+    if (!confirm(`Are you sure you want to ${bulkAction} ${selectedRequests.length} requests?`)) {
+      return;
+    }
+
     try {
       setActionLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setRequests(requests.map(r => 
-        selectedRequests.includes(r._id) 
-          ? { ...r, status: bulkAction === 'verify' ? 'approved' : 'ignored' }
+      const token = localStorage.getItem('token');
+      const status = bulkAction === 'verify' ? 'approved' : 'rejected'; // Mapping verify->approved, ignore->rejected? or just support verify/reject
+
+      // Process requests sequentially or parallel
+      await Promise.all(selectedRequests.map(async (requestId) => {
+        return fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/verification/${requestId}/review`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        });
+      }));
+
+      // Update local state
+      setRequests(requests.map(r =>
+        selectedRequests.includes(r._id)
+          ? { ...r, status: status as any }
           : r
       ));
       setSelectedRequests([]);
-      alert(`Bulk ${bulkAction} completed successfully`);
+      alert(`Bulk action completed successfully`);
     } catch (error) {
       console.error(`Error performing bulk ${bulkAction}:`, error);
-      alert(`Error performing bulk ${bulkAction}`);
+      alert(`Error performing bulk action`);
     } finally {
       setActionLoading(false);
     }
@@ -314,18 +368,18 @@ const VerificationRequestsPage: React.FC = () => {
   };
 
   // Sidebar navigation items
- 
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-     
+
 
       {/* Main Content */}
       <div>
@@ -356,7 +410,7 @@ const VerificationRequestsPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => fetchVerificationRequests(currentPage)}
+                  onClick={() => fetchVerificationRequests()}
                   disabled={loading}
                   className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
@@ -466,7 +520,7 @@ const VerificationRequestsPage: React.FC = () => {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </th>
-                    <th 
+                    <th
                       className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('id')}
                     >
@@ -483,7 +537,7 @@ const VerificationRequestsPage: React.FC = () => {
                     <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       INFORMATION
                     </th>
-                    <th 
+                    <th
                       className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('type')}
                     >
@@ -495,6 +549,9 @@ const VerificationRequestsPage: React.FC = () => {
                       </div>
                     </th>
                     <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      STATUS
+                    </th>
+                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       ACTION
                     </th>
                   </tr>
@@ -502,7 +559,7 @@ const VerificationRequestsPage: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={6} className="px-3 lg:px-6 py-8 text-center">
+                      <td colSpan={7} className="px-3 lg:px-6 py-8 text-center">
                         <div className="flex items-center justify-center">
                           <RefreshCw className="w-5 h-5 animate-spin text-blue-500 mr-2" />
                           <span className="text-sm lg:text-base">Loading verification requests...</span>
@@ -511,7 +568,7 @@ const VerificationRequestsPage: React.FC = () => {
                     </tr>
                   ) : filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-3 lg:px-6 py-8 text-center text-gray-500 text-sm lg:text-base">
+                      <td colSpan={7} className="px-3 lg:px-6 py-8 text-center text-gray-500 text-sm lg:text-base">
                         No verification requests found
                       </td>
                     </tr>
@@ -550,21 +607,33 @@ const VerificationRequestsPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-3 lg:px-6 py-3 lg:py-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-3 lg:px-6 py-3 lg:py-4">
                           <div className="flex items-center gap-1 lg:gap-2">
-                            <button
-                              onClick={() => handleRequestAction(request._id, 'verify')}
-                              disabled={actionLoading}
-                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors disabled:opacity-50"
-                            >
-                              Verify
-                            </button>
-                            <button
-                              onClick={() => handleRequestAction(request._id, 'ignore')}
-                              disabled={actionLoading}
-                              className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors disabled:opacity-50"
-                            >
-                              Ignore
-                            </button>
+                            {request.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleRequestAction(request._id, 'verify')}
+                                  disabled={actionLoading}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors disabled:opacity-50"
+                                >
+                                  Verify
+                                </button>
+                                <button
+                                  onClick={() => handleRequestAction(request._id, 'reject')}
+                                  disabled={actionLoading}
+                                  className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -581,7 +650,7 @@ const VerificationRequestsPage: React.FC = () => {
                   <div className="text-sm text-gray-700">
                     Showing {filteredRequests.length} out of {stats.totalRequests}
                   </div>
-                  
+
                   {/* Bulk Actions */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                     <label className="text-sm font-medium text-gray-700">Action:</label>
@@ -591,15 +660,14 @@ const VerificationRequestsPage: React.FC = () => {
                       className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     >
                       <option value="verify">Verify</option>
-                      <option value="ignore">Ignore</option>
                       <option value="reject">Reject</option>
                     </select>
                     <button
                       onClick={handleBulkAction}
                       disabled={selectedRequests.length === 0 || actionLoading}
-                      className="px-4 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Submit
+                      Apply
                     </button>
                   </div>
                 </div>

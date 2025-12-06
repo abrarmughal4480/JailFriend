@@ -417,7 +417,7 @@ exports.createPost = async (req, res) => {
     // Populate user info
     console.log('👤 Populating user info...');
     try {
-      await post.populate('user.userId', 'name avatar username plan');
+      await post.populate('user.userId', 'name avatar username plan isVerified');
       console.log('✅ User info populated successfully');
     } catch (populateError) {
       console.error('❌ Error populating user info:', populateError);
@@ -474,7 +474,7 @@ exports.getAllPosts = async (req, res) => {
       ]
     })
 
-      .populate('user.userId', 'name avatar username plan')
+      .populate('user.userId', 'name avatar username plan isVerified')
       .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
@@ -554,7 +554,7 @@ exports.getUserPosts = async (req, res) => {
       ]
     })
       .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username plan')
+      .populate('user.userId', 'name avatar username plan isVerified')
       .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')
@@ -642,7 +642,7 @@ exports.getPostsByUserId = async (req, res) => {
       ]
     })
       .sort({ createdAt: -1 })
-      .populate('user.userId', 'name avatar username plan')
+      .populate('user.userId', 'name avatar username plan isVerified')
       .populate('comments.user.userId', 'name avatar username plan')
       .populate('likes', 'name avatar')
       .populate('savedBy', 'name avatar')

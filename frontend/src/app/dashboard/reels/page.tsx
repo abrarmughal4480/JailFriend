@@ -11,15 +11,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // Helper function to construct proper video URLs
 const getVideoUrl = (url: string): string => {
   if (!url) return '';
-  
+
   // If already a full URL, return as is
   if (url.startsWith('http')) {
     return url;
   }
-  
+
   // Get base URL and handle localhost vs production
   let baseUrl = API_URL || 'https://jailfriend-1.onrender.com';
-  
+
   // For localhost development, use HTTP to avoid SSL errors
   if (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
     baseUrl = baseUrl.replace('https://', 'http://');
@@ -38,12 +38,12 @@ const getVideoUrl = (url: string): string => {
     // For production, ensure HTTPS
     baseUrl = baseUrl.replace('http://', 'https://');
   }
-  
+
   // Ensure proper URL construction with forward slash
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
-  
+
   const finalUrl = `${baseUrl}${cleanPath}`;
-  
+
   return finalUrl;
 };
 
@@ -69,6 +69,7 @@ export default function ReelsPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [followingUsers, setFollowingUsers] = useState<Set<string>>(new Set());
   const [following, setFollowing] = useState<string | null>(null);
+  const [showActionButtons, setShowActionButtons] = useState(true);
 
   // Handle horizontal scroll with mouse wheel
   const handleWheelScroll = (e: React.WheelEvent) => {
@@ -81,7 +82,7 @@ export default function ReelsPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  
+
   // Handle page scroll for reel navigation
   const [isScrolling, setIsScrolling] = useState(false);
   const [scrollTimeout, setScrollTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -136,7 +137,7 @@ export default function ReelsPage() {
     try {
       setLoading(true);
       setError('');
-      
+
       let response: ReelsResponse | Reel[];
       if (showTrending) {
         response = await getReels({ trending: true, page: 1, limit: 20 });
@@ -145,7 +146,7 @@ export default function ReelsPage() {
         response = await getReels({ category: selectedCategory, page: 1, limit: 20 });
         setReels(Array.isArray(response) ? response : response.reels || []);
       }
-      
+
       setCurrentReelIndex(0);
     } catch (error: any) {
       console.error('❌ Error loading reels:', error);
@@ -169,13 +170,48 @@ export default function ReelsPage() {
     }
   }, [loadReels]);
 
+  // Reset action buttons visibility when reel changes
+  useEffect(() => {
+    setShowActionButtons(true);
+  }, [currentReelIndex]);
+
   // Prevent page scroll on reels page - only allow swipe navigation
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previousOverflowY = document.body.style.overflowY;
+    const previousHeight = document.body.style.height;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverflowY = document.documentElement.style.overflowY;
+    const previousHtmlHeight = document.documentElement.style.height;
+
+    // Prevent scrolling on body and html
     document.body.style.overflow = 'hidden';
-    
+    document.body.style.overflowY = 'hidden';
+    document.body.style.height = '100vh';
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
+    document.documentElement.style.height = '100vh';
+
+    // Prevent touch scrolling
+    const preventDefault = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-scroll-area') && !target.closest('.comments-panel')) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchmove', preventDefault, { passive: false });
+    document.addEventListener('touchstart', preventDefault, { passive: false });
+
     return () => {
       document.body.style.overflow = previousOverflow || '';
+      document.body.style.overflowY = previousOverflowY || '';
+      document.body.style.height = previousHeight || '';
+      document.documentElement.style.overflow = previousHtmlOverflow || '';
+      document.documentElement.style.overflowY = previousHtmlOverflowY || '';
+      document.documentElement.style.height = previousHtmlHeight || '';
+      document.removeEventListener('touchmove', preventDefault);
+      document.removeEventListener('touchstart', preventDefault);
     };
   }, []);
 
@@ -241,18 +277,25 @@ export default function ReelsPage() {
 
   // Handle page scroll for reel navigation (Instagram style)
   const handlePageScroll = useCallback((e: WheelEvent) => {
+    // Only handle scroll if not in header filter area or comments panel
+    const target = e.target as HTMLElement;
+    if (target.closest('.filter-scroll-area') || target.closest('.comments-panel')) {
+      return; // Let those areas handle their own scroll
+    }
+
     if (isScrolling) return; // Prevent rapid scrolling
-    
+
     e.preventDefault();
+    e.stopPropagation();
     setIsScrolling(true);
-    
+
     // Clear existing timeout
     if (scrollTimeout) {
       clearTimeout(scrollTimeout);
     }
-    
+
     const deltaY = e.deltaY;
-    
+
     if (deltaY > 0 && currentReelIndex < reels.length - 1) {
       // Scroll down - next reel
       handleReelChange('down');
@@ -260,30 +303,28 @@ export default function ReelsPage() {
       // Scroll up - previous reel
       handleReelChange('up');
     }
-    
+
     // Reset scrolling state after delay
     const timeout = setTimeout(() => {
       setIsScrolling(false);
     }, 500); // 500ms delay to prevent rapid scrolling
-    
+
     setScrollTimeout(timeout);
   }, [currentReelIndex, reels.length, isScrolling, scrollTimeout, handleReelChange]);
 
   // Add scroll event listener for reel navigation
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
-      // Only handle scroll if not in header filter area
-      const target = e.target as HTMLElement;
-      if (target.closest('.filter-scroll-area')) {
-        return; // Let filter area handle its own scroll
-      }
       handlePageScroll(e);
     };
 
-    window.addEventListener('wheel', handleWheel, { passive: false });
-    
+    // Use capture phase to catch scroll events early
+    window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+    document.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+
     return () => {
-      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('wheel', handleWheel, { capture: true });
+      document.removeEventListener('wheel', handleWheel, { capture: true });
       if (scrollTimeout) {
         clearTimeout(scrollTimeout);
       }
@@ -292,7 +333,7 @@ export default function ReelsPage() {
 
   const handleLike = async (reelId: string) => {
     if (isLiking || !currentUserId) return;
-    
+
     try {
       setIsLiking(reelId);
       const token = localStorage.getItem('token');
@@ -316,7 +357,7 @@ export default function ReelsPage() {
           if (reel._id === reelId) {
             const isLiked = data.isLiked;
             const likesCount = data.likesCount || data.likes?.length || reel.likes.length;
-            const likes = isLiked 
+            const likes = isLiked
               ? [...(reel.likes || []), currentUserId]
               : (reel.likes || []).filter((id: string) => id !== currentUserId);
             return { ...reel, likes, likesCount };
@@ -335,7 +376,7 @@ export default function ReelsPage() {
 
   const handleFollow = async (userId: string) => {
     if (following === userId || !currentUserId || userId === currentUserId) return;
-    
+
     try {
       setFollowing(userId);
       const token = localStorage.getItem('token');
@@ -395,6 +436,12 @@ export default function ReelsPage() {
   const [isTouchScrolling, setIsTouchScrolling] = useState(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    // Allow button clicks - don't handle touch if touching a button
+    if (target.closest('button') || target.closest('.action-buttons-container') || target.closest('.reel-info-overlay')) {
+      return;
+    }
+
     setTouchEnd(null);
     setTouchStart(e.targetTouches[0].clientY);
     setTouchStartTime(Date.now());
@@ -403,27 +450,48 @@ export default function ReelsPage() {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStart) return;
-    
+
+    const target = e.target as HTMLElement;
+    // Allow scrolling in filter area and comments panel
+    if (target.closest('.filter-scroll-area') || target.closest('.comments-panel')) {
+      return;
+    }
+
+    // Allow button clicks - don't prevent if touching a button
+    if (target.closest('button') || target.closest('.action-buttons-container')) {
+      return;
+    }
+
     const currentY = e.targetTouches[0].clientY;
     setTouchEnd(currentY);
-    
+
     // Calculate distance and check if it's a scroll gesture
     const distance = Math.abs(touchStart - currentY);
     if (distance > 10) {
       setIsTouchScrolling(true);
     }
-    
+
     // Prevent default scroll behavior during touch move
     e.preventDefault();
+    e.stopPropagation();
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    // Allow button clicks - don't handle swipe if touching a button
+    if (target.closest('button') || target.closest('.action-buttons-container') || target.closest('.reel-info-overlay')) {
+      setTouchStart(null);
+      setTouchEnd(null);
+      setIsTouchScrolling(false);
+      return;
+    }
+
     if (!touchStart || !touchEnd) return;
-    
+
     const distance = touchStart - touchEnd;
     const isUpSwipe = distance > 40; // Swipe up threshold (reduced for better responsiveness)
     const isDownSwipe = distance < -40; // Swipe down threshold
-    
+
     // Process swipe if distance is sufficient
     if (isUpSwipe && currentReelIndex < reels.length - 1) {
       // Swipe up to go to next reel
@@ -432,7 +500,7 @@ export default function ReelsPage() {
       // Swipe down to go to previous reel  
       handleReelChange('up');
     }
-    
+
     // Reset touch states
     setTouchStart(null);
     setTouchEnd(null);
@@ -459,9 +527,9 @@ export default function ReelsPage() {
         prev.map(reel =>
           reel._id === currentReel._id
             ? {
-                ...reel,
-                comments: [...(reel.comments || []), response.comment],
-              }
+              ...reel,
+              comments: [...(reel.comments || []), response.comment],
+            }
             : reel
         )
       );
@@ -471,7 +539,7 @@ export default function ReelsPage() {
       console.error('Error posting comment:', error);
       alert(
         error?.response?.data?.error ||
-          'Failed to post comment. Please try again.'
+        'Failed to post comment. Please try again.'
       );
     }
   };
@@ -509,7 +577,7 @@ export default function ReelsPage() {
       <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
         <div className="text-center">
           <p className="text-red-400 text-lg mb-4">Error: {error}</p>
-          <button 
+          <button
             onClick={loadReels}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
           >
@@ -546,9 +614,9 @@ export default function ReelsPage() {
   }
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
+    <div className={`h-screen overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-black'}`}>
       {/* Header with three distinct sections */}
-      <div className={`${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-black border-gray-800'} border-b sticky top-0 z-50`}>
+      <div className={`${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-black border-gray-800'} border-b fixed top-0 left-0 right-0 z-50`}>
         <div className="px-4 py-4">
           <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
             {/* Left Section - Back button and title */}
@@ -565,9 +633,9 @@ export default function ReelsPage() {
             </div>
 
             {/* Center Section - Category filters with limited width and overflow scroll */}
-            <div 
-              className="filter-scroll-area w-full max-w-md overflow-x-scroll overflow-y-hidden scrollbar-hide cursor-grab select-none mx-auto" 
-              style={{ 
+            <div
+              className="filter-scroll-area w-full max-w-md overflow-x-scroll overflow-y-hidden scrollbar-hide cursor-grab select-none mx-auto"
+              style={{
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none'
               }}
@@ -580,13 +648,12 @@ export default function ReelsPage() {
               <div className="flex items-center gap-2 justify-start min-w-max px-2 py-1">
                 <button
                   onClick={handleTrendingToggle}
-                  className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${
-                    showTrending
+                  className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${showTrending
                       ? 'bg-red-500 text-white'
                       : isDarkMode
                         ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
                         : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  }`}
+                    }`}
                 >
                   🔥 Trending
                 </button>
@@ -596,13 +663,12 @@ export default function ReelsPage() {
                     key={category.id}
                     onClick={() => handleCategoryChange(category.id)}
                     disabled={showTrending}
-                    className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${
-                      !showTrending && selectedCategory === category.id
-                      ? 'bg-blue-600 text-white'
-                      : isDarkMode
-                        ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50'
-                    }`}
+                    className={`px-3 py-1.5 rounded-full font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 text-sm ${!showTrending && selectedCategory === category.id
+                        ? 'bg-blue-600 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-gray-200 hover:bg-gray-600 disabled:opacity-50'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700 disabled:opacity-50'
+                      }`}
                   >
                     {category.icon} {category.name}
                   </button>
@@ -624,34 +690,37 @@ export default function ReelsPage() {
       </div>
 
       {/* Reels Container - Full height minus header and bottom nav with enhanced touch */}
-      <div 
-        className={`relative h-[calc(100vh-180px)] sm:h-[calc(100vh-120px)] flex items-center touch-pan-y transition-all duration-300 ${
-          isDarkMode ? 'bg-gray-900' : 'bg-black'
-        } ${
-          showComments ? 'justify-start sm:justify-start' : 'justify-center'
-        }`}
-        style={{ touchAction: 'pan-y' }}
+      <div
+        className={`relative h-[calc(100vh-133px)] sm:h-[calc(100vh-73px)] flex items-center transition-all duration-300 overflow-hidden mt-[73px] ${isDarkMode ? 'bg-gray-900' : 'bg-black'
+          } ${showComments ? 'justify-start sm:justify-start' : 'justify-center'
+          }`}
+        style={{ touchAction: 'pan-y', overscrollBehavior: 'none' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onClick={(e) => {
+          // Allow clicks on buttons to pass through
+          const target = e.target as HTMLElement;
+          if (target.closest('button') || target.closest('.action-buttons-container')) {
+            return;
+          }
+        }}
       >
         {/* Reel Video Container - Fit within available height */}
         {currentReel && (
-          <div 
-            className={`relative transition-all duration-300 ${
-              isDarkMode ? 'bg-gray-900' : 'bg-black'
-            } ${
-              showComments 
-                ? 'w-full sm:w-[calc(100%-24rem)] md:w-[calc(100%-420px)] max-w-none mx-0 h-[calc(100vh-180px)] sm:h-[calc(100vh-120px)]' 
-                : 'w-full max-w-[350px] h-full mx-auto sm:max-w-[380px] sm:h-full md:max-w-[400px] md:h-full'
-            }`}
+          <div
+            className={`relative transition-all duration-300 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-black'
+              } ${showComments
+                ? 'w-full sm:w-[calc(100%-24rem)] md:w-[calc(100%-420px)] max-w-none mx-0 h-full'
+                : 'w-full max-w-[100%] sm:max-w-[450px] h-full mx-auto md:max-w-[500px] md:h-full'
+              }`}
             onDoubleClick={handleDoubleTap}
           >
             <video
               key={currentReel._id}
-              className="w-full h-full object-contain rounded-none"
+              className="w-full h-full object-cover rounded-none"
               style={{
-                objectFit: 'contain',
+                objectFit: 'cover',
                 objectPosition: 'center'
               }}
               autoPlay
@@ -711,10 +780,10 @@ export default function ReelsPage() {
             </div>
 
             {/* Reel Info Overlay - Instagram style */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/70 to-transparent">
-              <div className="flex items-end justify-between">
+            <div className="reel-info-overlay absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/70 to-transparent z-10" style={{ pointerEvents: 'auto', touchAction: 'manipulation' }}>
+              <div className="flex items-end justify-between relative gap-4">
                 {/* Left Side - User Info & Description */}
-                <div className="flex-1 pr-16">
+                <div className="flex-1 min-w-0 pr-2 sm:pr-4">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="relative">
                       <img
@@ -728,26 +797,25 @@ export default function ReelsPage() {
                       <h3 className="text-white font-semibold text-base">@{currentReel.user.username}</h3>
                       <p className="text-gray-300 text-sm">{currentReel.user.name}</p>
                     </div>
-                    <button 
+                    <button
                       onClick={() => handleFollow((currentReel.user as any)._id || currentReel.user.userId || '')}
                       disabled={following === ((currentReel.user as any)._id || currentReel.user.userId)}
-                      className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${
-                        followingUsers.has((currentReel.user as any)._id || currentReel.user.userId || '') || 
-                        (currentUserId && ((currentReel.user as any)._id || currentReel.user.userId) === currentUserId)
+                      className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${followingUsers.has((currentReel.user as any)._id || currentReel.user.userId || '') ||
+                          (currentUserId && ((currentReel.user as any)._id || currentReel.user.userId) === currentUserId)
                           ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
                           : 'bg-white text-black hover:bg-gray-200'
-                      }`}
+                        }`}
                     >
-                      {followingUsers.has((currentReel.user as any)._id || currentReel.user.userId || '') || 
-                       (currentUserId && ((currentReel.user as any)._id || currentReel.user.userId) === currentUserId)
-                        ? 'Following' 
+                      {followingUsers.has((currentReel.user as any)._id || currentReel.user.userId || '') ||
+                        (currentUserId && ((currentReel.user as any)._id || currentReel.user.userId) === currentUserId)
+                        ? 'Following'
                         : 'Follow'}
                     </button>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <p className="text-white text-sm leading-relaxed">{currentReel.title}</p>
-                    
+
                     {currentReel.hashtags && currentReel.hashtags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {currentReel.hashtags.slice(0, 5).map((tag, index) => (
@@ -755,19 +823,14 @@ export default function ReelsPage() {
                         ))}
                       </div>
                     )}
-                    
-                    <div className="flex items-center gap-2 text-gray-300 text-xs">
-                      <span>{new Date(currentReel.createdAt).toLocaleDateString()}</span>
-                      <span>•</span>
-                      <span>{(currentReel as any).viewsCount || currentReel.views?.length || (currentReel.views as any) || 0} views</span>
-                    </div>
+
 
                     {/* Music Info - Instagram style */}
                     {currentReel.music && (
                       <div className="flex items-center gap-2 mt-2">
                         <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
                           <svg className="w-2 h-2 text-black" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.369 4.369 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z"/>
+                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.369 4.369 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
                           </svg>
                         </div>
                         <span className="text-white text-sm font-medium">{currentReel.music.title}</span>
@@ -779,19 +842,52 @@ export default function ReelsPage() {
                 </div>
 
                 {/* Right Side - Action Buttons - Instagram style */}
-                <div className="flex flex-col items-center gap-2 sm:gap-3">
+                <div
+                  className="action-buttons-container flex flex-col items-center gap-2 sm:gap-3 flex-shrink-0 z-30 relative"
+                  style={{
+                    touchAction: 'manipulation',
+                    pointerEvents: 'auto',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   {/* Like Button */}
                   <button
-                    onClick={() => handleLike(currentReel._id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleLike(currentReel._id);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
                     disabled={isLiking === currentReel._id}
-                    className="flex flex-col items-center gap-0.5 text-white hover:text-red-500 transition-colors"
+                    className={`flex flex-col items-center gap-0.5 text-white hover:text-red-500 active:scale-95 transition-all duration-300 touch-manipulation ${showActionButtons
+                        ? 'opacity-100 translate-y-0 pointer-events-auto'
+                        : 'opacity-0 -translate-y-4 pointer-events-none h-0 overflow-hidden'
+                      }`}
+                    style={{
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      pointerEvents: 'auto',
+                      cursor: 'pointer'
+                    }}
                   >
                     <div className="w-9 h-9 sm:w-11 sm:h-11 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200">
-                      <Heart className={`w-5 h-5 sm:w-6 sm:h-6 transition-colors ${
-                        currentUserId && (currentReel.likes?.includes(currentUserId) || currentReel.likes?.some((like: any) => like._id === currentUserId || like === currentUserId))
-                          ? 'fill-red-500 text-red-500' 
+                      <Heart className={`w-5 h-5 sm:w-6 sm:h-6 transition-colors ${currentUserId && (currentReel.likes?.includes(currentUserId) || currentReel.likes?.some((like: any) => like._id === currentUserId || like === currentUserId))
+                          ? 'fill-red-500 text-red-500'
                           : ''
-                      }`} />
+                        }`} />
                     </div>
                     <span className="text-xs font-semibold text-white">
                       {(currentReel as any).likesCount || currentReel.likes?.length || 0}
@@ -800,8 +896,31 @@ export default function ReelsPage() {
 
                   {/* Comment Button */}
                   <button
-                    onClick={() => setShowComments(showComments === currentReel._id ? null : currentReel._id)}
-                    className="flex flex-col items-center gap-0.5 text-white hover:text-blue-400 transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowComments(showComments === currentReel._id ? null : currentReel._id);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className={`flex flex-col items-center gap-0.5 text-white hover:text-blue-400 active:scale-95 transition-all duration-300 touch-manipulation ${showActionButtons
+                        ? 'opacity-100 translate-y-0 pointer-events-auto'
+                        : 'opacity-0 -translate-y-4 pointer-events-none h-0 overflow-hidden'
+                      }`}
+                    style={{
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      pointerEvents: 'auto',
+                      cursor: 'pointer'
+                    }}
                   >
                     <div className="w-9 h-9 sm:w-11 sm:h-11 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200">
                       <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -811,8 +930,31 @@ export default function ReelsPage() {
 
                   {/* Share Button */}
                   <button
-                    onClick={() => handleShare(currentReel._id)}
-                    className="flex flex-col items-center gap-0.5 text-white hover:text-green-400 transition-colors"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleShare(currentReel._id);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className={`flex flex-col items-center gap-0.5 text-white hover:text-green-400 active:scale-95 transition-all duration-300 touch-manipulation ${showActionButtons
+                        ? 'opacity-100 translate-y-0 pointer-events-auto'
+                        : 'opacity-0 -translate-y-4 pointer-events-none h-0 overflow-hidden'
+                      }`}
+                    style={{
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      pointerEvents: 'auto',
+                      cursor: 'pointer'
+                    }}
                   >
                     <div className="w-9 h-9 sm:w-11 sm:h-11 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200">
                       <Share className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -821,14 +963,62 @@ export default function ReelsPage() {
                   </button>
 
                   {/* Save Button */}
-                  <button className="flex flex-col items-center gap-0.5 text-white hover:text-yellow-400 transition-colors">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className={`flex flex-col items-center gap-0.5 text-white hover:text-yellow-400 active:scale-95 transition-all duration-300 touch-manipulation ${showActionButtons
+                        ? 'opacity-100 translate-y-0 pointer-events-auto'
+                        : 'opacity-0 -translate-y-4 pointer-events-none h-0 overflow-hidden'
+                      }`}
+                    style={{
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      pointerEvents: 'auto',
+                      cursor: 'pointer'
+                    }}
+                  >
                     <div className="w-9 h-9 sm:w-11 sm:h-11 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200">
                       <Bookmark className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                   </button>
 
-                  {/* More Options */}
-                  <button className="flex flex-col items-center gap-0.5 text-white hover:text-gray-400 transition-colors">
+                  {/* More Options - Toggle Button */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowActionButtons(!showActionButtons);
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                    }}
+                    className="flex flex-col items-center gap-0.5 text-white hover:text-gray-400 active:scale-95 transition-colors touch-manipulation"
+                    style={{
+                      touchAction: 'manipulation',
+                      WebkitTapHighlightColor: 'transparent',
+                      pointerEvents: 'auto',
+                      cursor: 'pointer'
+                    }}
+                  >
                     <div className="w-9 h-9 sm:w-11 sm:h-11 bg-black bg-opacity-30 rounded-full flex items-center justify-center hover:bg-opacity-50 transition-all duration-200">
                       <MoreHorizontal className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
@@ -847,128 +1037,126 @@ export default function ReelsPage() {
 
 
 
-        </div>
+          </div>
         )}
       </div>
 
       {/* Comments Panel - Right Side */}
       {showComments && (
-        <div 
-          className={`fixed right-0 top-[120px] bottom-0 w-full sm:w-96 md:w-[420px] z-[70] flex flex-col shadow-2xl sm:rounded-l-3xl p-4 sm:p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}
+        <div
+          className={`comments-panel fixed right-0 top-[73px] bottom-0 w-full sm:w-96 md:w-[420px] z-[70] flex flex-col shadow-2xl sm:rounded-l-3xl p-4 sm:p-6 overflow-y-auto ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}
         >
-            {/* Header */}
-            <div className={`flex items-center justify-between mb-4 pb-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Comments ({currentReel?.comments?.length || 0})
-              </h3>
-              <button
-                onClick={() => setShowComments(null)}
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            {/* Comments List - Enhanced */}
-            <div className="flex-1 overflow-y-auto space-y-4 mb-4 scrollbar-hide min-h-0">
-              {currentReel?.comments && currentReel.comments.length > 0 ? (
-                currentReel.comments.map((comment: any, index: number) => (
-                  <div key={index} className={`flex items-start gap-3 pb-4 border-b last:border-0 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
-                    <img
-                      src={comment.user?.avatar || '/default-avatar.svg'}
-                      alt={comment.user?.name || 'User'}
-                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex-shrink-0 object-cover ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-                      onError={(e) => {
-                        e.currentTarget.src = '/default-avatar.svg';
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`font-semibold text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {comment.user?.name || comment.user?.username || 'User'}
-                        </span>
-                        <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ''}
-                        </span>
-                      </div>
-                      <p className={`text-sm sm:text-base leading-relaxed break-words ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {comment.text || comment.content || ''}
-                      </p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <button className={`flex items-center gap-1 text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'}`}>
-                          <Heart className="w-4 h-4" />
-                          <span>{comment.likes?.length || 0}</span>
-                        </button>
-                        <button className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}>
-                          Reply
-                        </button>
-                      </div>
+          {/* Header */}
+          <div className={`flex items-center justify-between mb-4 pb-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h3 className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Comments ({currentReel?.comments?.length || 0})
+            </h3>
+            <button
+              onClick={() => setShowComments(null)}
+              className={`p-2 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-800' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Comments List - Enhanced */}
+          <div className="flex-1 overflow-y-auto space-y-4 mb-4 scrollbar-hide min-h-0">
+            {currentReel?.comments && currentReel.comments.length > 0 ? (
+              currentReel.comments.map((comment: any, index: number) => (
+                <div key={index} className={`flex items-start gap-3 pb-4 border-b last:border-0 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                  <img
+                    src={comment.user?.avatar || '/default-avatar.svg'}
+                    alt={comment.user?.name || 'User'}
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex-shrink-0 object-cover ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                    onError={(e) => {
+                      e.currentTarget.src = '/default-avatar.svg';
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className={`font-semibold text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {comment.user?.name || comment.user?.username || 'User'}
+                      </span>
+                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString() : ''}
+                      </span>
+                    </div>
+                    <p className={`text-sm sm:text-base leading-relaxed break-words ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {comment.text || comment.content || ''}
+                    </p>
+                    <div className="flex items-center gap-4 mt-2">
+                      <button className={`flex items-center gap-1 text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'}`}>
+                        <Heart className="w-4 h-4" />
+                        <span>{comment.likes?.length || 0}</span>
+                      </button>
+                      <button className={`text-xs sm:text-sm font-medium transition-colors ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}>
+                        Reply
+                      </button>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">💬</div>
-                  <p className={`text-base sm:text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    No comments yet
-                  </p>
-                  <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Be the first to comment!
-                  </p>
                 </div>
-              )}
-            </div>
-            
-            {/* Comment Input - Enhanced */}
-            <div className={`flex items-center gap-3 pt-4 border-t flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <img
-                src={(() => {
-                  try {
-                    const user = JSON.parse(localStorage.getItem('user') || '{}');
-                    return user?.avatar || '/default-avatar.svg';
-                  } catch {
-                    return '/default-avatar.svg';
-                  }
-                })()}
-                alt="Your avatar"
-                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex-shrink-0 object-cover ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-                onError={(e) => {
-                  e.currentTarget.src = '/default-avatar.svg';
-                }}
-              />
-              <div className="flex-1 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Add a comment..."
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && commentText.trim() && currentReel) {
-                      e.preventDefault();
-                      handleCommentSubmit();
-                    }
-                  }}
-                  className={`flex-1 px-4 py-2.5 sm:py-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-all ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400' 
-                      : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
-                  }`}
-                />
-                <button 
-                  onClick={handleCommentSubmit}
-                  className={`text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base transition-colors ${
-                    isDarkMode 
-                      ? 'bg-blue-500 hover:bg-blue-600' 
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                  disabled={!commentText.trim()}
-                >
-                  Post
-                </button>
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">💬</div>
+                <p className={`text-base sm:text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  No comments yet
+                </p>
+                <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Be the first to comment!
+                </p>
               </div>
+            )}
+          </div>
+
+          {/* Comment Input - Enhanced */}
+          <div className={`flex items-center gap-3 pt-4 border-t flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <img
+              src={(() => {
+                try {
+                  const user = JSON.parse(localStorage.getItem('user') || '{}');
+                  return user?.avatar || '/default-avatar.svg';
+                } catch {
+                  return '/default-avatar.svg';
+                }
+              })()}
+              alt="Your avatar"
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 flex-shrink-0 object-cover ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+              onError={(e) => {
+                e.currentTarget.src = '/default-avatar.svg';
+              }}
+            />
+            <div className="flex-1 flex items-center gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Add a comment..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && commentText.trim() && currentReel) {
+                    e.preventDefault();
+                    handleCommentSubmit();
+                  }
+                }}
+                className={`flex-1 px-4 py-2.5 sm:py-3 border rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-all ${isDarkMode
+                    ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400'
+                    : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500'
+                  }`}
+              />
+              <button
+                onClick={handleCommentSubmit}
+                className={`text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base transition-colors ${isDarkMode
+                    ? 'bg-blue-500 hover:bg-blue-600'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                disabled={!commentText.trim()}
+              >
+                Post
+              </button>
             </div>
+          </div>
         </div>
       )}
 

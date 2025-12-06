@@ -1,29 +1,14 @@
 const User = require('../models/user');
-
-// Plan pricing
-const PLAN_PRICES = {
-    Star: { monthly: 4, yearly: 40 },
-    Hot: { monthly: 8, yearly: 80 },
-    Ultima: { monthly: 89, yearly: 890 },
-    VIP: { monthly: 259, yearly: 2590 }
-};
+const ProPackage = require('../models/proPackage');
 
 // Upgrade user plan with wallet deduction
 exports.upgradePlan = async (req, res) => {
     try {
-        const { userId, plan, billing } = req.body;
+        const { userId, plan, billing, packageId } = req.body;
 
-        // Validate input
-        if (!userId || !plan || !billing) {
-            return res.status(400).json({ error: 'userId, plan, and billing are required' });
-        }
-
-        if (!['Star', 'Hot', 'Ultima', 'VIP'].includes(plan)) {
-            return res.status(400).json({ error: 'Invalid plan selected' });
-        }
-
-        if (!['monthly', 'yearly'].includes(billing)) {
-            return res.status(400).json({ error: 'Invalid billing period' });
+        // Validate basic input
+        if (!userId) {
+            return res.status(400).json({ error: 'userId is required' });
         }
 
         // Get user
@@ -32,8 +17,32 @@ exports.upgradePlan = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Get plan price
-        const planPrice = PLAN_PRICES[plan][billing];
+        let selectedPackage;
+
+        // Strategy 1: Look up by packageId (Preferred)
+        if (packageId) {
+            selectedPackage = await ProPackage.findById(packageId);
+        }
+        // Strategy 2: Look up by name (Fallback/Legacy)
+        else if (plan && billing) {
+            // Try to find a package that matches name and duration unit
+            // Map billing 'monthly' -> 'Month', 'yearly' -> 'Year' if needed
+            const durationUnit = billing === 'monthly' ? 'Month' : (billing === 'yearly' ? 'Year' : billing);
+            selectedPackage = await ProPackage.findOne({ name: plan, durationUnit: durationUnit, status: 'enabled' });
+
+            // If not found, maybe just find by name (and assume price handling?? No, stick to strict)
+        }
+
+        if (!selectedPackage) {
+            console.log("Plan not found for:", { packageId, plan, billing }); // Debug log
+            return res.status(404).json({ error: 'Selected plan not found or is disabled' });
+        }
+
+        if (selectedPackage.status !== 'enabled') {
+            return res.status(400).json({ error: 'This plan is currently disabled' });
+        }
+
+        const planPrice = selectedPackage.price;
 
         // Check wallet balance
         if (user.balance < planPrice) {
@@ -47,15 +56,22 @@ exports.upgradePlan = async (req, res) => {
 
         // Deduct from wallet
         user.balance -= planPrice;
-        user.plan = plan;
+        user.plan = selectedPackage.name; // Store the package name
 
-        // Set expiration date
+        // Calculate expiration date
         const expirationDate = new Date();
-        if (billing === 'monthly') {
-            expirationDate.setMonth(expirationDate.getMonth() + 1);
-        } else {
-            expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        const { duration, durationUnit } = selectedPackage;
+
+        if (durationUnit === 'Day') {
+            expirationDate.setDate(expirationDate.getDate() + duration);
+        } else if (durationUnit === 'Week') {
+            expirationDate.setDate(expirationDate.getDate() + (duration * 7));
+        } else if (durationUnit === 'Month') {
+            expirationDate.setMonth(expirationDate.getMonth() + duration);
+        } else if (durationUnit === 'Year') {
+            expirationDate.setFullYear(expirationDate.getFullYear() + duration);
         }
+
         user.planExpiresAt = expirationDate;
 
         await user.save();
@@ -73,8 +89,8 @@ exports.upgradePlan = async (req, res) => {
             },
             transaction: {
                 type: 'PLAN_UPGRADE',
-                plan,
-                billing,
+                plan: selectedPackage.name,
+                billing: durationUnit,
                 amount: -planPrice,
                 date: new Date()
             }
@@ -88,8 +104,14 @@ exports.upgradePlan = async (req, res) => {
 // Get list of pro members
 exports.getProMembers = async (req, res) => {
     try {
+        // Fetch all enabled package names to filter users
+        const packages = await ProPackage.find({ status: 'enabled' }).select('name');
+        const packageNames = packages.map(p => p.name);
+        // Also include legacy hardcoded names just in case
+        const allProNames = [...new Set([...packageNames, 'Star', 'Hot', 'Ultima', 'VIP'])];
+
         const proMembers = await User.find({
-            plan: { $in: ['Star', 'Hot', 'Ultima', 'VIP'] }
+            plan: { $in: allProNames }
         })
             .select('name username avatar plan')
             .sort({ planExpiresAt: -1 })

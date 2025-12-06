@@ -5,6 +5,7 @@ import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import SharePopup, { ShareOptions } from './SharePopup';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
+import ReactionAvatarDisplay from './ReactionAvatarDisplay';
 import PostOptionsDropdown from './PostOptionsDropdown';
 import LocationDisplay from './LocationDisplay';
 
@@ -23,8 +24,8 @@ interface PostDisplayProps {
   showEditDelete?: boolean;
 }
 
-export default function PostDisplay({ 
-  post, 
+export default function PostDisplay({
+  post,
   isOwner = false,
   onLike,
   onReaction,
@@ -49,7 +50,7 @@ export default function PostDisplay({
   // Track view when component mounts
   useEffect(() => {
     console.log('📸 PostDisplay mounted - Post ID:', post._id, 'Media count:', post.media?.length || 0);
-    
+
     const trackView = async () => {
       const token = localStorage.getItem('token');
       if (token && post._id) {
@@ -66,7 +67,7 @@ export default function PostDisplay({
         }
       }
     };
-    
+
     trackView();
   }, [post._id]);
 
@@ -112,8 +113,8 @@ export default function PostDisplay({
       // Check if user has already voted
       if (post.poll.userVote && post.poll.userVote.includes(optionIndex)) {
         // Remove vote
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const response = await fetch(`${API_URL}/api/posts/${post._id}/poll/vote`, {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        const response = await fetch(`${API_URL}/api/posts/${post._id}/poll/vote`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -135,8 +136,8 @@ export default function PostDisplay({
         }
       } else {
         // Add vote
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-  const response = await fetch(`${API_URL}/api/posts/${post._id}/poll/vote`, {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL;
+        const response = await fetch(`${API_URL}/api/posts/${post._id}/poll/vote`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -180,11 +181,11 @@ export default function PostDisplay({
       post.reactions.forEach((reaction: any) => {
         reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
       });
-      
-      const mostCommon = Object.keys(reactionCounts).reduce((a, b) => 
+
+      const mostCommon = Object.keys(reactionCounts).reduce((a, b) =>
         reactionCounts[a] > reactionCounts[b] ? a : b
       );
-      
+
       const reactionEmojis: { [key: string]: string } = {
         like: '👍',
         love: '❤️',
@@ -193,7 +194,7 @@ export default function PostDisplay({
         sad: '😢',
         angry: '😠'
       };
-      
+
       return reactionEmojis[mostCommon] || '👍';
     }
     return '👍';
@@ -214,7 +215,7 @@ export default function PostDisplay({
   // Get current user ID for save checking
   const currentUserId = getCurrentUserId();
   // Check if current user has saved this post
-  const isSaved = post.savedBy && Array.isArray(post.savedBy) && 
+  const isSaved = post.savedBy && Array.isArray(post.savedBy) &&
     post.savedBy.some((savedUser: any) => {
       // Handle both user ID strings and user objects
       if (typeof savedUser === 'string') {
@@ -231,10 +232,10 @@ export default function PostDisplay({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-2 sm:p-3 md:p-4 mb-3 sm:mb-4 md:mb-6 transition-colors duration-200">
       <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-        <img 
-          src={post.user?.avatar ? getMediaUrl(post.user.avatar) : '/default-avatar.svg'} 
-          alt="avatar" 
-          className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 object-cover" 
+        <img
+          src={post.user?.avatar ? getMediaUrl(post.user.avatar) : '/default-avatar.svg'}
+          alt="avatar"
+          className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full flex-shrink-0 object-cover"
           onError={(e) => {
             console.log('❌ Avatar load failed for user:', post.user?.name, 'URL:', post.user?.avatar);
             e.currentTarget.src = '/default-avatar.svg';
@@ -242,14 +243,14 @@ export default function PostDisplay({
         />
         <div className="flex-1 min-w-0">
           {post.user ? (
-            <a 
+            <a
               href={`/dashboard/profile/${(() => {
                 // Handle populated user object (when userId is the full user object)
                 if (post.user.userId && typeof post.user.userId === 'object' && post.user.userId._id) {
                   return post.user.userId._id;
                 }
                 return String(post.user.userId || post.user._id || post.user.id || 'unknown');
-              })()}`} 
+              })()}`}
               className="font-semibold hover:underline cursor-pointer text-xs sm:text-sm md:text-base truncate block text-blue-600 dark:text-blue-400"
             >
               {post.user?.name || 'Unknown User'}
@@ -274,7 +275,7 @@ export default function PostDisplay({
             const preMatchForPreview = content.includes('<pre') ? content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/) : null;
             const plainTextForPreview = (preMatchForPreview ? preMatchForPreview[1] : content).replace(/<[^>]+>/g, '');
             const wordCount = plainTextForPreview.split(/\s+/).filter((word: string) => word && word.length > 0).length;
-            
+
             // Debug logging to see what content we're working with
             console.log('🔍 PostDisplay - Content Debug:', {
               postId: post._id,
@@ -283,7 +284,7 @@ export default function PostDisplay({
               content: content,
               truncated: content.length > 200 ? content.substring(0, 200) + '...' : content
             });
-            
+
             // Function to format content with line breaks and paragraphs
             const formatContent = (text: string) => {
               // Check if content contains HTML (from backend pre tags)
@@ -294,26 +295,26 @@ export default function PostDisplay({
                   <pre className="whitespace-pre-wrap break-words font-sans">{inner}</pre>
                 );
               }
-              
+
               // Fallback to original formatting for non-HTML content
               // Split by double line breaks to create paragraphs
               const paragraphs = text.split(/\n\n+/);
-              
+
               return paragraphs.map((paragraph, index) => {
                 if (paragraph.trim() === '') return null;
-                
+
                 // Split by single line breaks within paragraphs
                 const lines = paragraph.split(/\n/);
-                
+
                 return (
                   <div key={index} className="mb-3">
                     {lines.map((line, lineIndex) => {
                       if (line.trim() === '') return null;
-                      
+
                       // Check if line starts with emoji or special characters
                       const hasEmoji = /^[🚩✨✅💬🔴🟡🟢🔵⚫🟣🟠⚪🟤]/.test(line.trim());
                       const isBulletPoint = /^[•·▪▫‣⁃]/.test(line.trim());
-                      
+
                       return (
                         <div key={lineIndex} className={`${lineIndex > 0 ? 'mt-2' : ''} ${hasEmoji || isBulletPoint ? 'flex items-start gap-2' : ''}`}>
                           {hasEmoji || isBulletPoint ? (
@@ -331,19 +332,19 @@ export default function PostDisplay({
                 );
               });
             };
-            
+
             if (wordCount > 300) {
               // Smart truncation that respects paragraph boundaries
               const smartTruncate = (text: string, maxWords: number) => {
                 const words = text.split(/\s+/);
                 if (words.length <= maxWords) return text;
-                
+
                 // Take first maxWords words
                 let truncatedWords = words.slice(0, maxWords);
-                
+
                 // Try to find a good breaking point (end of sentence, paragraph, or bullet point)
                 let truncatedText = truncatedWords.join(' ');
-                
+
                 // Look for natural break points in the last few words
                 const lastWords = truncatedWords.slice(-10).join(' ');
                 const breakPatterns = [
@@ -353,7 +354,7 @@ export default function PostDisplay({
                   /\n\s*$/,              // End of line
                   /\s*$/,                // End of word
                 ];
-                
+
                 let foundBreak = false;
                 for (const pattern of breakPatterns) {
                   if (pattern.test(truncatedText)) {
@@ -361,7 +362,7 @@ export default function PostDisplay({
                     break;
                   }
                 }
-                
+
                 // If no natural break found, try to find the last complete sentence
                 if (!foundBreak) {
                   const lastSentenceMatch = truncatedText.match(/.*[.!?]\s*$/);
@@ -369,7 +370,7 @@ export default function PostDisplay({
                     truncatedText = lastSentenceMatch[0];
                   }
                 }
-                
+
                 // IMPORTANT: Ensure truncated content is actually shorter than original
                 // If the smart truncation didn't reduce the content enough, force a shorter version
                 if (truncatedText.length >= text.length * 0.9) { // If truncated is 90% or more of original
@@ -377,7 +378,7 @@ export default function PostDisplay({
                   const forceTruncateWords = Math.floor(maxWords * 0.7); // Use 70% of max words
                   const forcedWords = words.slice(0, forceTruncateWords);
                   truncatedText = forcedWords.join(' ');
-                  
+
                   // Try to find a natural break in this shorter version
                   for (const pattern of breakPatterns) {
                     const match = truncatedText.match(new RegExp(`.*${pattern.source}`));
@@ -387,7 +388,7 @@ export default function PostDisplay({
                     }
                   }
                 }
-                
+
                 console.log('🔍 PostDisplay - Smart Truncation Debug:', {
                   originalText: text,
                   maxWords: maxWords,
@@ -398,22 +399,22 @@ export default function PostDisplay({
                   truncatedLength: truncatedText.length,
                   reductionPercentage: ((text.length - truncatedText.length) / text.length * 100).toFixed(1) + '%'
                 });
-                
+
                 return truncatedText;
               };
-              
+
               // For collapsed view, preserve original formatting but limit to first few lines
               const lines = plainTextForPreview.split('\n');
               const maxLines = 4; // Show only first 4 lines in collapsed view
               const truncatedPreview = lines.slice(0, maxLines).join('\n');
-              
+
               return (
                 <div>
                   <div>{isExpanded ? formatContent(content) : (
                     <div className="break-words whitespace-pre-wrap">{truncatedPreview}</div>
                   )}</div>
-                  <span className="text-blue-600 cursor-pointer hover:underline ml-1 mt-2 inline-block" 
-                        onClick={() => setIsExpanded(!isExpanded)}>
+                  <span className="text-blue-600 cursor-pointer hover:underline ml-1 mt-2 inline-block"
+                    onClick={() => setIsExpanded(!isExpanded)}>
                     {isExpanded ? '... Show Less' : '... Read More'}
                   </span>
                 </div>
@@ -438,16 +439,15 @@ export default function PostDisplay({
                 const optionVotes = option.voteCount || 0;
                 const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
                 const isVoted = post.poll.userVote && post.poll.userVote.includes(index);
-                
+
                 return (
                   <div key={index} className="relative">
                     <button
                       onClick={() => handlePollVote(index)}
-                      className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${
-                        isVoted 
-                          ? 'bg-blue-500 text-white border-blue-500' 
-                          : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
-                      }`}
+                      className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${isVoted
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm">{option.text}</span>
@@ -457,7 +457,7 @@ export default function PostDisplay({
                       </div>
                       {/* Progress bar */}
                       <div className="mt-1 w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${percentage}%` }}
                         />
@@ -478,7 +478,7 @@ export default function PostDisplay({
           </div>
         </div>
       )}
-      
+
       {/* Feeling Display - Only show if feeling was actually selected */}
       {post.feeling && post.feeling.type && post.feeling.emoji && post.feeling.description && (
         <div className="mb-2 sm:mb-3">
@@ -495,11 +495,11 @@ export default function PostDisplay({
           </div>
         </div>
       )}
-      
+
       {/* Location Display - Only show if location was actually added */}
       {post.location && post.location.name && post.location.address && (
         <div className="mb-2 sm:mb-3">
-          <LocationDisplay 
+          <LocationDisplay
             location={{
               name: post.location.name || 'Unknown Location',
               address: post.location.address || post.location.formatted_address || 'Location',
@@ -521,7 +521,7 @@ export default function PostDisplay({
           />
         </div>
       )}
-      
+
       {/* Sell Info Display - Only show if sell info was actually added */}
       {post.sell && post.sell.productName && post.sell.price && (
         <div className="mb-2 sm:mb-3">
@@ -549,18 +549,18 @@ export default function PostDisplay({
           </div>
         </div>
       )}
-      
+
       {/* GIF Display - Only show if GIF was actually selected */}
       {post.gif && post.gif.url && post.gif.url !== 'undefined' && (
         <div className="mb-2 sm:mb-3">
-          <img 
-            src={post.gif.url} 
+          <img
+            src={post.gif.url}
             alt="GIF"
             className="w-full max-h-96 rounded-lg object-contain"
           />
         </div>
       )}
-      
+
       {/* Voice Recording Display - Only show if voice was actually recorded */}
       {post.voice && post.voice.url && post.voice.duration && (
         <div className="mb-2 sm:mb-3">
@@ -593,97 +593,97 @@ export default function PostDisplay({
             console.log('📸 Post ID:', post._id);
             console.log('📸 Media URLs:', post.media.map((m: any) => m.url));
             return post.media.map((media: any, index: number) => {
-              const rawUrl = typeof media === 'string' 
-                ? media 
+              const rawUrl = typeof media === 'string'
+                ? media
                 : (media?.secure_url || media?.url || media?.path || '');
               const resolvedUrl = getMediaUrl(rawUrl);
               return (
-              <div key={index} className="mb-2">
-                {media.type === 'video' ? (
-                  <video 
-                    src={resolvedUrl} 
-                    controls 
-                    className="w-full object-contain rounded-lg shadow-lg"
-                    style={{ maxHeight: '80vh' }}
-                  />
-                ) : media.type === 'audio' ? (
-                  <div className="mb-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🎵</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {media.originalName || 'Audio File'}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {(media.size / 1024 / 1024).toFixed(1)}MB
-                        </p>
+                <div key={index} className="mb-2">
+                  {media.type === 'video' ? (
+                    <video
+                      src={resolvedUrl}
+                      controls
+                      className="w-full object-contain rounded-lg shadow-lg"
+                      style={{ maxHeight: '80vh' }}
+                    />
+                  ) : media.type === 'audio' ? (
+                    <div className="mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">🎵</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {media.originalName || 'Audio File'}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(media.size / 1024 / 1024).toFixed(1)}MB
+                          </p>
+                        </div>
+                        <audio
+                          src={resolvedUrl}
+                          controls
+                          className="w-full"
+                        />
                       </div>
-                      <audio
-                        src={resolvedUrl}
-                        controls
-                        className="w-full"
-                      />
                     </div>
-                  </div>
-                ) : media.type === 'file' ? (
-                  <div className="mb-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">
-                        {media.mimetype?.includes('pdf') ? '📕' : 
-                         media.mimetype?.includes('word') ? '📘' : 
-                         media.mimetype?.includes('excel') ? '📗' : '📄'}
-                      </span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {media.originalName || 'Document'}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {(media.size / 1024 / 1024).toFixed(1)}MB • {media.extension?.toUpperCase()}
-                        </p>
+                  ) : media.type === 'file' ? (
+                    <div className="mb-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">
+                          {media.mimetype?.includes('pdf') ? '📕' :
+                            media.mimetype?.includes('word') ? '📘' :
+                              media.mimetype?.includes('excel') ? '📗' : '📄'}
+                        </span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {media.originalName || 'Document'}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(media.size / 1024 / 1024).toFixed(1)}MB • {media.extension?.toUpperCase()}
+                          </p>
+                        </div>
+                        <a
+                          href={getMediaUrl(media.url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                        >
+                          Download
+                        </a>
                       </div>
-                      <a
-                        href={getMediaUrl(media.url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Download
-                      </a>
                     </div>
-                  </div>
-                ) : (
-                  <img
-                    src={resolvedUrl}
-                    alt="media"
-                    className="w-full object-contain rounded-lg shadow-lg"
-                    style={{ maxHeight: '80vh' }}
-                    loading="lazy"
-                    onError={(e) => {
-                      if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
-                    }}
-                  />
-                )}
-              </div>
-            );
+                  ) : (
+                    <img
+                      src={resolvedUrl}
+                      alt="media"
+                      className="w-full object-contain rounded-lg shadow-lg"
+                      style={{ maxHeight: '80vh' }}
+                      loading="lazy"
+                      onError={(e) => {
+                        if (rawUrl && e.currentTarget.src !== rawUrl) e.currentTarget.src = rawUrl;
+                      }}
+                    />
+                  )}
+                </div>
+              );
             });
           })()}
         </div>
       )}
 
       {/* Engagement Metrics Section - Upper Section */}
-      <div className="py-2 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+      <div className="py- border-b border-gray-200">
+        <div className="flex flex-row items-center justify-between gap-2 sm:gap-0">
           {/* Reactions - Left Side */}
-          <div className="flex items-center space-x-2">
-            <span className="text-pink-500 text-base sm:text-lg">❤️</span>
-            <span className="text-blue-500 text-base sm:text-lg">👍</span>
-            <span className="text-yellow-500 text-base sm:text-lg">😊</span>
-            <span className="text-gray-600 dark:text-white text-xs sm:text-sm font-medium ml-1">
-              {totalReactions}
-            </span>
-            {/* Removed showReactionDetails indicator */}
+          <div className="flex p-4 items-center">
+            {(post.reactions?.length > 0 || post.likes?.length > 0) && (
+              <ReactionAvatarDisplay
+                likes={post.likes}
+                reactions={post.reactions}
+                currentUserLike={post.likes?.includes(currentUserId)}
+              />
+            )}
           </div>
-          
+
           {/* Content Statistics - Right Side */}
           <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm">
             <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-300">
@@ -700,51 +700,6 @@ export default function PostDisplay({
             </div>
           </div>
         </div>
-        
-        {/* Temporary Reaction Display - Shows briefly after adding reaction */}
-        {showReactionsTemporarily && (
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
-            <div className="flex flex-wrap gap-2">
-              {(() => {
-                if (post.reactions && Array.isArray(post.reactions) && post.reactions.length > 0) {
-                  const reactionCounts: { [key: string]: number } = {};
-                  post.reactions.forEach((reaction: any) => {
-                    reactionCounts[reaction.type] = (reactionCounts[reaction.type] || 0) + 1;
-                  });
-                  
-                  const reactionEmojis: { [key: string]: string } = {
-                    like: '👍',
-                    love: '❤️',
-                    haha: '😂',
-                    wow: '😮',
-                    sad: '😢',
-                    angry: '😠'
-                  };
-                  
-                  return Object.entries(reactionCounts).map(([type, count]) => (
-                    <div key={type} className="flex items-center space-x-1 bg-gray-50 dark:bg-gray-700 rounded-full px-3 py-1">
-                      <span className="text-lg">{reactionEmojis[type] || '😊'}</span>
-                      <span className="text-sm text-gray-600 dark:text-white">{count}</span>
-                    </div>
-                  ));
-                } else if (post.likes && Array.isArray(post.likes) && post.likes.length > 0) {
-                  return (
-                    <div className="flex items-center space-x-1 bg-gray-50 dark:bg-gray-700 rounded-full px-3 py-1">
-                      <span className="text-lg">👍</span>
-                      <span className="text-sm text-gray-600 dark:text-white">{post.likes.length}</span>
-                    </div>
-                  );
-                } else {
-                  return (
-                    <div className="text-gray-500 dark:text-gray-400 text-sm">
-                      No reactions yet
-                    </div>
-                  );
-                }
-              })()}
-            </div>
-          </div>
-        )}
 
         {/* Liked Users Display - Shows when like button is clicked */}
         {showLikedUsers && (
@@ -754,7 +709,7 @@ export default function PostDisplay({
                 👍 Liked Users Section
               </h4>
             </div>
-            
+
             {post.likes && post.likes.length > 0 ? (
               <>
                 <div className="mb-2">
@@ -765,13 +720,13 @@ export default function PostDisplay({
                 <div className="flex items-center gap-2 flex-wrap">
                   {post.likes.map((like: any, index: number) => {
                     const userAvatar = typeof like === 'string' ? '/default-avatar.svg' : (like.avatar || '/default-avatar.svg');
-                    
+
                     return (
-                      <img 
+                      <img
                         key={index}
-                        src={getMediaUrl(userAvatar)} 
-                        alt="user avatar" 
-                        className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-800 shadow-sm" 
+                        src={getMediaUrl(userAvatar)}
+                        alt="user avatar"
+                        className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-gray-800 shadow-sm"
                         onError={(e) => {
                           e.currentTarget.src = '/default-avatar.svg';
                         }}
@@ -785,8 +740,8 @@ export default function PostDisplay({
                 No likes yet
               </div>
             )}
-            
-            <button 
+
+            <button
               onClick={() => setShowLikedUsers(false)}
               className="mt-2 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
@@ -801,203 +756,201 @@ export default function PostDisplay({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-0">
           <div className="flex items-center justify-center sm:justify-start space-x-3 sm:space-x-3 md:space-x-6">
             {/* React Button */}
-          <div className="relative">
-            <ReactionPopup
-              onReaction={handleReaction}
-              currentReaction={getCurrentReaction()}
-              isDarkMode={isDarkMode}
-            >
-              <button 
-                onClick={() => {
-                  if (onLike) {
-                    onLike(post._id);
-                  }
-                  // Toggle liked users display
-                  console.log('🔍 React button clicked!');
-                  console.log('🔍 Current showLikedUsers:', showLikedUsers);
-                  console.log('🔍 Post likes:', post.likes);
-                  setShowLikedUsers(!showLikedUsers);
-                }}
-                className={`flex flex-col items-center justify-center transition-colors touch-manipulation min-h-[60px] ${
-                  getCurrentReaction() ? 'text-red-500' : 'hover:text-red-500'
-                }`}
-                style={{ touchAction: 'manipulation' }}
+            <div className="relative">
+              <ReactionPopup
+                onReaction={handleReaction}
+                currentReaction={getCurrentReaction()}
+                isDarkMode={isDarkMode}
               >
-                <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">React</span>
-                <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                  <span className="text-sm">😊</span>
-                </div>
-              </button>
-            </ReactionPopup>
-          </div>
-          
+                <button
+                  onClick={() => {
+                    if (onLike) {
+                      onLike(post._id);
+                    }
+                    // Toggle liked users display
+                    console.log('🔍 React button clicked!');
+                    console.log('🔍 Current showLikedUsers:', showLikedUsers);
+                    console.log('🔍 Post likes:', post.likes);
+                    setShowLikedUsers(!showLikedUsers);
+                  }}
+                  className={`flex flex-col items-center justify-center transition-colors touch-manipulation min-h-[60px] ${getCurrentReaction() ? 'text-red-500' : 'hover:text-red-500'
+                    }`}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">React</span>
+                  <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                    <span className="text-sm">😊</span>
+                  </div>
+                </button>
+              </ReactionPopup>
+            </div>
+
             {/* Comment Button */}
-          <button 
-            onClick={() => setShowCommentInput(!showCommentInput)}
+            <button
+              onClick={() => setShowCommentInput(!showCommentInput)}
               className="flex flex-col items-center justify-center hover:text-blue-500 transition-colors touch-manipulation min-h-[60px]"
-            style={{ touchAction: 'manipulation' }}
-          >
-                <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">Comment</span>
-            <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-              <span className="text-sm">💬</span>
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">Comment</span>
+              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                <span className="text-sm">💬</span>
               </div>
-          </button>
-          
+            </button>
+
             {/* Share Button */}
-          <button 
-            onClick={() => setShowSharePopup(true)}
+            <button
+              onClick={() => setShowSharePopup(true)}
               className="flex flex-col items-center justify-center hover:text-green-500 transition-colors touch-manipulation min-h-[60px]"
               style={{ touchAction: 'manipulation' }}
             >
-                <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">Share</span>
-            <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-              <span className="text-sm">📤</span>
+              <span className="font-medium text-xs mb-2 text-center text-gray-900 dark:text-white">Share</span>
+              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                <span className="text-sm">📤</span>
               </div>
             </button>
-            
-            {/* Review Button */}
-            <button 
-              className="flex flex-col items-center justify-center hover:text-yellow-500 transition-colors touch-manipulation min-h-[70px] px-2"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mb-2">
-              <span className="text-sm">⭐</span>
-            </div>
-            <span className="font-medium text-xs text-center whitespace-nowrap text-gray-900 dark:text-white">Review</span>
-          </button>
-        </div>
-        
-        <div className="flex items-center gap-1 sm:gap-2">
-          <button 
-            onClick={() => onSave && onSave(post._id)}
-            className={`flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors touch-manipulation min-h-[60px] ${
-              isSaved ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-            }`}
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span className="text-xs font-medium mb-2 text-center text-gray-900 dark:text-white">{isSaved ? 'Saved' : 'Save'}</span>
-            <span className="text-base">{isSaved ? '💾' : '🔖'}</span>
-          </button>
-          
-          {/* Edit and Delete buttons - only show if showEditDelete is true AND user owns the post */}
-          {showEditDelete && isOwner && (
-            <>
-              <button 
-                onClick={() => onEdit && onEdit(post)}
-                className="flex flex-col items-center px-2 py-1 rounded-lg text-gray-600 dark:text-white hover:text-blue-500 hover:bg-blue-50 transition-colors touch-manipulation"
-                title="Edit post"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <span className="text-xs font-medium mb-1">Edit</span>
-                <span className="text-base">✏️</span>
-              </button>
-              
-              <button 
-                onClick={() => {
-                  if (confirm('Are you sure you want to delete this post?')) {
-                    onDelete && onDelete(post._id);
-                  }
-                }}
-                className="flex flex-col items-center px-2 py-1 rounded-lg text-gray-600 dark:text-white hover:text-red-500 hover:bg-red-50 transition-colors touch-manipulation"
-                title="Delete post"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <span className="text-xs font-medium mb-1">Delete</span>
-                <span className="text-base">🗑️</span>
-              </button>
-              
-              {/* Comment Toggle Button - only for post owners */}
-              <button 
-                onClick={() => {
-                  if (onToggleComments) {
-                    onToggleComments(post._id);
-                  }
-                }}
-                className="flex flex-col items-center px-2 py-1 rounded-lg text-gray-600 dark:text-white hover:text-yellow-500 hover:bg-yellow-50 transition-colors touch-manipulation"
-                title={post.commentsEnabled !== false ? "Disable comments" : "Enable comments"}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <span className="text-xs font-medium mb-1">{post.commentsEnabled !== false ? 'Disable' : 'Enable'}</span>
-                <span className="text-base">{post.commentsEnabled !== false ? '🔇' : '💬'}</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
 
-      {/* Comment Input */}
-      {showCommentInput && (
-        <div className="mt-3 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Write a comment..."
-              className="flex-1 px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-            />
+            {/* Review Button */}
             <button
-              onClick={() => {
-                if (commentText.trim() && onComment) {
-                  onComment(post._id, commentText);
-                  setCommentText('');
-                  setShowCommentInput(false);
-                }
-              }}
-              disabled={!commentText.trim()}
-              className="px-3 sm:px-4 py-1 sm:py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-sm touch-manipulation"
+              className="flex flex-col items-center justify-center hover:text-yellow-500 transition-colors touch-manipulation min-h-[70px] px-2"
               style={{ touchAction: 'manipulation' }}
             >
-              Post
+              <div className="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mb-2">
+                <span className="text-sm">⭐</span>
+              </div>
+              <span className="font-medium text-xs text-center whitespace-nowrap text-gray-900 dark:text-white">Review</span>
             </button>
           </div>
-        </div>
-      )}
 
-      {/* Comments Display */}
-      {post.comments && post.comments.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {post.comments.slice(0, 3).map((comment: any, index: number) => (
-            <div key={index} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
-              <img 
-                src={comment.user?.avatar ? getMediaUrl(comment.user.avatar) : '/default-avatar.svg'} 
-                alt="avatar" 
-                className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0 object-cover" 
-                onError={(e) => {
-                  console.log('❌ Comment avatar load failed for user:', comment.user?.name, 'URL:', comment.user?.avatar);
-                  e.currentTarget.src = '/default-avatar.svg';
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                {comment.user ? (
-                  <a 
-                    href={`/dashboard/profile/${(() => {
-                      // Handle populated user object (when userId is the full user object)
-                      if (comment.user.userId && typeof comment.user.userId === 'object' && comment.user.userId._id) {
-                        return comment.user.userId._id;
-                      }
-                      return String(comment.user.userId || comment.user._id || comment.user.id || 'unknown');
-                    })()}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs sm:text-sm font-medium hover:underline cursor-pointer truncate block"
-                  >
-                    {comment.user?.name || 'User'}
-                  </a>
-                ) : (
-                  <span className="text-xs sm:text-sm font-medium truncate">{comment.user?.name || 'User'}</span>
-                )}
-                <span className="text-xs sm:text-sm text-gray-600 dark:text-white ml-1 sm:ml-2 break-words">{comment.text}</span>
-              </div>
-            </div>
-          ))}
-          {post.comments.length > 3 && (
-            <button className="text-xs sm:text-sm text-blue-500 hover:text-blue-700">
-              View all {post.comments.length} comments
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={() => onSave && onSave(post._id)}
+              className={`flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-colors touch-manipulation min-h-[60px] ${isSaved ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                }`}
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span className="text-xs font-medium mb-2 text-center text-gray-900 dark:text-white">{isSaved ? 'Saved' : 'Save'}</span>
+              <span className="text-base">{isSaved ? '💾' : '🔖'}</span>
             </button>
-          )}
+
+            {/* Edit and Delete buttons - only show if showEditDelete is true AND user owns the post */}
+            {showEditDelete && isOwner && (
+              <>
+                <button
+                  onClick={() => onEdit && onEdit(post)}
+                  className="flex flex-col items-center px-2 py-1 rounded-lg text-gray-600 dark:text-white hover:text-blue-500 hover:bg-blue-50 transition-colors touch-manipulation"
+                  title="Edit post"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="text-xs font-medium mb-1">Edit</span>
+                  <span className="text-base">✏️</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (confirm('Are you sure you want to delete this post?')) {
+                      onDelete && onDelete(post._id);
+                    }
+                  }}
+                  className="flex flex-col items-center px-2 py-1 rounded-lg text-gray-600 dark:text-white hover:text-red-500 hover:bg-red-50 transition-colors touch-manipulation"
+                  title="Delete post"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="text-xs font-medium mb-1">Delete</span>
+                  <span className="text-base">🗑️</span>
+                </button>
+
+                {/* Comment Toggle Button - only for post owners */}
+                <button
+                  onClick={() => {
+                    if (onToggleComments) {
+                      onToggleComments(post._id);
+                    }
+                  }}
+                  className="flex flex-col items-center px-2 py-1 rounded-lg text-gray-600 dark:text-white hover:text-yellow-500 hover:bg-yellow-50 transition-colors touch-manipulation"
+                  title={post.commentsEnabled !== false ? "Disable comments" : "Enable comments"}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <span className="text-xs font-medium mb-1">{post.commentsEnabled !== false ? 'Disable' : 'Enable'}</span>
+                  <span className="text-base">{post.commentsEnabled !== false ? '🔇' : '💬'}</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* Comment Input */}
+        {showCommentInput && (
+          <div className="mt-3 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Write a comment..."
+                className="flex-1 px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              />
+              <button
+                onClick={() => {
+                  if (commentText.trim() && onComment) {
+                    onComment(post._id, commentText);
+                    setCommentText('');
+                    setShowCommentInput(false);
+                  }
+                }}
+                disabled={!commentText.trim()}
+                className="px-3 sm:px-4 py-1 sm:py-2 bg-blue-500 dark:bg-blue-600 text-white rounded-lg hover:bg-blue-600 dark:hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors text-sm touch-manipulation"
+                style={{ touchAction: 'manipulation' }}
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Comments Display */}
+        {post.comments && post.comments.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {post.comments.slice(0, 3).map((comment: any, index: number) => (
+              <div key={index} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
+                <img
+                  src={comment.user?.avatar ? getMediaUrl(comment.user.avatar) : '/default-avatar.svg'}
+                  alt="avatar"
+                  className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0 object-cover"
+                  onError={(e) => {
+                    console.log('❌ Comment avatar load failed for user:', comment.user?.name, 'URL:', comment.user?.avatar);
+                    e.currentTarget.src = '/default-avatar.svg';
+                  }}
+                />
+                <div className="flex-1 min-w-0">
+                  {comment.user ? (
+                    <a
+                      href={`/dashboard/profile/${(() => {
+                        // Handle populated user object (when userId is the full user object)
+                        if (comment.user.userId && typeof comment.user.userId === 'object' && comment.user.userId._id) {
+                          return comment.user.userId._id;
+                        }
+                        return String(comment.user.userId || comment.user._id || comment.user.id || 'unknown');
+                      })()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs sm:text-sm font-medium hover:underline cursor-pointer truncate block"
+                    >
+                      {comment.user?.name || 'User'}
+                    </a>
+                  ) : (
+                    <span className="text-xs sm:text-sm font-medium truncate">{comment.user?.name || 'User'}</span>
+                  )}
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-white ml-1 sm:ml-2 break-words">{comment.text}</span>
+                </div>
+              </div>
+            ))}
+            {post.comments.length > 3 && (
+              <button className="text-xs sm:text-sm text-blue-500 hover:text-blue-700">
+                View all {post.comments.length} comments
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Share Popup */}

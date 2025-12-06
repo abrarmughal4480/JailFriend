@@ -238,6 +238,9 @@ app.use('/api/social-links', socialLinksRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/website-settings', websiteSettingsRoutes);
+const proSystemRoutes = require('./routes/proSystemRoutes');
+app.use('/api/admin/pro-system', proSystemRoutes);
+app.use('/admin/pro-system', proSystemRoutes); // Fallback for clients missing /api prefix
 app.use('/api/files', fileRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/messages', messageRoutes);

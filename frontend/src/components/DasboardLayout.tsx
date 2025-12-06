@@ -1139,8 +1139,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Main component return
   return (
-    <div className={`min-h-screen overflow-x-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`} style={{ padding: '0' }}>
+    <div className={`${isReelsPage ? 'h-screen overflow-hidden' : 'min-h-screen'} overflow-x-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
+      }`} style={{ 
+        padding: '0',
+        ...(isReelsPage && { overflowY: 'hidden', height: '100vh' })
+      }}>
       {/* Popup Modals */}
       {popup.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[100] p-4 bg-black bg-opacity-50">
@@ -1704,11 +1707,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {/* Mobile Profile Sidebar */}
         {isMobile && profileSidebarOpen && (
           <aside
-            className={`fixed inset-0 z-[60] w-full h-full transform transition-all duration-300 ${
-              isDarkMode
+            className={`fixed inset-0 z-[60] w-full h-full transform transition-all duration-300 ${isDarkMode
                 ? 'bg-gray-900 border-l border-gray-700'
                 : 'bg-white border-l border-gray-200'
-            }`}
+              }`}
           >
             <div className={`px-3 py-2 border-b flex items-center justify-between ${isDarkMode
               ? 'border-gray-700'
@@ -1753,11 +1755,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   >
                     My Profile
                   </span>
-                  <div 
-                    className={`flex items-center gap-2 mt-1 cursor-pointer transition-colors ${
-                      isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'
-                    }`}
-                    onClick={() => router.push('/dashboard/wallet')}
+                  <div
+                    className={`flex items-center gap-2 mt-1 cursor-pointer transition-colors ${isDarkMode ? 'hover:text-blue-400' : 'hover:text-blue-600'
+                      }`}
+                    onClick={() => {
+                      router.push('/dashboard/wallet');
+                      setProfileSidebarOpen(false);
+                    }}
                   >
                     <svg
                       className={`w-4 h-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -2799,7 +2803,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Main Content Area */}
         <main className={`
-          flex-1 transition-all duration-300 min-h-screen overflow-x-hidden bg-gray-50 dark:bg-gray-900
+          ${isReelsPage ? 'fixed inset-0' : 'flex-1'} transition-all duration-300 ${isReelsPage ? 'h-screen overflow-hidden' : 'min-h-screen'} overflow-x-hidden bg-gray-50 dark:bg-gray-900
           ${isMessagesPage || isVideoCallPage || isReelsPage
             ? 'ml-0 mr-0 pt-0 pb-0'
             : isMobile
@@ -2815,10 +2819,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           ${!isMessagesPage && !isVideoCallPage && !isReelsPage && 'pt-16'}
         `} style={{
             paddingLeft: '0',
-            paddingRight: '0'
+            paddingRight: '0',
+            ...(isReelsPage && { 
+              overflowY: 'hidden', 
+              overflowX: 'hidden',
+              height: '100vh',
+              width: '100vw',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              position: 'fixed',
+              zIndex: 40
+            })
           }}>
-          <div className="w-full h-full overflow-x-hidden max-w-full">
-            <div className={`w-full overflow-x-hidden ${isMessagesPage || isVideoCallPage ? 'max-w-none pt-0 pb-0' : isReelsPage ? 'max-w-none pt-0 pb-20' : 'max-w-full md:mr-24 pt-16 pb-20 md:pt-0 md:pb-0'}`}>
+          <div className={`w-full ${isReelsPage ? 'h-full overflow-hidden' : 'h-full'} overflow-x-hidden max-w-full`}>
+            <div className={`w-full ${isReelsPage ? 'h-full overflow-hidden' : 'overflow-x-hidden'} ${isMessagesPage || isVideoCallPage ? 'max-w-none pt-0 pb-0' : isReelsPage ? 'max-w-none h-full pt-0 pb-0 overflow-hidden' : 'max-w-full md:mr-24 pt-16 pb-20 md:pt-0 md:pb-0'}`}>
               {children}
             </div>
           </div>

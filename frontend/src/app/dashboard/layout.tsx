@@ -13,7 +13,7 @@ interface HeightContextType {
 const HeightContext = createContext<HeightContextType>({
   remainingHeight: 0,
   headerHeight: 64,
-  updateHeights: () => {}
+  updateHeights: () => { }
 });
 
 // Custom hook to use height context
@@ -34,11 +34,11 @@ const HeightProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Get navbar height dynamically
     const navbar = document.querySelector('nav');
     const navbarHeight = navbar ? navbar.offsetHeight : 64;
-    
+
     // Calculate remaining height
     const windowHeight = window.innerHeight;
     const calculatedRemainingHeight = windowHeight - navbarHeight;
-    
+
     setHeaderHeight(navbarHeight);
     setRemainingHeight(calculatedRemainingHeight);
   };
@@ -46,29 +46,29 @@ const HeightProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   useEffect(() => {
     // Initial calculation
     updateHeights();
-    
+
     // Update on window resize
     const handleResize = () => {
       updateHeights();
     };
-    
+
     window.addEventListener('resize', handleResize);
-    
+
     // Update when layout changes (after DOM updates)
     const observer = new MutationObserver(() => {
       setTimeout(updateHeights, 100); // Small delay to ensure DOM is updated
     });
-    
+
     // Observe navbar changes
     const navbar = document.querySelector('nav');
     if (navbar) {
-      observer.observe(navbar, { 
-        attributes: true, 
-        childList: true, 
-        subtree: true 
+      observer.observe(navbar, {
+        attributes: true,
+        childList: true,
+        subtree: true
       });
     }
-    
+
     return () => {
       window.removeEventListener('resize', handleResize);
       observer.disconnect();
@@ -97,7 +97,7 @@ export default function DashboardLayout({
     <AuthGuard requireAuth={true} redirectTo="/">
       <HeightProvider>
         <DasboardLayout>
-          <div className="w-full max-w-full overflow-x-hidden" style={{ 
+          <div className="w-full max-w-full" style={{
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box'

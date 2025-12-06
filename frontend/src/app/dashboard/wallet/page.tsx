@@ -113,8 +113,8 @@ const PaymentMethodModal: React.FC<PaymentMethodModalProps> = ({ isOpen, onClose
                         <button
                             key={method.id}
                             className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${isDarkMode
-                                    ? 'hover:bg-gray-700 text-white'
-                                    : 'hover:bg-gray-100 text-gray-900'
+                                ? 'hover:bg-gray-700 text-white'
+                                : 'hover:bg-gray-100 text-gray-900'
                                 }`}
                             onClick={() => {
                                 onSelectMethod(method.id);
@@ -229,8 +229,8 @@ const BankTransferModal: React.FC<BankTransferModalProps> = ({ isOpen, onClose, 
                 {/* Upload Area */}
                 <div className="mb-4">
                     <label className={`block border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDarkMode
-                            ? 'border-gray-600 hover:border-gray-500 bg-gray-700'
-                            : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                        ? 'border-gray-600 hover:border-gray-500 bg-gray-700'
+                        : 'border-gray-300 hover:border-gray-400 bg-gray-50'
                         }`}>
                         <input
                             type="file"
@@ -250,8 +250,8 @@ const BankTransferModal: React.FC<BankTransferModalProps> = ({ isOpen, onClose, 
                     <button
                         onClick={onClose}
                         className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${isDarkMode
-                                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
                             }`}
                     >
                         Cancel
@@ -292,12 +292,43 @@ const TwoCheckoutModal: React.FC<TwoCheckoutModalProps> = ({ isOpen, onClose, am
         year: '',
         cvc: ''
     });
+    const [processing, setProcessing] = useState(false);
 
     if (!isOpen) return null;
 
-    const handleSubmit = () => {
-        alert(`Processing payment of ₹${amount} via 2Checkout`);
-        onClose();
+    const handleSubmit = async () => {
+        setProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/wallet/instant-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount,
+                    paymentMethod: '2checkout',
+                    paymentDetails: formData
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Payment successful! New balance: ₹${data.newBalance}`);
+                window.dispatchEvent(new Event('balanceUpdated'));
+                onClose();
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(`Payment failed: ${error.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            alert('Payment failed. Please try again.');
+        } finally {
+            setProcessing(false);
+        }
     };
 
     return (
@@ -415,17 +446,18 @@ const TwoCheckoutModal: React.FC<TwoCheckoutModalProps> = ({ isOpen, onClose, am
                     <button
                         onClick={onClose}
                         className={`py-3 px-6 rounded-lg font-medium transition-colors ${isDarkMode
-                                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
                             }`}
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                        disabled={processing}
+                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Pay Now
+                        {processing ? 'Processing...' : 'Pay Now'}
                     </button>
                 </div>
             </div>
@@ -443,12 +475,43 @@ interface PaystackModalProps {
 
 const PaystackModal: React.FC<PaystackModalProps> = ({ isOpen, onClose, amount, isDarkMode }) => {
     const [email, setEmail] = useState('');
+    const [processing, setProcessing] = useState(false);
 
     if (!isOpen) return null;
 
-    const handleSubmit = () => {
-        alert(`Processing payment of ₹${amount} via Paystack for ${email}`);
-        onClose();
+    const handleSubmit = async () => {
+        setProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/wallet/instant-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount,
+                    paymentMethod: 'paystack',
+                    paymentDetails: { email }
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Payment successful! New balance: ₹${data.newBalance}`);
+                window.dispatchEvent(new Event('balanceUpdated'));
+                onClose();
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(`Payment failed: ${error.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            alert('Payment failed. Please try again.');
+        } finally {
+            setProcessing(false);
+        }
     };
 
     return (
@@ -473,17 +536,18 @@ const PaystackModal: React.FC<PaystackModalProps> = ({ isOpen, onClose, amount, 
                     <button
                         onClick={onClose}
                         className={`py-3 px-6 rounded-lg font-medium transition-colors ${isDarkMode
-                                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
                             }`}
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                        disabled={processing}
+                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Pay Now
+                        {processing ? 'Processing...' : 'Pay Now'}
                     </button>
                 </div>
             </div>
@@ -505,12 +569,43 @@ const CashfreeModal: React.FC<CashfreeModalProps> = ({ isOpen, onClose, amount, 
         email: '',
         phone: ''
     });
+    const [processing, setProcessing] = useState(false);
 
     if (!isOpen) return null;
 
-    const handleSubmit = () => {
-        alert(`Processing payment of ₹${amount} via Cashfree`);
-        onClose();
+    const handleSubmit = async () => {
+        setProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/wallet/instant-payment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount,
+                    paymentMethod: 'cashfree',
+                    paymentDetails: formData
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Payment successful! New balance: ₹${data.newBalance}`);
+                window.dispatchEvent(new Event('balanceUpdated'));
+                onClose();
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(`Payment failed: ${error.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Payment error:', error);
+            alert('Payment failed. Please try again.');
+        } finally {
+            setProcessing(false);
+        }
     };
 
     return (
@@ -551,18 +646,133 @@ const CashfreeModal: React.FC<CashfreeModalProps> = ({ isOpen, onClose, amount, 
                     <button
                         onClick={onClose}
                         className={`py-3 px-6 rounded-lg font-medium transition-colors ${isDarkMode
-                                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                                : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
                             }`}
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSubmit}
-                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium transition-colors"
+                        disabled={processing}
+                        className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Pay Now
+                        {processing ? 'Processing...' : 'Pay Now'}
                     </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Flutterwave Modal
+interface FlutterwaveModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    amount: number;
+    isDarkMode: boolean;
+}
+
+const FlutterwaveModal: React.FC<FlutterwaveModalProps> = ({ isOpen, onClose, amount, isDarkMode }) => {
+    const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+    const [processing, setProcessing] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async () => {
+        setProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/wallet/instant-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ amount, paymentMethod: 'flutterwave', paymentDetails: formData })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Payment successful! New balance: ₹${data.newBalance}`);
+                window.dispatchEvent(new Event('balanceUpdated'));
+                onClose();
+                window.location.reload();
+            } else {
+                alert('Payment failed. Please try again.');
+            }
+        } catch (error) {
+            alert('Payment failed. Please try again.');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
+            <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl`} onClick={(e) => e.stopPropagation()}>
+                <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Flutterwave</h2>
+                <div className="space-y-4 mb-6">
+                    <input type="text" placeholder="Name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className={`w-full px-4 py-3 rounded-lg ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`} />
+                    <input type="email" placeholder="E-mail" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={`w-full px-4 py-3 rounded-lg ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`} />
+                    <input type="tel" placeholder="Phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={`w-full px-4 py-3 rounded-lg ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`} />
+                </div>
+                <div className="flex gap-3 justify-end">
+                    <button onClick={onClose} className={`py-3 px-6 rounded-lg font-medium ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>Cancel</button>
+                    <button onClick={handleSubmit} disabled={processing} className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium disabled:opacity-50">{processing ? 'Processing...' : 'Pay Now'}</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Generic Payment Modal (for Coingate, Aamarapay, Ngenius, Iyzico, PayFast)
+interface GenericPaymentModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    amount: number;
+    isDarkMode: boolean;
+    paymentMethod: string;
+    title: string;
+}
+
+const GenericPaymentModal: React.FC<GenericPaymentModalProps> = ({ isOpen, onClose, amount, isDarkMode, paymentMethod, title }) => {
+    const [email, setEmail] = useState('');
+    const [processing, setProcessing] = useState(false);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async () => {
+        setProcessing(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/wallet/instant-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ amount, paymentMethod, paymentDetails: { email } })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                alert(`Payment successful! New balance: ₹${data.newBalance}`);
+                window.dispatchEvent(new Event('balanceUpdated'));
+                onClose();
+                window.location.reload();
+            } else {
+                alert('Payment failed. Please try again.');
+            }
+        } catch (error) {
+            alert('Payment failed. Please try again.');
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[80]" onClick={onClose}>
+            <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl`} onClick={(e) => e.stopPropagation()}>
+                <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h2>
+                <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} className={`w-full px-4 py-3 rounded-lg mb-6 ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`} />
+                <div className="flex gap-3 justify-end">
+                    <button onClick={onClose} className={`py-3 px-6 rounded-lg font-medium ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>Cancel</button>
+                    <button onClick={handleSubmit} disabled={processing} className="bg-red-500 hover:bg-red-600 text-white py-3 px-6 rounded-lg font-medium disabled:opacity-50">{processing ? 'Processing...' : 'Pay Now'}</button>
                 </div>
             </div>
         </div>
@@ -582,6 +792,12 @@ export default function WalletPage() {
     const [show2Checkout, setShow2Checkout] = useState(false);
     const [showPaystack, setShowPaystack] = useState(false);
     const [showCashfree, setShowCashfree] = useState(false);
+    const [showFlutterwave, setShowFlutterwave] = useState(false);
+    const [showCoingate, setShowCoingate] = useState(false);
+    const [showAamarapay, setShowAamarapay] = useState(false);
+    const [showNgenius, setShowNgenius] = useState(false);
+    const [showIyzico, setShowIyzico] = useState(false);
+    const [showPayfast, setShowPayfast] = useState(false);
 
     useEffect(() => {
         fetchWalletData();
@@ -634,6 +850,24 @@ export default function WalletPage() {
                 break;
             case 'cashfree':
                 setShowCashfree(true);
+                break;
+            case 'flutterwave':
+                setShowFlutterwave(true);
+                break;
+            case 'coingate':
+                setShowCoingate(true);
+                break;
+            case 'aamarapay':
+                setShowAamarapay(true);
+                break;
+            case 'ngenius':
+                setShowNgenius(true);
+                break;
+            case 'iyzico':
+                setShowIyzico(true);
+                break;
+            case 'payfast':
+                setShowPayfast(true);
                 break;
             default:
                 alert(`${methodId} integration coming soon`);
@@ -816,6 +1050,58 @@ export default function WalletPage() {
                 onClose={() => setShowCashfree(false)}
                 amount={selectedAmount}
                 isDarkMode={isDarkMode}
+            />
+
+            <FlutterwaveModal
+                isOpen={showFlutterwave}
+                onClose={() => setShowFlutterwave(false)}
+                amount={selectedAmount}
+                isDarkMode={isDarkMode}
+            />
+
+            <GenericPaymentModal
+                isOpen={showCoingate}
+                onClose={() => setShowCoingate(false)}
+                amount={selectedAmount}
+                isDarkMode={isDarkMode}
+                paymentMethod="coingate"
+                title="Coingate"
+            />
+
+            <GenericPaymentModal
+                isOpen={showAamarapay}
+                onClose={() => setShowAamarapay(false)}
+                amount={selectedAmount}
+                isDarkMode={isDarkMode}
+                paymentMethod="aamarapay"
+                title="Aamarapay"
+            />
+
+            <GenericPaymentModal
+                isOpen={showNgenius}
+                onClose={() => setShowNgenius(false)}
+                amount={selectedAmount}
+                isDarkMode={isDarkMode}
+                paymentMethod="ngenius"
+                title="Ngenius"
+            />
+
+            <GenericPaymentModal
+                isOpen={showIyzico}
+                onClose={() => setShowIyzico(false)}
+                amount={selectedAmount}
+                isDarkMode={isDarkMode}
+                paymentMethod="iyzico"
+                title="Iyzico"
+            />
+
+            <GenericPaymentModal
+                isOpen={showPayfast}
+                onClose={() => setShowPayfast(false)}
+                amount={selectedAmount}
+                isDarkMode={isDarkMode}
+                paymentMethod="payfast"
+                title="PayFast"
             />
         </div>
     );

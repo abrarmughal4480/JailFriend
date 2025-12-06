@@ -141,7 +141,7 @@ const createOrUpdateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating/updating P2P profile:', error);
-    
+
     // Handle validation errors
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
@@ -164,7 +164,7 @@ const createOrUpdateProfile = async (req, res) => {
 const getMyProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const profile = await P2PProfile.findOne({ userId })
       .populate('userId', 'name fullName username avatar email bio location')
       .populate('category', 'title description image slug');
@@ -208,23 +208,23 @@ const getAllProfiles = async (req, res) => {
     const userId = req.user?.id; // Get current user ID if authenticated
 
     const query = { isActive: true };
-    
+
     // Exclude current user from results
     if (userId) {
       query.userId = { $ne: userId };
     }
-    
+
     // Add filters
     if (occupation) {
       query.occupation = { $regex: occupation, $options: 'i' };
     }
-    
+
     if (minRate || maxRate) {
       query.hourlyRate = {};
       if (minRate) query.hourlyRate.$gte = parseFloat(minRate);
       if (maxRate) query.hourlyRate.$lte = parseFloat(maxRate);
     }
-    
+
     if (categoryFilter) {
       query.category = categoryFilter;
     }
@@ -278,17 +278,17 @@ const getAllProfiles = async (req, res) => {
 const getFeaturedProfiles = async (req, res) => {
   try {
     const userId = req.user?.id; // Get current user ID if authenticated
-    
-    const query = { 
-      isActive: true, 
-      featured: true 
+
+    const query = {
+      isActive: true,
+      featured: true
     };
-    
+
     // Exclude current user from featured results
     if (userId) {
       query.userId = { $ne: userId };
     }
-    
+
     const profiles = await P2PProfile.find(query)
       .populate('userId', 'name fullName username avatar email bio location')
       .populate('category', 'title description image slug')
@@ -313,7 +313,7 @@ const getFeaturedProfiles = async (req, res) => {
 const getProfileById = async (req, res) => {
   try {
     const { profileId } = req.params;
-    
+
     const profile = await P2PProfile.findById(profileId)
       .populate('userId', 'name fullName username avatar email bio location')
       .populate('category', 'title description image slug');
@@ -344,7 +344,7 @@ const searchProfiles = async (req, res) => {
   try {
     const { q, page = 1, limit = 10 } = req.query;
     const userId = req.user?.id; // Get current user ID if authenticated
-    
+
     if (!q) {
       return res.status(400).json({
         success: false,
@@ -352,16 +352,28 @@ const searchProfiles = async (req, res) => {
       });
     }
 
+    // First, find users whose name or username matches the search query
+    const matchingUsers = await User.find({
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { fullName: { $regex: q, $options: 'i' } },
+        { username: { $regex: q, $options: 'i' } }
+      ]
+    }).select('_id');
+
+    const matchingUserIds = matchingUsers.map(user => user._id);
+
     const query = {
       isActive: true,
       $or: [
+        { userId: { $in: matchingUserIds } }, // Search by user name/username
         { occupation: { $regex: q, $options: 'i' } },
         { skills: { $in: [new RegExp(q, 'i')] } },
         { experience: { $regex: q, $options: 'i' } },
         { tags: { $in: [new RegExp(q, 'i')] } }
       ]
     };
-    
+
     // Exclude current user from search results
     if (userId) {
       query.userId = { $ne: userId };
@@ -402,7 +414,7 @@ const updateProfileStatus = async (req, res) => {
     const { availability, isActive } = req.body;
 
     const profile = await P2PProfile.findOne({ userId });
-    
+
     if (!profile) {
       return res.status(404).json({
         success: false,
@@ -436,7 +448,7 @@ const deleteProfile = async (req, res) => {
     const userId = req.user.id;
 
     const profile = await P2PProfile.findOneAndDelete({ userId });
-    
+
     if (!profile) {
       return res.status(404).json({
         success: false,
