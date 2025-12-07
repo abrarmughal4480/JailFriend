@@ -401,11 +401,11 @@ const VerificationRequestsPage: React.FC = () => {
         <div className="p-4 lg:p-6">
           {/* Header */}
           <div className="mb-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+            <div className="flex flex-col gap-4 mb-4">
               <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-2">Manage Verification Reqeusts</h1>
-                <div className="text-sm text-gray-600">
-                  Home {'>'} Users {'>'} <span className="text-red-500 font-semibold">Manage Verification Reqeusts</span>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-2">Manage Verification Requests</h1>
+                <div className="text-xs sm:text-sm text-gray-600">
+                  Home {'>'} Users {'>'} <span className="text-red-500 font-semibold">Manage Verification Requests</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -497,16 +497,110 @@ const VerificationRequestsPage: React.FC = () => {
             {/* Panel Header */}
             <div className="p-4 lg:p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg lg:text-xl font-semibold text-gray-800">Manage Verification Reqeusts</h2>
+                <h2 className="text-lg lg:text-xl font-semibold text-gray-800">Manage Verification Requests</h2>
+                {/* Mobile Select All */}
+                <div className="lg:hidden flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedRequests.length === filteredRequests.length && filteredRequests.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedRequests(filteredRequests.map(request => request._id));
+                      } else {
+                        setSelectedRequests([]);
+                      }
+                    }}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-600">Select All</span>
+                </div>
               </div>
             </div>
 
-            {/* Verification Requests Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px]">
+            {/* Mobile Card View */}
+            <div className="lg:hidden">
+              {loading ? (
+                <div className="p-8 text-center">
+                  <div className="flex items-center justify-center">
+                    <RefreshCw className="w-5 h-5 animate-spin text-blue-500 mr-2" />
+                    <span className="text-sm">Loading verification requests...</span>
+                  </div>
+                </div>
+              ) : filteredRequests.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-sm">
+                  No verification requests found
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {filteredRequests.map((request) => (
+                    <div key={request._id} className="p-4 hover:bg-gray-50">
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRequests.includes(request._id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedRequests([...selectedRequests, request._id]);
+                            } else {
+                              setSelectedRequests(selectedRequests.filter(id => id !== request._id));
+                            }
+                          }}
+                          className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Flag className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                              <span className="text-sm font-medium text-gray-900 truncate">{request.user.name}</span>
+                            </div>
+                            <span className="text-xs text-gray-500 font-mono flex-shrink-0 ml-2">{request.id}</span>
+                          </div>
+                          <div className="mb-2">
+                            <p className="text-sm text-gray-600 break-words">{request.information || '-'}</p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(request.type)}`}>
+                              {request.type}
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
+                              request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </span>
+                          </div>
+                          {request.status === 'pending' && (
+                            <div className="flex items-center gap-2 mt-3">
+                              <button
+                                onClick={() => handleRequestAction(request._id, 'verify')}
+                                disabled={actionLoading}
+                                className="flex-1 px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                              >
+                                Verify
+                              </button>
+                              <button
+                                onClick={() => handleRequestAction(request._id, 'reject')}
+                                disabled={actionLoading}
+                                className="flex-1 px-3 py-1.5 bg-red-600 text-white rounded text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-3 lg:px-6 py-3 text-left">
+                    <th className="px-6 py-3 text-left">
                       <input
                         type="checkbox"
                         checked={selectedRequests.length === filteredRequests.length && filteredRequests.length > 0}
@@ -521,7 +615,7 @@ const VerificationRequestsPage: React.FC = () => {
                       />
                     </th>
                     <th
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('id')}
                     >
                       <div className="flex items-center gap-1">
@@ -531,14 +625,14 @@ const VerificationRequestsPage: React.FC = () => {
                         )}
                       </div>
                     </th>
-                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       USER
                     </th>
-                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       INFORMATION
                     </th>
                     <th
-                      className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                       onClick={() => handleSort('type')}
                     >
                       <div className="flex items-center gap-1">
@@ -548,10 +642,10 @@ const VerificationRequestsPage: React.FC = () => {
                         )}
                       </div>
                     </th>
-                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       STATUS
                     </th>
-                    <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       ACTION
                     </th>
                   </tr>
@@ -559,23 +653,23 @@ const VerificationRequestsPage: React.FC = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="px-3 lg:px-6 py-8 text-center">
+                      <td colSpan={7} className="px-6 py-8 text-center">
                         <div className="flex items-center justify-center">
                           <RefreshCw className="w-5 h-5 animate-spin text-blue-500 mr-2" />
-                          <span className="text-sm lg:text-base">Loading verification requests...</span>
+                          <span className="text-base">Loading verification requests...</span>
                         </div>
                       </td>
                     </tr>
                   ) : filteredRequests.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-3 lg:px-6 py-8 text-center text-gray-500 text-sm lg:text-base">
+                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500 text-base">
                         No verification requests found
                       </td>
                     </tr>
                   ) : (
                     filteredRequests.map((request) => (
                       <tr key={request._id} className="hover:bg-gray-50">
-                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                        <td className="px-6 py-4">
                           <input
                             type="checkbox"
                             checked={selectedRequests.includes(request._id)}
@@ -589,24 +683,24 @@ const VerificationRequestsPage: React.FC = () => {
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-3 lg:px-6 py-3 lg:py-4 text-sm text-gray-900 font-medium">
+                        <td className="px-6 py-4 text-sm text-gray-900 font-medium">
                           {request.id}
                         </td>
-                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                        <td className="px-6 py-4">
                           <div className="flex items-center">
                             <Flag className="w-4 h-4 text-orange-500 mr-2" />
                             <span className="text-sm text-gray-900">{request.user.name}</span>
                           </div>
                         </td>
-                        <td className="px-3 lg:px-6 py-3 lg:py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600">
                           {request.information || '-'}
                         </td>
-                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                        <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(request.type)}`}>
                             {request.type}
                           </span>
                         </td>
-                        <td className="px-3 lg:px-6 py-3 lg:py-4">
+                        <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${request.status === 'approved' ? 'bg-green-100 text-green-800' :
                             request.status === 'rejected' ? 'bg-red-100 text-red-800' :
                               'bg-yellow-100 text-yellow-800'
@@ -614,8 +708,8 @@ const VerificationRequestsPage: React.FC = () => {
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
                         </td>
-                        <td className="px-3 lg:px-6 py-3 lg:py-4">
-                          <div className="flex items-center gap-1 lg:gap-2">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
                             {request.status === 'pending' && (
                               <>
                                 <button
@@ -645,19 +739,61 @@ const VerificationRequestsPage: React.FC = () => {
 
             {/* Pagination and Bulk Actions */}
             <div className="p-4 lg:p-6 border-t border-gray-200">
-              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex flex-col gap-4">
+                {/* Top Row: Results Count and Pagination */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="text-sm text-gray-700">
                     Showing {filteredRequests.length} out of {stats.totalRequests}
                   </div>
 
-                  {/* Bulk Actions */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                    <label className="text-sm font-medium text-gray-700">Action:</label>
+                  {/* Pagination */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="First page"
+                    >
+                      <ChevronsLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Previous page"
+                    >
+                      <ChevronUp className="w-4 h-4 rotate-90" />
+                    </button>
+                    <span className="px-3 py-1 text-sm text-gray-700 bg-blue-600 text-white rounded-full">
+                      {currentPage}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Next page"
+                    >
+                      <ChevronDown className="w-4 h-4 -rotate-90" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Last page"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom Row: Bulk Actions */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 border-t border-gray-200 lg:border-t-0 lg:pt-0">
+                  <label className="text-sm font-medium text-gray-700 flex-shrink-0">Action:</label>
+                  <div className="flex flex-col sm:flex-row gap-2 flex-1">
                     <select
                       value={bulkAction}
                       onChange={(e) => setBulkAction(e.target.value)}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      className="flex-1 sm:flex-initial px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     >
                       <option value="verify">Verify</option>
                       <option value="reject">Reject</option>
@@ -665,50 +801,11 @@ const VerificationRequestsPage: React.FC = () => {
                     <button
                       onClick={handleBulkAction}
                       disabled={selectedRequests.length === 0 || actionLoading}
-                      className="px-4 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Apply
                     </button>
                   </div>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="First page"
-                  >
-                    <ChevronsLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Previous page"
-                  >
-                    <ChevronUp className="w-4 h-4 rotate-90" />
-                  </button>
-                  <span className="px-3 py-1 text-sm text-gray-700 bg-blue-600 text-white rounded-full">
-                    {currentPage}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Next page"
-                  >
-                    <ChevronDown className="w-4 h-4 -rotate-90" />
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Last page"
-                  >
-                    <ChevronsRight className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
             </div>
