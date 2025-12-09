@@ -2,7 +2,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Edit, Trash2, MoreVertical, Search, Filter, Camera, Video, Music, FileText, Plus, Heart, MessageCircle, Share2, Bookmark, Settings, Camera as CameraIcon, MapPin, Globe, Calendar, Users, Eye, ThumbsUp, X, ShoppingBag, UserPlus, UserCheck, Phone, BarChart3, Clock, Link as LinkIcon, Gift, Activity } from 'lucide-react';
+import { Edit, Trash2, MoreVertical, Search, Filter, Camera, Video, Music, FileText, Plus, Heart, MessageCircle, Share2, Bookmark, Settings, Camera as CameraIcon, MapPin, Globe, Calendar, Users, Eye, ThumbsUp, X, ShoppingBag, UserPlus, UserCheck, Phone, BarChart3, Clock, Link as LinkIcon, Gift, Activity, Briefcase, TrendingUp, Circle, Check, Sparkles } from 'lucide-react';
 import PostDisplay from '@/components/PostDisplay';
 import Popup, { PopupState } from '@/components/Popup';
 import FeedPost from '@/components/FeedPost';
@@ -33,7 +33,7 @@ interface Album {
   shares?: string[];
 }
 
-type ContentItem = Post | (Album & { type: 'album' });
+type ContentItem = Post | (Album & { type: 'album' }) | (Job & { type: 'job' });
 
 interface User {
   _id: string;
@@ -52,12 +52,39 @@ interface User {
   country?: string;
   phone?: string;
   dateOfBirth?: string;
+  relationshipStatus?: string;
   joinedDate?: string;
   website?: string;
   followers?: string[];
   following?: string[];
   followersList?: string[];
   followingList?: string[];
+  jobPreferences?: {
+    findingJob?: boolean;
+    jobTitles?: string;
+    jobLocation?: string;
+    workplaces?: {
+      onSite?: boolean;
+      hybrid?: boolean;
+      remote?: boolean;
+    };
+    jobTypes?: {
+      fullTime?: boolean;
+      contract?: boolean;
+      partTime?: boolean;
+      internship?: boolean;
+      temporary?: boolean;
+    };
+  };
+  servicesPreferences?: {
+    providingServices?: boolean;
+    services?: string[];
+    location?: string;
+    description?: string;
+  };
+  skills?: string[];
+  languages?: string[];
+  isVerified?: boolean;
 }
 
 interface UserImages {
@@ -124,6 +151,34 @@ interface Product {
   updatedAt: string;
 }
 
+interface Job {
+  _id: string;
+  title: string;
+  location: string;
+  description: string;
+  salaryRange: {
+    minimum: number;
+    maximum: number;
+    currency: string;
+    type: string;
+  };
+  jobType: string;
+  category: string;
+  image?: string;
+  pageId?: string;
+  createdBy: {
+    _id: string;
+    name: string;
+    username?: string;
+    avatar?: string;
+  };
+  creatorName?: string;
+  creatorAvatar?: string;
+  interestedCandidates?: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 const UserProfile: React.FC = () => {
   const { userId } = useParams();
   const router = useRouter();
@@ -137,6 +192,7 @@ const UserProfile: React.FC = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,9 +225,71 @@ const UserProfile: React.FC = () => {
     message: ''
   });
 
+  // AI Cover Generation states
+  const [showAICoverModal, setShowAICoverModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [generatingCover, setGeneratingCover] = useState(false);
+  const [imageCredits, setImageCredits] = useState(0);
+
   // Follow by ID states
   const [followById, setFollowById] = useState<string>('');
   const [isFollowingById, setIsFollowingById] = useState<boolean>(false);
+
+  // Open To states
+  const [openToOptions, setOpenToOptions] = useState({
+    findingJob: false,
+    providingServices: false,
+    hiring: false
+  });
+
+  // Job Preferences Modal states
+  const [showJobPreferencesModal, setShowJobPreferencesModal] = useState(false);
+  const [jobPreferences, setJobPreferences] = useState({
+    jobTitles: '',
+    jobLocation: '',
+    workplaces: {
+      onSite: false,
+      hybrid: false,
+      remote: false
+    },
+    jobTypes: {
+      fullTime: false,
+      contract: false,
+      partTime: false,
+      internship: false,
+      temporary: false
+    }
+  });
+
+  // Services Preferences Modal states
+  const [showServicesModal, setShowServicesModal] = useState(false);
+  const [servicesPreferences, setServicesPreferences] = useState({
+    services: [] as string[],
+    location: '',
+    description: ''
+  });
+  const [serviceInput, setServiceInput] = useState('');
+
+  // Create Job Modal states
+  const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [jobFormData, setJobFormData] = useState({
+    title: '',
+    location: '',
+    description: '',
+    salaryRange: {
+      minimum: '',
+      maximum: '',
+      currency: 'USD',
+      type: 'Per Hour'
+    },
+    jobType: 'Full time',
+    category: 'Other',
+    questions: [] as string[]
+  });
+  const [jobImage, setJobImage] = useState<File | null>(null);
+  const [jobImagePreview, setJobImagePreview] = useState<string>('');
+  const [questionInput, setQuestionInput] = useState('');
+  const [creatingJob, setCreatingJob] = useState(false);
 
   // Add post dropdown state
   const [postDropdownOpen, setPostDropdownOpen] = useState<string | null>(null);
@@ -200,12 +318,44 @@ const UserProfile: React.FC = () => {
     return 'type' in item && item.type === 'album';
   };
 
+  const isJob = (item: ContentItem): item is Job & { type: 'job' } => {
+    return 'type' in item && item.type === 'job';
+  };
+
   const isPost = (item: ContentItem): item is Post => {
-    return !('type' in item) || item.type !== 'album';
+    return !('type' in item) || (item.type !== 'album' && item.type !== 'job');
   };
 
   // Get the actual userId string
   const actualUserId = Array.isArray(userId) ? userId[0] : userId;
+
+  // Calculate profile completion percentage
+  const calculateProfileCompletion = () => {
+    const defaultItems = [
+      { key: 'avatar', label: 'Add your profile picture', completed: false },
+      { key: 'name', label: 'Add your name', completed: false },
+      { key: 'workplace', label: 'Add your workplace', completed: false },
+      { key: 'country', label: 'Add your country', completed: false },
+      { key: 'address', label: 'Add your address', completed: false }
+    ];
+    
+    if (!user) return { percentage: 0, completed: 0, total: 5, items: defaultItems };
+    
+    const items = [
+      { key: 'avatar', label: 'Add your profile picture', completed: !!(userImages.avatar || user.avatar) },
+      { key: 'name', label: 'Add your name', completed: !!(user.name && user.name.trim() !== '') },
+      { key: 'workplace', label: 'Add your workplace', completed: !!(user.workplace && user.workplace.trim() !== '') },
+      { key: 'country', label: 'Add your country', completed: !!(user.country && user.country.trim() !== '') },
+      { key: 'address', label: 'Add your address', completed: !!(user.address && user.address.trim() !== '') }
+    ];
+    
+    const completed = items.filter(item => item.completed).length;
+    const percentage = Math.round((completed / items.length) * 100);
+    
+    return { percentage, completed, total: items.length, items };
+  };
+
+  const profileCompletion = calculateProfileCompletion();
 
   useEffect(() => {
     if (actualUserId) {
@@ -215,6 +365,7 @@ const UserProfile: React.FC = () => {
       fetchUserAlbums();
       fetchUserGroups();
       fetchUserProducts();
+      fetchUserJobs();
       fetchUserActivities();
     }
   }, [actualUserId]);
@@ -345,6 +496,43 @@ const UserProfile: React.FC = () => {
         setIsFollowing(userData.isFollowing);
         setIsBlocked(userData.isBlocked);
 
+        // Update openToOptions based on job preferences
+        if (userData.jobPreferences?.findingJob) {
+          setOpenToOptions(prev => ({ ...prev, findingJob: true }));
+          // Load existing job preferences into the form
+          if (userData.jobPreferences) {
+            setJobPreferences({
+              jobTitles: userData.jobPreferences.jobTitles || '',
+              jobLocation: userData.jobPreferences.jobLocation || '',
+              workplaces: {
+                onSite: userData.jobPreferences.workplaces?.onSite || false,
+                hybrid: userData.jobPreferences.workplaces?.hybrid || false,
+                remote: userData.jobPreferences.workplaces?.remote || false
+              },
+              jobTypes: {
+                fullTime: userData.jobPreferences.jobTypes?.fullTime || false,
+                contract: userData.jobPreferences.jobTypes?.contract || false,
+                partTime: userData.jobPreferences.jobTypes?.partTime || false,
+                internship: userData.jobPreferences.jobTypes?.internship || false,
+                temporary: userData.jobPreferences.jobTypes?.temporary || false
+              }
+            });
+          }
+        }
+
+        // Update openToOptions based on services preferences
+        if (userData.servicesPreferences?.providingServices) {
+          setOpenToOptions(prev => ({ ...prev, providingServices: true }));
+          // Load existing services preferences into the form
+          if (userData.servicesPreferences) {
+            setServicesPreferences({
+              services: userData.servicesPreferences.services || [],
+              location: userData.servicesPreferences.location || '',
+              description: userData.servicesPreferences.description || ''
+            });
+          }
+        }
+
         // Check if this is the current user's profile
         const currentUserResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
           headers: {
@@ -387,6 +575,29 @@ const UserProfile: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching user images:', error);
+    }
+  };
+
+  const fetchImageCredits = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Try to fetch credits from user profile or dedicated endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        // Assuming credits are stored in userData.imageCredits or similar
+        setImageCredits(userData.imageCredits || userData.credits?.images || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching image credits:', error);
+      setImageCredits(0);
     }
   };
 
@@ -471,6 +682,27 @@ const UserProfile: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching user products:', error);
+    }
+  };
+
+  const fetchUserJobs = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Fetch user's jobs without pageId using the dedicated endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/user/${actualUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const userJobs = await response.json();
+        setJobs(userJobs);
+      }
+    } catch (error) {
+      console.error('Error fetching user jobs:', error);
     }
   };
 
@@ -937,6 +1169,87 @@ const UserProfile: React.FC = () => {
     }
   };
 
+  const handleGenerateAICover = async () => {
+    if (!aiPrompt.trim()) {
+      showPopup('error', 'Error', 'Please enter a prompt to generate an image');
+      return;
+    }
+
+    if (imageCredits < 1) {
+      showPopup('error', 'Insufficient Credits', 'You don\'t have enough credits to generate images. Please top up your credits.');
+      return;
+    }
+
+    setGeneratingCover(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showPopup('error', 'Authentication Error', 'Please log in again');
+        return;
+      }
+
+      // Call AI image generation API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/generate-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          type: 'cover'
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Upload the generated image as cover photo
+        if (data.imageUrl) {
+          // Convert image URL to blob and upload
+          const imageResponse = await fetch(data.imageUrl);
+          const blob = await imageResponse.blob();
+          const file = new File([blob], 'ai-generated-cover.jpg', { type: 'image/jpeg' });
+          
+          // Upload as cover photo
+          const formData = new FormData();
+          formData.append('cover', file);
+
+          const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/cover`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
+
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            setUserImages(prev => ({
+              ...prev,
+              cover: uploadData.cover
+            }));
+            setShowAICoverModal(false);
+            setAiPrompt('');
+            showPopup('success', 'Cover Generated!', 'Your AI-generated cover photo has been set successfully!');
+            fetchUserImages();
+            fetchImageCredits(); // Refresh credits
+          } else {
+            showPopup('error', 'Upload Failed', 'Failed to upload generated image');
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        showPopup('error', 'Generation Failed', errorData.error || 'Failed to generate image. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error generating AI cover:', error);
+      showPopup('error', 'Generation Failed', 'Failed to generate image. Please try again.');
+    } finally {
+      setGeneratingCover(false);
+    }
+  };
+
   const handleDeletePost = async (postId: string) => {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
@@ -964,13 +1277,19 @@ const UserProfile: React.FC = () => {
   const getFilteredContent = () => {
     let filtered: ContentItem[] = [
       ...posts,
-      ...albums.map(album => ({ ...album, type: 'album' as const }))
+      ...albums.map(album => ({ ...album, type: 'album' as const })),
+      ...jobs.map(job => ({ ...job, type: 'job' as const }))
     ];
 
     if (activeFilter !== 'all') {
       filtered = filtered.filter(item => {
         if (isAlbum(item)) {
           return activeFilter === 'photos';
+        }
+
+        if (isJob(item)) {
+          // Jobs don't match any specific filter, only show in 'all'
+          return false;
         }
 
         // For posts, check media type
@@ -1003,7 +1322,10 @@ const UserProfile: React.FC = () => {
         if (isAlbum(item)) {
           return item.name?.toLowerCase().includes(query);
         }
-        return item.content?.toLowerCase().includes(query) || item.title?.toLowerCase().includes(query);
+        if (isJob(item)) {
+          return item.title?.toLowerCase().includes(query) || item.description?.toLowerCase().includes(query) || item.location?.toLowerCase().includes(query);
+        }
+        return (item as Post).content?.toLowerCase().includes(query) || item.title?.toLowerCase().includes(query);
       });
     }
 
@@ -1138,6 +1460,273 @@ const UserProfile: React.FC = () => {
     } catch (error) {
       console.error('Error saving post:', error);
       showPopup('error', 'Error', 'Failed to save post');
+    }
+  };
+
+  const handleSaveJobPreferences = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showPopup('error', 'Error', 'Please login to save job preferences');
+        return;
+      }
+
+      // Use the authenticated user's ID directly (no userId in URL needed)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/job-preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          findingJob: true,
+          ...jobPreferences
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update user state with job preferences
+        setUser(prev => prev ? {
+          ...prev,
+          jobPreferences: {
+            findingJob: true,
+            ...jobPreferences
+          }
+        } : null);
+        
+        // Update openToOptions state
+        setOpenToOptions(prev => ({ ...prev, findingJob: true }));
+        
+        setShowJobPreferencesModal(false);
+        showPopup('success', 'Success', 'Job preferences saved successfully');
+        
+        // Refresh user profile to get updated data
+        fetchUserProfile();
+      } else {
+        const errorData = await response.json();
+        showPopup('error', 'Error', errorData.error || 'Failed to save job preferences');
+      }
+    } catch (error) {
+      console.error('Error saving job preferences:', error);
+      showPopup('error', 'Error', 'Failed to save job preferences');
+    }
+  };
+
+  const handleAddService = () => {
+    if (serviceInput.trim() && !servicesPreferences.services.includes(serviceInput.trim())) {
+      setServicesPreferences(prev => ({
+        ...prev,
+        services: [...prev.services, serviceInput.trim()]
+      }));
+      setServiceInput('');
+    }
+  };
+
+  const handleRemoveService = (serviceToRemove: string) => {
+    setServicesPreferences(prev => ({
+      ...prev,
+      services: prev.services.filter(service => service !== serviceToRemove)
+    }));
+  };
+
+  const handleSaveServicesPreferences = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showPopup('error', 'Error', 'Please login to save services preferences');
+        return;
+      }
+
+      if (servicesPreferences.services.length === 0) {
+        showPopup('error', 'Error', 'Please add at least one service');
+        return;
+      }
+
+      // Use the authenticated user's ID directly (no userId in URL needed)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/services-preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          providingServices: true,
+          ...servicesPreferences
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update user state with services preferences
+        setUser(prev => prev ? {
+          ...prev,
+          servicesPreferences: {
+            providingServices: true,
+            ...servicesPreferences
+          }
+        } : null);
+        
+        // Update openToOptions state
+        setOpenToOptions(prev => ({ ...prev, providingServices: true }));
+        
+        setShowServicesModal(false);
+        showPopup('success', 'Success', 'Services preferences saved successfully');
+        
+        // Refresh user profile to get updated data
+        fetchUserProfile();
+      } else {
+        const errorData = await response.json();
+        showPopup('error', 'Error', errorData.error || 'Failed to save services preferences');
+      }
+    } catch (error) {
+      console.error('Error saving services preferences:', error);
+      showPopup('error', 'Error', 'Failed to save services preferences');
+    }
+  };
+
+  const handleAddQuestion = () => {
+    if (questionInput.trim() && !jobFormData.questions.includes(questionInput.trim())) {
+      setJobFormData(prev => ({
+        ...prev,
+        questions: [...prev.questions, questionInput.trim()]
+      }));
+      setQuestionInput('');
+    }
+  };
+
+  const handleRemoveQuestion = (questionToRemove: string) => {
+    setJobFormData(prev => ({
+      ...prev,
+      questions: prev.questions.filter(q => q !== questionToRemove)
+    }));
+  };
+
+  const handleJobImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setJobImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setJobImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUseCoverPhoto = () => {
+    if (userImages.cover) {
+      setJobImagePreview(getMediaUrl(userImages.cover));
+      setJobImage(null);
+    }
+  };
+
+  const handleCreateJob = async () => {
+    if (!jobFormData.title || !jobFormData.location || !jobFormData.description) {
+      showPopup('error', 'Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (!jobFormData.salaryRange.minimum || !jobFormData.salaryRange.maximum) {
+      showPopup('error', 'Error', 'Please enter salary range');
+      return;
+    }
+
+    setCreatingJob(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showPopup('error', 'Error', 'Please login to create a job');
+        return;
+      }
+
+      // Upload image if provided
+      let imageUrl = null;
+      if (jobImage) {
+        const imageFormData = new FormData();
+        imageFormData.append('postMedia', jobImage);
+
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: imageFormData
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          imageUrl = uploadData.media[0].url;
+        }
+      } else if (jobImagePreview && userImages.cover) {
+        imageUrl = getMediaUrl(userImages.cover);
+      }
+
+      // Prepare job data - pageId is optional for profile jobs
+      const jobData: any = {
+        title: jobFormData.title,
+        location: jobFormData.location,
+        description: jobFormData.description,
+        salaryRange: {
+          minimum: Number(jobFormData.salaryRange.minimum),
+          maximum: Number(jobFormData.salaryRange.maximum),
+          currency: jobFormData.salaryRange.currency,
+          type: jobFormData.salaryRange.type
+        },
+        jobType: jobFormData.jobType,
+        category: jobFormData.category,
+        questions: jobFormData.questions.filter(q => q.trim() !== '').map(q => ({ question: q }))
+      };
+
+      // Only include pageId if user._id exists (valid ObjectId)
+      if (user?._id) {
+        jobData.pageId = user._id;
+      }
+
+      if (imageUrl) {
+        jobData.image = imageUrl;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(jobData)
+      });
+
+      if (response.ok) {
+        setShowCreateJobModal(false);
+        setOpenToOptions(prev => ({ ...prev, hiring: true }));
+        showPopup('success', 'Success', 'Job created successfully');
+        
+        // Reset form
+        setJobFormData({
+          title: '',
+          location: '',
+          description: '',
+          salaryRange: {
+            minimum: '',
+            maximum: '',
+            currency: 'USD',
+            type: 'Per Hour'
+          },
+          jobType: 'Full time',
+          category: 'Other',
+          questions: []
+        });
+        setJobImage(null);
+        setJobImagePreview('');
+      } else {
+        const errorData = await response.json();
+        showPopup('error', 'Error', errorData.error || 'Failed to create job');
+      }
+    } catch (error) {
+      console.error('Error creating job:', error);
+      showPopup('error', 'Error', 'Failed to create job');
+    } finally {
+      setCreatingJob(false);
     }
   };
 
@@ -1311,7 +1900,7 @@ const UserProfile: React.FC = () => {
         {isCurrentUser && (
           <div className="absolute top-2 sm:top-4 right-2 sm:right-4 flex gap-1 sm:gap-2">
             <label className="px-2 py-1 sm:px-3 sm:py-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all flex items-center gap-1 text-xs sm:text-sm cursor-pointer">
-              <span className="text-sm">📷</span>
+              <Camera className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Cover</span>
               <input
                 type="file"
@@ -1320,8 +1909,18 @@ const UserProfile: React.FC = () => {
                 className="hidden"
               />
             </label>
+            <button
+              onClick={() => {
+                fetchImageCredits();
+                setShowAICoverModal(true);
+              }}
+              className="px-2 py-1 sm:px-3 sm:py-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all flex items-center gap-1 text-xs sm:text-sm"
+            >
+              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">AI</span>
+            </button>
             <button className="p-1 sm:p-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all">
-              <span className="text-sm">➕</span>
+              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         )}
@@ -1366,12 +1965,28 @@ const UserProfile: React.FC = () => {
 
             {/* User Info */}
             <div className="text-center">
+              <div className="flex items-center justify-center gap-2 flex-wrap">
               <h1 className={`text-xl sm:text-2xl font-bold mb-1 break-words transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name}</h1>
+                <div className="flex items-center gap-1.5">
+                  {user.isVerified && (
+                    <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                  {user.jobPreferences?.findingJob && (
+                    <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500 text-white rounded-md text-xs font-medium">
+                      <Briefcase className="w-3 h-3" />
+                    </div>
+                  )}
+                </div>
+              </div>
               <p className={`text-sm sm:text-base mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>@{user.username}</p>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-1 flex-wrap justify-center">
+            <div className="flex  sm:flex-row gap-1 justify-center">
               {!isCurrentUser && (
                 <>
                   <button
@@ -1408,62 +2023,19 @@ const UserProfile: React.FC = () => {
               )}
               {isCurrentUser && (
                 <>
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowThreeDotMenu(!showThreeDotMenu)}
-                      className={`p-2 rounded-lg transition-colors ${isDarkMode
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                          : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                        }`}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    {/* Three-dot dropdown menu */}
-                    {showThreeDotMenu && (
-                      <>
-                        {/* Full-screen backdrop to close the menu on outside click.
-                            Use a high z-index so it sits above sticky headers. */}
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setShowThreeDotMenu(false)}
-                        />
-                        {/* Dropdown panel – z-50 to ensure it's above everything else */}
-                        <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg z-50 ${isDarkMode
-                            ? 'bg-gray-800 border border-gray-700'
-                            : 'bg-white border border-gray-200'
-                          }`}>
-                          <button
-                            onClick={() => {
-                              setShowThreeDotMenu(false);
-                              fetchAnalyticsData();
-                              setShowAnalyticsModal(true);
-                            }}
-                            className={`w-full text-left px-4 py-3 text-sm rounded-t-lg transition-colors ${isDarkMode
-                                ? 'text-gray-300 hover:bg-gray-700'
-                                : 'text-gray-700 hover:bg-gray-50'
-                              }`}
-                          >
-                            <BarChart3 className="w-4 h-4 inline mr-2" />
-                            Analytics Dashboard
-                          </button>
-                          <button
-                            onClick={() => {
-                              setShowThreeDotMenu(false);
-                              // Add other actions here
-                            }}
-                            className={`w-full text-left px-4 py-3 text-sm rounded-b-lg transition-colors ${isDarkMode
-                                ? 'text-gray-300 hover:bg-gray-700'
-                                : 'text-gray-700 hover:bg-gray-50'
-                              }`}
-                          >
-                            <Settings className="w-4 h-4 inline mr-2" />
-                            Settings
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                 
+                  <button
+                    onClick={() => {
+                      fetchAnalyticsData();
+                      setShowAnalyticsModal(true);
+                    }}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      }`}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={handleEditProfile}
                     className="flex items-center gap-1 px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors text-sm"
@@ -1486,35 +2058,77 @@ const UserProfile: React.FC = () => {
             </div>
           </div>
 
-          {/* User Details */}
-          <div className="mb-4 text-center">
-            {user.bio && (
-              <p className={`mb-3 text-sm sm:text-base max-w-full mx-auto px-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{user.bio}</p>
-            )}
-
-            <div className={`flex flex-wrap gap-1 text-xs sm:text-sm mb-3 justify-center px-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              {user.location && (
-                <div className="flex items-center gap-1">
-                  <MapPin className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{user.location}</span>
-                </div>
-              )}
-              {user.website && (
-                <div className="flex items-center gap-1">
-                  <Globe className="w-3 h-3 flex-shrink-0" />
-                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
-                    {user.website}
-                  </a>
-                </div>
-              )}
-              {user.joinedDate && (
-                <div className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3 flex-shrink-0" />
-                  <span>Joined {new Date(user.joinedDate).toLocaleDateString()}</span>
-                </div>
-              )}
+          {/* Open To Box - Only show for current user */}
+          {isCurrentUser && (
+            <div className={`mb-4 mx-auto max-w-md px-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} shadow-sm`}>
+              <div className="flex items-center justify-between py-3">
+                <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                  Open To
+                </h3>
+                <button
+                  onClick={() => {
+                    // Toggle edit mode or open settings
+                    // You can add edit functionality here
+                  }}
+                  className={`p-1 rounded-full transition-colors duration-200 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                >
+                  <Circle className={`w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 pb-3">
+                {/* Only show "Finding a new job" button if preferences are not already filled */}
+                {!user.jobPreferences?.findingJob && (
+                  <button
+                    onClick={() => {
+                      setShowJobPreferencesModal(true);
+                      setOpenToOptions(prev => ({ ...prev, findingJob: true }));
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
+                      openToOptions.findingJob
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Briefcase className="w-3.5 h-3.5" />
+                    <span>Finding a new job</span>
+                  </button>
+                )}
+                {/* Only show "Providing services" button if preferences are not already filled */}
+                {!user.servicesPreferences?.providingServices && (
+                  <button
+                    onClick={() => setShowServicesModal(true)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
+                      openToOptions.providingServices
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : isDarkMode
+                          ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                    }`}
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Providing services</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowCreateJobModal(true)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
+                    openToOptions.hiring
+                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                        : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span>Hiring</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+        
         </div>
       </div>
 
@@ -1571,6 +2185,106 @@ const UserProfile: React.FC = () => {
                         }`}
                     />
                   </div>
+                </div>
+
+                {/* Profile Completion Widget - Only show if profile is not 100% complete */}
+                {isCurrentUser && profileCompletion.percentage < 100 && (
+                  <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                    <div className="flex items-center gap-3 mb-4">
+                      {/* Circular Progress Indicator */}
+                      <div className="relative w-16 h-16 flex-shrink-0">
+                        <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
+                          {/* Background circle */}
+                          <circle
+                            cx="32"
+                            cy="32"
+                            r="28"
+                            fill="none"
+                            stroke={isDarkMode ? '#374151' : '#e5e7eb'}
+                            strokeWidth="4"
+                          />
+                          {/* Progress circle */}
+                          <circle
+                            cx="32"
+                            cy="32"
+                            r="28"
+                            fill="none"
+                            stroke="#ef4444"
+                            strokeWidth="4"
+                            strokeDasharray={`${2 * Math.PI * 28}`}
+                            strokeDashoffset={`${2 * Math.PI * 28 * (1 - profileCompletion.percentage / 100)}`}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        {/* Percentage text */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className={`text-sm font-bold ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                            {profileCompletion.percentage}%
+                          </span>
+                        </div>
+                      </div>
+                      {/* Title */}
+                      <h3 className={`text-lg font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Profile Completion
+                      </h3>
+                    </div>
+                    
+                    {/* Profile Items List */}
+                    <div className="space-y-2">
+                      {profileCompletion.items.map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => {
+                            // Navigate to profile edit page for all items
+                            router.push('/dashboard/settings/profile');
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
+                            item.completed
+                              ? isDarkMode
+                                ? 'bg-green-900/20 border border-green-700'
+                                : 'bg-green-50 border border-green-200'
+                              : isDarkMode
+                                ? 'bg-gray-700 border border-gray-600 hover:bg-gray-600'
+                                : 'bg-white border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {/* Icon */}
+                          <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full ${
+                            item.completed
+                              ? 'bg-green-500 text-white'
+                              : isDarkMode
+                                ? 'bg-gray-600 text-gray-400'
+                                : 'bg-gray-200 text-gray-500'
+                          }`}>
+                            {item.completed ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              <Plus className="w-3 h-3" />
+                            )}
+                          </div>
+                          {/* Label */}
+                          <span className={`text-sm font-medium transition-colors duration-200 ${
+                            item.completed
+                              ? isDarkMode
+                                ? 'text-green-300'
+                                : 'text-green-700'
+                              : isDarkMode
+                                ? 'text-gray-300'
+                                : 'text-gray-700'
+                          }`}>
+                            {item.label}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Follower Guarantee Section */}
+                <div className={`rounded-xl shadow-sm p-3 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                  <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Text me when active followers guaranteed results.
+                  </p>
                 </div>
 
                 {/* Follow by ID Section */}
@@ -1688,7 +2402,7 @@ const UserProfile: React.FC = () => {
                   {user.workplace && (
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <span className="text-lg">💼</span>
-                      <span>{user.workplace}</span>
+                      <span>Working at {user.workplace}</span>
                     </div>
                   )}
 
@@ -1696,7 +2410,7 @@ const UserProfile: React.FC = () => {
                   {user.education && (
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <span className="text-lg">🎓</span>
-                      <span>{user.education}</span>
+                      <span>Studying at {user.education}</span>
                     </div>
                   )}
 
@@ -1704,7 +2418,7 @@ const UserProfile: React.FC = () => {
                   {user.location && (
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <span className="text-lg">🏠</span>
-                      <span>{user.location}</span>
+                      <span>Living in {user.location}</span>
                     </div>
                   )}
 
@@ -1736,7 +2450,24 @@ const UserProfile: React.FC = () => {
                   {user.dateOfBirth && (
                     <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       <span className="text-lg">🎂</span>
-                      <span>{new Date(user.dateOfBirth).toLocaleDateString()}</span>
+                      <span>
+                        {(() => {
+                          const birthDate = new Date(user.dateOfBirth);
+                          const today = new Date();
+                          const age = today.getFullYear() - birthDate.getFullYear();
+                          const monthDiff = today.getMonth() - birthDate.getMonth();
+                          const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age;
+                          return `${actualAge} years old`;
+                        })()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Relationship Status */}
+                  {user.relationshipStatus && (
+                    <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      <span className="text-lg">💑</span>
+                      <span>{user.relationshipStatus}</span>
                     </div>
                   )}
 
@@ -1763,10 +2494,220 @@ const UserProfile: React.FC = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Photo Gallery */}
+                {(() => {
+                  // Collect all images from posts
+                  const postImages = posts
+                    .flatMap(post => post.media || [])
+                    .filter((media: any) => media.type === 'image')
+                    .slice(0, 9); // Show max 9 images
+
+                  if (postImages.length > 0) {
+                    return (
+                      <div className={`rounded-xl shadow-sm p-3 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                        <h3 className={`text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          Photos
+                        </h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {postImages.map((media: any, index: number) => (
+                            <div
+                              key={index}
+                              className="aspect-square rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                // You can add a lightbox or modal here
+                              }}
+                            >
+                              <img
+                                src={getMediaUrl(media.url)}
+                                alt={`Photo ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/default-avatar.svg';
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Right Content Area - Posts and Content */}
               <div className="lg:col-span-3 space-y-4">
+                {/* Open to work Card */}
+                {user.jobPreferences?.findingJob && (
+                  <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Open to work
+                      </h3>
+                      {isCurrentUser && (
+                        <button
+                          onClick={() => setShowJobPreferencesModal(true)}
+                          className={`p-1 rounded-full transition-colors duration-200 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                        >
+                          <Edit className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {user.jobPreferences.jobTitles && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            JOB TITLES:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {user.jobPreferences.jobTitles}
+                          </span>
+                        </div>
+                      )}
+                      {user.jobPreferences.jobLocation && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            JOB LOCATION:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {user.jobPreferences.jobLocation}
+                          </span>
+                        </div>
+                      )}
+                      {user.jobPreferences.workplaces && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            WORKPLACES:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {[
+                              user.jobPreferences.workplaces.onSite && 'On site',
+                              user.jobPreferences.workplaces.hybrid && 'Hybrid',
+                              user.jobPreferences.workplaces.remote && 'Remote'
+                            ].filter(Boolean).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {user.jobPreferences.jobTypes && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            JOB TYPES:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {[
+                              user.jobPreferences.jobTypes.fullTime && 'Full time',
+                              user.jobPreferences.jobTypes.contract && 'Contract',
+                              user.jobPreferences.jobTypes.partTime && 'Part time',
+                              user.jobPreferences.jobTypes.internship && 'Internship',
+                              user.jobPreferences.jobTypes.temporary && 'Temporary'
+                            ].filter(Boolean).join(', ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Providing services Card */}
+                {user.servicesPreferences?.providingServices && (
+                  <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Providing services
+                      </h3>
+                      {isCurrentUser && (
+                        <button
+                          onClick={() => setShowServicesModal(true)}
+                          className={`p-1 rounded-full transition-colors duration-200 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                        >
+                          <Edit className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {user.servicesPreferences.services && user.servicesPreferences.services.length > 0 && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            SERVICES:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {user.servicesPreferences.services.join(', ')}
+                          </span>
+                        </div>
+                      )}
+                      {user.servicesPreferences.location && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            LOCATION:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {user.servicesPreferences.location}
+                          </span>
+                        </div>
+                      )}
+                      {user.servicesPreferences.description && (
+                        <div>
+                          <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            DESCRIPTION:
+                          </span>
+                          <span className={`ml-2 text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {user.servicesPreferences.description}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skills Card */}
+                {user.skills && user.skills.length > 0 && (
+                  <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                    <h3 className={`text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Skills
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {user.skills.map((skill: string, index: number) => (
+                        <span
+                          key={index}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
+                            isDarkMode
+                              ? 'bg-gray-700 text-gray-300'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Languages Card */}
+                {user.languages && user.languages.length > 0 && (
+                  <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                    <h3 className={`text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Languages
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {user.languages.map((language: string, index: number) => (
+                        <span
+                          key={index}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
+                            isDarkMode
+                              ? 'bg-gray-700 text-gray-300'
+                              : 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          {language}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+          
+
                 {/* Content Filter Buttons */}
                 <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
                   <div className="flex items-center gap-2 overflow-x-auto">
@@ -1932,6 +2873,126 @@ const UserProfile: React.FC = () => {
                                   <span className="text-sm">{item.shares?.length || 0}</span>
                                 </button>
                               </div>
+                            </div>
+                          </div>
+                        );
+                      } else if (isJob(item)) {
+                        // Job Post Card
+                        // Always prioritize the uploaded job image (item.image) - this is the image user uploaded when creating the job
+                        // Only fallback to cover photo if no job image was uploaded
+                        const hasJobImage = item.image && item.image.trim() !== '';
+                        const jobImage = hasJobImage ? item.image : (userImages.cover || user?.cover);
+                        const jobCreatorName = item.creatorName || item.createdBy?.name || user?.name || 'Unknown';
+                        const jobCreatorAvatar = item.creatorAvatar || item.createdBy?.avatar || userImages.avatar || user?.avatar;
+                        const timeAgo = new Date(item.createdAt);
+                        const now = new Date();
+                        const diffInMinutes = Math.floor((now.getTime() - timeAgo.getTime()) / (1000 * 60));
+                        const timeDisplay = diffInMinutes < 60 
+                          ? `${diffInMinutes}m` 
+                          : diffInMinutes < 1440 
+                            ? `${Math.floor(diffInMinutes / 60)}h`
+                            : `${Math.floor(diffInMinutes / 1440)}d`;
+
+                        return (
+                          <div key={item._id} className={`rounded-xl shadow-sm overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+                            {/* Header Image - Shows uploaded job image if available, otherwise cover photo or gradient */}
+                            <div className="relative w-full h-48 sm:h-64 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-800">
+                              {jobImage ? (
+                                <img
+                                  src={getMediaUrl(jobImage)}
+                                  alt={hasJobImage ? "Job image" : "Job header"}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // If image fails to load, hide it and show gradient background
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="absolute inset-0" style={{
+                                  backgroundImage: `radial-gradient(circle at 20% 20%, rgba(255,255,255,0.1) 1px, transparent 1px),
+                                                   radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 1px, transparent 1px),
+                                                   radial-gradient(circle at 40% 40%, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+                                  backgroundSize: '100px 100px, 80px 80px, 60px 60px'
+                                }}></div>
+                              )}
+                              <button className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center hover:bg-opacity-50 transition-all">
+                                <span className="text-white text-sm">▼</span>
+                              </button>
+                            </div>
+
+                            {/* Job Content */}
+                            <div className="p-4">
+                              {/* Job Title/Description */}
+                              <h3 className={`text-lg font-bold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {item.title || item.description || 'Job Posting'}
+                              </h3>
+
+                              {/* Recruiter Info */}
+                              <div className="flex items-start gap-3 mb-4">
+                                <img
+                                  src={jobCreatorAvatar ? getMediaUrl(jobCreatorAvatar) : '/default-avatar.svg'}
+                                  alt={jobCreatorName}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = '/default-avatar.svg';
+                                  }}
+                                />
+                                <div className="flex-1">
+                                  <h4 className={`font-semibold transition-colors duration-200 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
+                                    {jobCreatorName}
+                                  </h4>
+                                  <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {user?.address || item.location || 'Location not specified'}
+                                  </p>
+                                  <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {timeDisplay} • {item.category || 'Other'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* View Interested Candidates Button */}
+                              <button className={`w-full py-2 px-4 rounded-lg mb-4 transition-colors duration-200 ${
+                                isDarkMode
+                                  ? 'bg-pink-600 hover:bg-pink-700 text-white'
+                                  : 'bg-pink-100 hover:bg-pink-200 text-pink-700'
+                              }`}>
+                                View Interested Candidates ({item.interestedCandidates?.length || 0})
+                              </button>
+
+                              {/* Job Details */}
+                              <div className="grid grid-cols-3 gap-3 mb-3">
+                                <div>
+                                  <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    MINIMUM:
+                                  </span>
+                                  <p className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {item.salaryRange.currency === 'USD' ? '$' : '₹'}{item.salaryRange.minimum} {item.salaryRange.type}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    MAXIMUM:
+                                  </span>
+                                  <p className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {item.salaryRange.currency === 'USD' ? '$' : '₹'}{item.salaryRange.maximum} {item.salaryRange.type}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className={`text-xs font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    TYPE:
+                                  </span>
+                                  <p className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    {item.jobType}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Description Footer */}
+                              {item.description && (
+                                <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {item.description}
+                                </p>
+                              )}
                             </div>
                           </div>
                         );
@@ -2564,6 +3625,845 @@ const UserProfile: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Job Preferences Modal */}
+      {showJobPreferencesModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowJobPreferencesModal(false);
+            }
+          }}
+        >
+          <div 
+            className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-md w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className={`p-4 sm:p-6 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg sm:text-xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                Add job preferences
+              </h2>
+              <p className={`text-xs sm:text-sm mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                Tell us what kind of work you're open to
+              </p>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Job Titles Input */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Job titles"
+                  value={jobPreferences.jobTitles}
+                  onChange={(e) => setJobPreferences(prev => ({ ...prev, jobTitles: e.target.value }))}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                />
+              </div>
+
+              {/* Job Location Input */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Job location"
+                  value={jobPreferences.jobLocation}
+                  onChange={(e) => setJobPreferences(prev => ({ ...prev, jobLocation: e.target.value }))}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                />
+              </div>
+
+              {/* Workplaces Section */}
+              <div>
+                <h3 className={`text-xs sm:text-sm font-bold mb-2 sm:mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                  Workplaces
+                </h3>
+                <div className="flex flex-wrap gap-3 sm:gap-4">
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.workplaces.onSite}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        workplaces: { ...prev.workplaces, onSite: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">On site</span>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.workplaces.hybrid}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        workplaces: { ...prev.workplaces, hybrid: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Hybrid</span>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.workplaces.remote}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        workplaces: { ...prev.workplaces, remote: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Remote</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Job Types Section */}
+              <div>
+                <h3 className={`text-xs sm:text-sm font-bold mb-2 sm:mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                  Job types
+                </h3>
+                <div className="flex flex-wrap gap-3 sm:gap-4">
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.jobTypes.fullTime}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        jobTypes: { ...prev.jobTypes, fullTime: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Full time</span>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.jobTypes.contract}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        jobTypes: { ...prev.jobTypes, contract: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Contract</span>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.jobTypes.partTime}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        jobTypes: { ...prev.jobTypes, partTime: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Part time</span>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.jobTypes.internship}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        jobTypes: { ...prev.jobTypes, internship: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Internship</span>
+                  </label>
+                  <label className={`flex items-center gap-2 cursor-pointer transition-colors duration-200 py-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    <input
+                      type="checkbox"
+                      checked={jobPreferences.jobTypes.temporary}
+                      onChange={(e) => setJobPreferences(prev => ({
+                        ...prev,
+                        jobTypes: { ...prev.jobTypes, temporary: e.target.checked }
+                      }))}
+                      className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs sm:text-sm">Temporary</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`p-4 sm:p-6 border-t flex flex-col gap-2 sm:gap-3 transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <button
+                onClick={handleSaveJobPreferences}
+                className="w-full px-4 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg text-sm sm:text-base font-medium hover:bg-red-700 active:bg-red-800 transition-colors duration-200 touch-manipulation"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => {
+                  setShowJobPreferencesModal(false);
+                  // Reset form if needed
+                }}
+                className={`w-full px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
+                  isDarkMode
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Services Preferences Modal */}
+      {showServicesModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowServicesModal(false);
+            }
+          }}
+        >
+          <div 
+            className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-md w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className={`p-4 sm:p-6 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg sm:text-xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                Let's set up your services page
+              </h2>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Services Input */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Services
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Add a service"
+                    value={serviceInput}
+                    onChange={(e) => setServiceInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddService();
+                      }
+                    }}
+                    className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  />
+                  <button
+                    onClick={handleAddService}
+                    className={`px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    Add
+                  </button>
+                </div>
+                {/* Services Tags */}
+                {servicesPreferences.services.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {servicesPreferences.services.map((service, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm transition-colors duration-200 ${
+                          isDarkMode
+                            ? 'bg-gray-700 text-gray-300'
+                            : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        <span>{service}</span>
+                        <button
+                          onClick={() => handleRemoveService(service)}
+                          className={`ml-1 hover:opacity-70 transition-opacity ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Location Input */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Location
+                </label>
+                <input
+                  type="text"
+                  placeholder="Location"
+                  value={servicesPreferences.location}
+                  onChange={(e) => setServicesPreferences(prev => ({ ...prev, location: e.target.value }))}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                />
+              </div>
+
+              {/* Description Input */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Description
+                </label>
+                <textarea
+                  placeholder="Description"
+                  value={servicesPreferences.description}
+                  onChange={(e) => setServicesPreferences(prev => ({ ...prev, description: e.target.value }))}
+                  rows={4}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`p-4 pb-14 sm:p-6 border-t flex flex-col sm:flex-row gap-2 sm:gap-3 transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <button
+                onClick={() => {
+                  setShowServicesModal(false);
+                  // Reset form if needed
+                }}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
+                  isDarkMode
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveServicesPreferences}
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg text-sm sm:text-base font-medium hover:bg-red-700 active:bg-red-800 transition-colors duration-200 touch-manipulation"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Job Modal */}
+      {showCreateJobModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCreateJobModal(false);
+            }
+          }}
+        >
+          <div 
+            className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-2xl w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className={`p-4 sm:p-6 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg sm:text-xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                Create Job
+              </h2>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Job Title and Location */}
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Job titles
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Job titles"
+                    value={jobFormData.title}
+                    onChange={(e) => setJobFormData(prev => ({ ...prev, title: e.target.value }))}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  />
+                </div>
+                <div>
+                  <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Location"
+                    value={jobFormData.location}
+                    onChange={(e) => setJobFormData(prev => ({ ...prev, location: e.target.value }))}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Description
+                </label>
+                <textarea
+                  placeholder="Describe the responsibilities and preferred skills for this job"
+                  value={jobFormData.description}
+                  onChange={(e) => setJobFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={4}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                />
+              </div>
+
+              {/* Salary Range */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Salary Range
+                </label>
+                <div className="flex flex-col sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className={`block text-xs mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      ₹ Minimum
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Minimum"
+                      value={jobFormData.salaryRange.minimum}
+                      onChange={(e) => setJobFormData(prev => ({
+                        ...prev,
+                        salaryRange: { ...prev.salaryRange, minimum: e.target.value }
+                      }))}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                          : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      ₹ Maximum
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="Maximum"
+                      value={jobFormData.salaryRange.maximum}
+                      onChange={(e) => setJobFormData(prev => ({
+                        ...prev,
+                        salaryRange: { ...prev.salaryRange, maximum: e.target.value }
+                      }))}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                          : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Currency
+                    </label>
+                    <select
+                      value={jobFormData.salaryRange.currency}
+                      onChange={(e) => setJobFormData(prev => ({
+                        ...prev,
+                        salaryRange: { ...prev.salaryRange, currency: e.target.value }
+                      }))}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                          : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="INR">INR (₹)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-xs mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Type
+                    </label>
+                    <select
+                      value={jobFormData.salaryRange.type}
+                      onChange={(e) => setJobFormData(prev => ({
+                        ...prev,
+                        salaryRange: { ...prev.salaryRange, type: e.target.value }
+                      }))}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                        isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                          : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    >
+                      <option value="Per Hour">Per Hour</option>
+                      <option value="Per Day">Per Day</option>
+                      <option value="Per Week">Per Week</option>
+                      <option value="Per Month">Per Month</option>
+                      <option value="Per Year">Per Year</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Job Type and Category */}
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Job Type
+                  </label>
+                  <select
+                    value={jobFormData.jobType}
+                    onChange={(e) => setJobFormData(prev => ({ ...prev, jobType: e.target.value }))}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  >
+                    <option value="Full time">Full time</option>
+                    <option value="Part time">Part time</option>
+                    <option value="Contract">Contract</option>
+                    <option value="Freelance">Freelance</option>
+                    <option value="Internship">Internship</option>
+                    <option value="Temporary">Temporary</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Category
+                  </label>
+                  <select
+                    value={jobFormData.category}
+                    onChange={(e) => setJobFormData(prev => ({ ...prev, category: e.target.value }))}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  >
+                    <option value="Technology">Technology</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Education">Education</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Design">Design</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Administration">Administration</option>
+                    <option value="Customer Service">Customer Service</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Questions */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Questions
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2 mb-2">
+                  <input
+                    type="text"
+                    placeholder="Add a question"
+                    value={questionInput}
+                    onChange={(e) => setQuestionInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddQuestion();
+                      }
+                    }}
+                    className={`w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  />
+                  <button
+                    onClick={handleAddQuestion}
+                    type="button"
+                    className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
+                      isDarkMode
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add 
+                  </button>
+                </div>
+                {jobFormData.questions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {jobFormData.questions.map((question, index) => (
+                      <div
+                        key={index}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm transition-colors duration-200 ${
+                          isDarkMode
+                            ? 'bg-gray-700 text-gray-300'
+                            : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        <span>{question}</span>
+                        <button
+                          onClick={() => handleRemoveQuestion(question)}
+                          type="button"
+                          className={`ml-1 hover:opacity-70 transition-opacity ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Add an image to help applicants see what it's like to work at this location.
+                </label>
+                <div className={`relative w-full h-48 sm:h-64 rounded-lg border-2 border-dashed overflow-hidden ${
+                  isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'
+                }`}>
+                  {jobImagePreview ? (
+                    <img
+                      src={jobImagePreview}
+                      alt="Job preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Camera className={`w-12 h-12 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 left-2 right-2 flex flex-col sm:flex-row gap-2">
+                    <label className={`w-full sm:flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-center cursor-pointer transition-colors duration-200 ${
+                      isDarkMode
+                        ? 'bg-gray-700 text-white hover:bg-gray-600'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                    }`}>
+                      Browse To Upload
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleJobImageUpload}
+                        className="hidden"
+                      />
+                    </label>
+                    <button
+                      onClick={handleUseCoverPhoto}
+                      type="button"
+                      className={`w-full sm:w-auto px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${
+                        isDarkMode
+                          ? 'bg-gray-700 text-white hover:bg-gray-600'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      Use Cover Photo
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`p-4 pb-14 sm:p-6 border-t flex flex-col sm:flex-row justify-center gap-3 transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <button
+                onClick={() => {
+                  setShowCreateJobModal(false);
+                  // Reset form if needed
+                }}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
+                  isDarkMode
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateJob}
+                disabled={creatingJob}
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg text-sm sm:text-base font-medium hover:bg-red-700 active:bg-red-800 transition-colors duration-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creatingJob ? 'Publishing...' : 'Publish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Cover Generation Modal */}
+      {showAICoverModal && (
+        <div 
+          className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAICoverModal(false);
+            }
+          }}
+        >
+          <div 
+            className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-md w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className={`p-4 sm:p-6 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg sm:text-xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                Enhance your cover picture
+              </h2>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+              {/* Credit Balance Card */}
+              <div className={`rounded-lg p-4 transition-colors duration-200 ${isDarkMode ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                <div className="text-center">
+                  <p className={`text-xs sm:text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
+                    }`}>
+                    Available balance
+                  </p>
+                  <p className={`text-3xl sm:text-4xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-blue-200' : 'text-blue-600'
+                    }`}>
+                    {imageCredits}
+                  </p>
+                  <p className={`text-xs sm:text-sm font-medium mb-4 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
+                    }`}>
+                    Images
+                  </p>
+                  <button
+                    onClick={() => {
+                      // Navigate to credits purchase page or open credits modal
+                      router.push('/dashboard/settings/billing');
+                    }}
+                    className={`w-full px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      }`}
+                  >
+                    Buy Credits
+                  </button>
+                </div>
+              </div>
+
+              {/* Error Message - Show if insufficient credits */}
+              {imageCredits < 1 && (
+                <div className={`rounded-lg p-3 sm:p-4 transition-colors duration-200 ${isDarkMode ? 'bg-red-900/20 border border-red-700' : 'bg-red-50 border border-red-200'
+                  }`}>
+                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-red-300' : 'text-red-700'
+                    }`}>
+                    You don't have enough credits to generate images, please top up your credits.
+                  </p>
+                </div>
+              )}
+
+              {/* Prompt Input */}
+              <div>
+                <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Image Prompt
+                </label>
+                <textarea
+                  placeholder="Enter a prompt to display an image"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  rows={4}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${
+                    isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`p-4 sm:p-6 border-t flex flex-col sm:flex-row justify-end gap-3 transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <button
+                onClick={() => {
+                  setShowAICoverModal(false);
+                  setAiPrompt('');
+                }}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
+                  isDarkMode
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateAICover}
+                disabled={generatingCover || imageCredits < 1 || !aiPrompt.trim()}
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg text-sm sm:text-base font-medium hover:bg-red-700 active:bg-red-800 transition-colors duration-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generatingCover ? 'Generating...' : 'Generate'}
+              </button>
             </div>
           </div>
         </div>

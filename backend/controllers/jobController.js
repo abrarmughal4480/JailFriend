@@ -23,7 +23,7 @@ exports.createJob = async (req, res) => {
     }
     
     // Validate required fields
-    if (!title || !location || !description || !salaryRange || !jobType || !category || !pageId) {
+    if (!title || !location || !description || !salaryRange || !jobType || !category ) {
       return res.status(400).json({ error: 'All required fields must be provided' });
     }
     
@@ -71,6 +71,31 @@ exports.getJobsByPage = async (req, res) => {
     res.json(jobs);
   } catch (err) {
     console.error('Error fetching jobs:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get jobs by user ID (without pageId)
+exports.getJobsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Find jobs created by the user that don't have a pageId (either null or doesn't exist)
+    const jobs = await Job.find({ 
+      createdBy: userId,
+      $or: [
+        { pageId: { $exists: false } },
+        { pageId: null }
+      ],
+      isActive: true 
+    })
+      .populate('createdBy', 'name username avatar')
+      .sort({ createdAt: -1 });
+    
+    console.log(`Jobs fetched for user ${userId} (without pageId):`, jobs.length);
+    res.json(jobs);
+  } catch (err) {
+    console.error('Error fetching user jobs:', err);
     res.status(500).json({ error: err.message });
   }
 };

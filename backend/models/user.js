@@ -57,6 +57,29 @@ const userSchema = new mongoose.Schema({
     someoneAcceptedMyFriendRequest: { type: Boolean, default: true },
     someonePostedOnMyTimeline: { type: Boolean, default: true }
   },
+  jobPreferences: {
+    findingJob: { type: Boolean, default: false },
+    jobTitles: { type: String, default: '' },
+    jobLocation: { type: String, default: '' },
+    workplaces: {
+      onSite: { type: Boolean, default: false },
+      hybrid: { type: Boolean, default: false },
+      remote: { type: Boolean, default: false }
+    },
+    jobTypes: {
+      fullTime: { type: Boolean, default: false },
+      contract: { type: Boolean, default: false },
+      partTime: { type: Boolean, default: false },
+      internship: { type: Boolean, default: false },
+      temporary: { type: Boolean, default: false }
+    }
+  },
+  servicesPreferences: {
+    providingServices: { type: Boolean, default: false },
+    services: [{ type: String }],
+    location: { type: String, default: '' },
+    description: { type: String, default: '' }
+  }
 
 }, {
   timestamps: true

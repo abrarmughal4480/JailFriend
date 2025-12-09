@@ -2066,6 +2066,32 @@ export default function Dashboard() {
 
     setMediaFiles(prev => prev.filter((_, i) => i !== index));
   };
+  const handleMyProfile = async (): Promise<void> => {
+
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        // Get current user's profile to get their ID
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          // Open profile in new tab instead of redirecting
+          window.open(`/dashboard/profile/${userData.id}`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+
+    // Fallback to general profile page in new tab
+    window.open('/dashboard/profile', '_blank');
+  };
 
   const clearAllMediaFiles = () => {
     // Clean up all object URLs
@@ -2309,6 +2335,7 @@ export default function Dashboard() {
                           <img
                             src={avatarUrl}
                             alt="Your avatar"
+                            onClick={handleMyProfile}
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               e.currentTarget.src = '/default-avatar.svg';

@@ -94,7 +94,30 @@ exports.getUserById = async (req, res) => {
       isBlocked,
       followingList: user.following || [],
       followersList: user.followers || [],
-      plan: user.plan || 'Free'
+      plan: user.plan || 'Free',
+      jobPreferences: user.jobPreferences || {
+        findingJob: false,
+        jobTitles: '',
+        jobLocation: '',
+        workplaces: {
+          onSite: false,
+          hybrid: false,
+          remote: false
+        },
+        jobTypes: {
+          fullTime: false,
+          contract: false,
+          partTime: false,
+          internship: false,
+          temporary: false
+        }
+      },
+      servicesPreferences: user.servicesPreferences || {
+        providingServices: false,
+        services: [],
+        location: '',
+        description: ''
+      }
     };
 
     console.log('👤 Returning user data:', {
@@ -1118,6 +1141,100 @@ exports.toggleVerification = async (req, res) => {
     });
   } catch (error) {
     console.error('Error toggling verification:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update user job preferences
+exports.updateJobPreferences = async (req, res) => {
+  try {
+    const currentUserId = req.user?.id;
+
+    if (!currentUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const {
+      findingJob,
+      jobTitles,
+      jobLocation,
+      workplaces,
+      jobTypes
+    } = req.body;
+
+    // Use currentUserId directly - users can only update their own preferences
+    const user = await User.findById(currentUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update job preferences
+    if (findingJob !== undefined) user.jobPreferences.findingJob = findingJob;
+    if (jobTitles !== undefined) user.jobPreferences.jobTitles = jobTitles;
+    if (jobLocation !== undefined) user.jobPreferences.jobLocation = jobLocation;
+    
+    if (workplaces) {
+      if (workplaces.onSite !== undefined) user.jobPreferences.workplaces.onSite = workplaces.onSite;
+      if (workplaces.hybrid !== undefined) user.jobPreferences.workplaces.hybrid = workplaces.hybrid;
+      if (workplaces.remote !== undefined) user.jobPreferences.workplaces.remote = workplaces.remote;
+    }
+    
+    if (jobTypes) {
+      if (jobTypes.fullTime !== undefined) user.jobPreferences.jobTypes.fullTime = jobTypes.fullTime;
+      if (jobTypes.contract !== undefined) user.jobPreferences.jobTypes.contract = jobTypes.contract;
+      if (jobTypes.partTime !== undefined) user.jobPreferences.jobTypes.partTime = jobTypes.partTime;
+      if (jobTypes.internship !== undefined) user.jobPreferences.jobTypes.internship = jobTypes.internship;
+      if (jobTypes.temporary !== undefined) user.jobPreferences.jobTypes.temporary = jobTypes.temporary;
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'Job preferences updated successfully',
+      jobPreferences: user.jobPreferences
+    });
+  } catch (error) {
+    console.error('Error updating job preferences:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update user services preferences
+exports.updateServicesPreferences = async (req, res) => {
+  try {
+    const currentUserId = req.user?.id;
+
+    if (!currentUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const {
+      providingServices,
+      services,
+      location,
+      description
+    } = req.body;
+
+    // Use currentUserId directly - users can only update their own preferences
+    const user = await User.findById(currentUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update services preferences
+    if (providingServices !== undefined) user.servicesPreferences.providingServices = providingServices;
+    if (services !== undefined) user.servicesPreferences.services = services;
+    if (location !== undefined) user.servicesPreferences.location = location;
+    if (description !== undefined) user.servicesPreferences.description = description;
+
+    await user.save();
+
+    res.json({
+      message: 'Services preferences updated successfully',
+      servicesPreferences: user.servicesPreferences
+    });
+  } catch (error) {
+    console.error('Error updating services preferences:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

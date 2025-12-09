@@ -69,4 +69,10 @@ router.get('/followers/me', authMiddleware, userController.getMyFollowers);
 // Toggle user verification (admin only)
 router.post('/:userId/verify', authMiddleware, userController.toggleVerification);
 
+// Update user job preferences (uses authenticated user's ID)
+router.put('/job-preferences', authMiddleware, userController.updateJobPreferences);
+
+// Update user services preferences (uses authenticated user's ID)
+router.put('/services-preferences', authMiddleware, userController.updateServicesPreferences);
+
 module.exports = router; 

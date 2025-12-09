@@ -9,6 +9,9 @@ router.post('/', auth, jobController.createJob);
 // Get jobs by page ID (public)
 router.get('/page/:pageId', jobController.getJobsByPage);
 
+// Get jobs by user ID without pageId (public)
+router.get('/user/:userId', jobController.getJobsByUser);
+
 // Get job by ID (public)
 router.get('/:id', jobController.getJobById);
 

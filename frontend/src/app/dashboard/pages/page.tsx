@@ -594,9 +594,16 @@ const EditPageFormView: React.FC<CreatePageFormProps & { updating: boolean }> = 
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
-          {categories.map((category: string) => (
-            <option key={category} value={category}>{category}</option>
-          ))}
+          {categories.length === 0 ? (
+            <option value="">Loading categories...</option>
+          ) : (
+            <>
+              <option value="">Select a category</option>
+              {categories.map((category: string) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </>
+          )}
         </select>
         <p className={`text-sm mt-2 transition-colors duration-200 ${
           isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -857,9 +864,16 @@ const CreatePageFormView: React.FC<CreatePageFormProps> = ({ formData, categorie
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
-          {categories.map((category: string) => (
-            <option key={category} value={category}>{category}</option>
-          ))}
+          {categories.length === 0 ? (
+            <option value="">Loading categories...</option>
+          ) : (
+            <>
+              <option value="">Select a category</option>
+              {categories.map((category: string) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </>
+          )}
         </select>
         <p className={`text-sm mt-2 transition-colors duration-200 ${
           isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -1368,7 +1382,7 @@ const PagesInterface: React.FC = () => {
     pageName: '',
     pageURL: '',
     pageDescription: '',
-    pageCategory: 'Cars and Vehicles'
+    pageCategory: ''
   });
 
   const tabs: Tab[] = [
@@ -1377,17 +1391,7 @@ const PagesInterface: React.FC = () => {
     { name: 'Liked Pages', active: false }
   ];
 
-  const [categories, setCategories] = useState<string[]>([
-    'Cars and Vehicles',
-    'Education',
-    'Technology',
-    'Business',
-    'Entertainment',
-    'Sports',
-    'Food & Drink',
-    'Travel',
-    'Other'
-  ]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   const getCategoryName = (category: any) => {
     if (!category || typeof category !== 'object') return 'Untitled Category';
@@ -1503,7 +1507,7 @@ const PagesInterface: React.FC = () => {
         if (names.length) {
           setCategories(names);
           setFormData(prev => {
-            const current = prev.pageCategory || 'Cars and Vehicles';
+            const current = prev.pageCategory || '';
             const nextCategory = names.includes(current) ? current : names[0];
             return { ...prev, pageCategory: nextCategory };
           });
@@ -1554,7 +1558,8 @@ const PagesInterface: React.FC = () => {
       formData.pageURL.trim().length >= 3 &&
       /^[a-z0-9-]+$/.test(formData.pageURL.trim()) &&
       formData.pageDescription.trim().length >= 10 &&
-      formData.pageDescription.trim().length <= 200
+      formData.pageDescription.trim().length <= 200 &&
+      formData.pageCategory.trim().length > 0
     );
   };
 
@@ -1647,7 +1652,7 @@ const PagesInterface: React.FC = () => {
         pageName: '',
         pageURL: '',
         pageDescription: '',
-        pageCategory: 'Cars and Vehicles'
+        pageCategory: categories[0] || ''
       });
       
       // Close create form
@@ -1871,7 +1876,7 @@ const PagesInterface: React.FC = () => {
         pageName: '',
         pageURL: '',
         pageDescription: '',
-        pageCategory: 'Cars and Vehicles'
+        pageCategory: categories[0] || ''
       });
       
       // Close edit form
