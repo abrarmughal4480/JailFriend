@@ -98,6 +98,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
 
     const peerConnectionStarted = useRef<boolean>(false);
     const isInitialized = useRef<boolean>(false);
+    const roomJoinedRef = useRef<boolean>(false);
     
     // Pulse system for connection monitoring
     const pulseInterval = useRef<NodeJS.Timeout | null>(null);
@@ -333,6 +334,27 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 triggerReconnection();
             }
         });
+        
+        // Handle room join confirmation
+        socketConnection.current.on('room-joined', (data: any) => {
+            console.log('✅ Room joined successfully:', data);
+            roomJoinedRef.current = true;
+            
+            // Start peer connection after room is confirmed joined
+            // Only start if we haven't started it yet
+            if (!peerConnectionStarted.current) {
+                const startDelay = isAdmin ? 1000 : 2000; // Admin starts first, user waits longer
+                setTimeout(() => {
+                    console.log(`${isAdmin ? 'Admin' : 'User'} starting peer connection after room join confirmation...`);
+                    startPeerConnection();
+                }, startDelay);
+            }
+        });
+        
+        // Listen for other users joining the room
+        socketConnection.current.on('user-joined-room', (data: any) => {
+            console.log('👤 Another user joined the room:', data);
+        });
     };
 
     const setupSocketConnection = (): void => {
@@ -372,14 +394,6 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             });
             socketConnection.current.emit('join-room', roomId);
         }
-
-        // Start peer connection for both admin and user
-        // Add different delays for admin vs user to prevent race conditions
-        const startDelay = isAdmin ? 2000 : 3000; // Admin starts first, user waits longer
-        setTimeout(() => {
-            console.log(`${isAdmin ? 'Admin' : 'User'} starting peer connection...`);
-            startPeerConnection();
-        }, startDelay);
     };
 
     useEffect(() => {
@@ -387,6 +401,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         isInitialized.current = false;
         answerProcessed.current = false;
         processedMessages.current.clear();
+        roomJoinedRef.current = false;
         
         console.log('🎯 WebRTC hook initializing...', { 
             isAdmin, 
@@ -958,7 +973,14 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     }
 
     const startPeerConnection = async (): Promise<void> => {
+        // Prevent multiple starts
+        if (peerConnectionStarted.current) {
+            console.log('⚠️ Peer connection already started, skipping...');
+            return;
+        }
+        
         try {
+            peerConnectionStarted.current = true;
             console.log('🎯 Starting peer connection:', { 
                 isAdmin, 
                 roomId, 
@@ -976,20 +998,36 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             
             if (isAdmin) {
                 // Admin creates and sends offer
+                // Wait for room join confirmation before sending offer
+                if (!roomJoinedRef.current) {
+                    console.log('⏳ Waiting for room join confirmation before sending offer...');
+                    // Wait up to 5 seconds for room join confirmation
+                    let waitCount = 0;
+                    const maxWait = 50; // 5 seconds (50 * 100ms)
+                    while (!roomJoinedRef.current && waitCount < maxWait) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        waitCount++;
+                    }
+                    if (!roomJoinedRef.current) {
+                        console.warn('⚠️ Room join confirmation not received, proceeding anyway...');
+                    }
+                }
+                
                 console.log('Creating offer...');
                 const offer = await peerConnection.createOffer();
                 
                 console.log('Setting local description...');
                 await peerConnection.setLocalDescription(offer);
                 
-            console.log('🔍 DEBUG: Sending offer to room:', {
-                roomId: roomId,
-                offerType: offer.type,
-                socketId: socketConnection.current?.id,
-                offerSdpPreview: offer.sdp?.substring(0, 50) + '...'
-            });
-            socketConnection.current?.emit('offer', offer, roomId);
-            console.log('🔍 DEBUG: Offer sent successfully');
+                console.log('🔍 DEBUG: Sending offer to room:', {
+                    roomId: roomId,
+                    offerType: offer.type,
+                    socketId: socketConnection.current?.id,
+                    offerSdpPreview: offer.sdp?.substring(0, 50) + '...',
+                    roomJoined: roomJoinedRef.current
+                });
+                socketConnection.current?.emit('offer', offer, roomId);
+                console.log('🔍 DEBUG: Offer sent successfully');
                 console.log('Admin peer connection started successfully');
             } else {
                 // User waits for offer from admin
@@ -1008,6 +1046,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             }
         } catch (error) {
             console.error('Error starting peer connection:', error);
+            peerConnectionStarted.current = false; // Reset flag on error so we can retry
         }
     }
 

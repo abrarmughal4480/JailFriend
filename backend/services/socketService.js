@@ -470,8 +470,31 @@ class SocketService {
           data: data,
           socketId: socket.id
         });
+        
+        // Join the room
         socket.join(roomId);
+        
+        // Verify room membership
+        const room = this.io.sockets.adapter.rooms.get(roomId);
+        const roomMembers = room ? Array.from(room) : [];
         console.log(`📹 User ${socket.user.name} joined video call room ${roomId}`, data || '');
+        console.log(`🔍 DEBUG: Room ${roomId} now has ${roomMembers.length} member(s):`, roomMembers);
+        
+        // Notify the client that they successfully joined
+        socket.emit('room-joined', {
+          roomId: roomId,
+          memberCount: roomMembers.length,
+          members: roomMembers
+        });
+        
+        // Notify other members in the room that a new user joined
+        socket.to(roomId).emit('user-joined-room', {
+          roomId: roomId,
+          userId: socket.userId,
+          userName: socket.user.name,
+          socketId: socket.id,
+          memberCount: roomMembers.length
+        });
       });
 
       // Handle WebRTC signaling for video calls
@@ -485,13 +508,25 @@ class SocketService {
         });
         console.log(`📹 WebRTC offer received from ${socket.user.name} for room ${roomId}`);
         
+        // Ensure sender is in the room
+        if (!socket.rooms.has(roomId)) {
+          console.log(`🔍 DEBUG: Sender not in room ${roomId}, joining now...`);
+          socket.join(roomId);
+        }
+        
         // Check room members before forwarding
         const room = this.io.sockets.adapter.rooms.get(roomId);
-        console.log(`🔍 DEBUG: Room ${roomId} members:`, room ? Array.from(room) : 'Room not found');
+        const roomMembers = room ? Array.from(room) : [];
+        console.log(`🔍 DEBUG: Room ${roomId} members:`, roomMembers);
+        
+        if (roomMembers.length < 2) {
+          console.warn(`⚠️ WARNING: Room ${roomId} has less than 2 members (${roomMembers.length}). Offer may not be delivered.`);
+          // Still try to forward, but log warning
+        }
         
         // Forward offer to other participants in the room
         socket.to(roomId).emit('offer', offer);
-        console.log(`🔍 DEBUG: offer forwarded to room ${roomId}`);
+        console.log(`🔍 DEBUG: offer forwarded to room ${roomId} (excluding sender ${socket.id})`);
       });
 
       socket.on('answer', (answer, roomId) => {
@@ -503,9 +538,25 @@ class SocketService {
           socketId: socket.id
         });
         console.log(`📹 WebRTC answer received from ${socket.user.name} for room ${roomId}`);
+        
+        // Ensure sender is in the room
+        if (!socket.rooms.has(roomId)) {
+          console.log(`🔍 DEBUG: Sender not in room ${roomId}, joining now...`);
+          socket.join(roomId);
+        }
+        
+        // Check room members before forwarding
+        const room = this.io.sockets.adapter.rooms.get(roomId);
+        const roomMembers = room ? Array.from(room) : [];
+        console.log(`🔍 DEBUG: Room ${roomId} members:`, roomMembers);
+        
+        if (roomMembers.length < 2) {
+          console.warn(`⚠️ WARNING: Room ${roomId} has less than 2 members (${roomMembers.length}). Answer may not be delivered.`);
+        }
+        
         // Forward answer to other participants in the room
         socket.to(roomId).emit('answer', answer);
-        console.log(`🔍 DEBUG: answer forwarded to room ${roomId}`);
+        console.log(`🔍 DEBUG: answer forwarded to room ${roomId} (excluding sender ${socket.id})`);
       });
 
       socket.on('ice-candidate', (candidate, roomId) => {
@@ -517,9 +568,24 @@ class SocketService {
           socketId: socket.id
         });
         console.log(`📹 ICE candidate received from ${socket.user.name} for room ${roomId}`);
+        
+        // Ensure sender is in the room
+        if (!socket.rooms.has(roomId)) {
+          console.log(`🔍 DEBUG: Sender not in room ${roomId}, joining now...`);
+          socket.join(roomId);
+        }
+        
+        // Check room members before forwarding
+        const room = this.io.sockets.adapter.rooms.get(roomId);
+        const roomMembers = room ? Array.from(room) : [];
+        
+        if (roomMembers.length < 2) {
+          console.warn(`⚠️ WARNING: Room ${roomId} has less than 2 members (${roomMembers.length}). ICE candidate may not be delivered.`);
+        }
+        
         // Forward ICE candidate to other participants in the room
         socket.to(roomId).emit('ice-candidate', candidate);
-        console.log(`🔍 DEBUG: ice-candidate forwarded to room ${roomId}`);
+        console.log(`🔍 DEBUG: ice-candidate forwarded to room ${roomId} (excluding sender ${socket.id})`);
       });
 
       // Handle offer retry requests
