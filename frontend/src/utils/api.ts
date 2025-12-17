@@ -39,15 +39,15 @@ export const setupUserApi = async (
   console.log('API URL:', `${API_URL}/api/auth/setup`);
   console.log('Token:', token);
   console.log('Data:', data);
-  
+
   const res = await axios.post(
     `${API_URL}/api/auth/setup`,
     data,
-    { 
-      headers: { 
+    {
+      headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
-      } 
+      }
     }
   );
   return res.data;
@@ -56,7 +56,7 @@ export const setupUserApi = async (
 export const getUserProfileApi = async (token: string) => {
   console.log('🔍 Fetching user profile from:', `${API_URL}/api/auth/profile`);
   const res = await axios.get(`${API_URL}/api/auth/profile`, {
-    headers: { 
+    headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'
     }
@@ -69,7 +69,7 @@ export const uploadProfilePhotoApi = async (token: string, file: File) => {
   console.log('📤 Uploading profile photo...');
   const formData = new FormData();
   formData.append('avatar', file);
-  
+
   const res = await axios.post(
     `${API_URL}/api/upload/profile-photo`,
     formData,
@@ -94,7 +94,7 @@ export const getUserAlbumsApi = async (token: string) => {
 
 export const createAlbumApi = async (token: string, albumData: FormData) => {
   const res = await axios.post(`${API_URL}/api/albums`, albumData, {
-    headers: { 
+    headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'
     }
@@ -111,7 +111,7 @@ export const deleteAlbumApi = async (token: string, albumId: string) => {
 
 export const editAlbumApi = async (token: string, albumId: string, albumData: FormData) => {
   const res = await axios.put(`${API_URL}/api/albums/${albumId}`, albumData, {
-    headers: { 
+    headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'
     }
@@ -301,7 +301,7 @@ export const getPostsByTypeApi = async (token: string, postType: string, page: n
 export const getPostsWithFeelingsApi = async (token: string, feelingType?: string, page: number = 1, limit: number = 20) => {
   const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
   if (feelingType) params.append('feelingType', feelingType);
-  
+
   const res = await axios.get(`${API_URL}/api/posts/feelings?${params}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -362,9 +362,9 @@ export const uploadFileApi = async (token: string, file: File, postId?: string) 
   const formData = new FormData();
   formData.append('file', file);
   if (postId) formData.append('postId', postId);
-  
+
   const res = await axios.post(`${API_URL}/api/files/upload`, formData, {
-    headers: { 
+    headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'
     }
@@ -376,9 +376,9 @@ export const uploadMultipleFilesApi = async (token: string, files: File[], postI
   const formData = new FormData();
   files.forEach(file => formData.append('files', file));
   if (postId) formData.append('postId', postId);
-  
+
   const res = await axios.post(`${API_URL}/api/files/upload-multiple`, formData, {
-    headers: { 
+    headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data'
     }
@@ -424,7 +424,7 @@ export const searchGifsApi = async (query: string, limit: number = 20) => {
   if (!GIPHY_API_KEY) {
     throw new Error('GIPHY API key not configured');
   }
-  
+
   const GIPHY_BASE_URL = process.env.NEXT_PUBLIC_GIPHY_BASE_URL || 'https://api.giphy.com/v1/gifs';
   const res = await axios.get(`${GIPHY_BASE_URL}/search`, {
     params: {
@@ -442,7 +442,7 @@ export const getTrendingGifsApi = async (limit: number = 20) => {
   if (!GIPHY_API_KEY) {
     throw new Error('GIPHY API key not configured');
   }
-  
+
   const GIPHY_BASE_URL = process.env.NEXT_PUBLIC_GIPHY_BASE_URL || 'https://api.giphy.com/v1/gifs';
   const res = await axios.get(`${GIPHY_BASE_URL}/trending`, {
     params: {
@@ -526,6 +526,13 @@ export const updateCallQualityApi = async (token: string, callId: string, audioL
 
 export const cleanupOldCallsApi = async (token: string) => {
   const res = await axios.post(`${API_URL}/api/audio-calls/cleanup`, {}, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
+export const getVideoCallDetailsApi = async (token: string, callId: string) => {
+  const res = await axios.get(`${API_URL}/api/video-calls/${callId}`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return res.data;

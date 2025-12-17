@@ -20,6 +20,8 @@
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
+    "@cartesia/cartesia-js": "^2.2.9",
+    "@deepgram/sdk": "^4.11.2",
     "aws-sdk": "^2.1438.0",
     "axios": "^1.11.0",
     "bcryptjs": "^2.4.3",
@@ -37,6 +39,7 @@
     "express-session": "^1.17.3",
     "express-slow-down": "^1.6.0",
     "express-validator": "^7.0.1",
+    "google-translate-api-x": "^10.7.2",
     "helmet": "^7.0.0",
     "hpp": "^0.2.3",
     "joi": "^17.9.2",
@@ -58,7 +61,9 @@
     "socket.io": "^4.8.1",
     "twilio": "^4.12.0",
     "uuid": "^9.0.0",
+    "websocket": "^1.0.35",
     "winston": "^3.10.0",
+    "ws": "^8.18.3",
     "xss-clean": "^0.1.1"
   },
   "devDependencies": {

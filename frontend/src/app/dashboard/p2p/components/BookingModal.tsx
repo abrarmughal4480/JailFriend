@@ -96,14 +96,14 @@ const toDateInputValue = (date: Date) => date.toISOString().split('T')[0];
 const createDateInTimezone = (dateStr: string, timeStr: string, timezone: string): string => {
   const [year, month, day] = dateStr.split('-').map(Number);
   const [hours, minutes] = timeStr.split(':').map(Number);
-  
+
   // Create a date string in ISO format (interpreted as UTC initially)
   const dateTimeStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-  
+
   // Start with a guess: create date assuming it's UTC
   // This is our initial candidate
   let candidateDate = new Date(dateTimeStr + 'Z');
-  
+
   // Formatter to check what time our candidate represents in the target timezone
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -111,30 +111,30 @@ const createDateInTimezone = (dateStr: string, timeStr: string, timezone: string
     minute: '2-digit',
     hour12: false,
   });
-  
+
   const desiredMinutes = hours * 60 + minutes;
   let attempts = 0;
   const maxAttempts = 20; // Increased for better accuracy
-  
+
   while (attempts < maxAttempts) {
     const parts = formatter.formatToParts(candidateDate);
     const tzHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
     const tzMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0', 10);
     const actualMinutes = tzHour * 60 + tzMinute;
     const diffMinutes = desiredMinutes - actualMinutes;
-    
+
     // If we're within 1 minute, we're close enough (accounting for rounding)
     if (Math.abs(diffMinutes) <= 1) {
       break;
     }
-    
+
     // Adjust the candidate date by the difference
     // If the timezone shows an earlier time, we need to add time to our UTC date
     // If the timezone shows a later time, we need to subtract time from our UTC date
     candidateDate = new Date(candidateDate.getTime() + diffMinutes * 60 * 1000);
     attempts++;
   }
-  
+
   return candidateDate.toISOString();
 };
 
@@ -191,19 +191,8 @@ const buildTimeSlots = (
   }
 
   const slots: string[] = [];
-  // Extract the minute component from the start time to preserve it for all slots
-  const startMinuteComponent = startMinutes % 60;
-  const startHour = Math.floor(startMinutes / 60);
-  const endHour = Math.floor(endMinutes / 60);
-  
-  // Generate slots every hour (60 minutes) at the same minute mark
-  // This gives us slots like 4:52, 5:52, 6:52, etc.
-  for (let hour = startHour; hour <= endHour; hour++) {
-    const slotMinutes = hour * 60 + startMinuteComponent;
-    // Only include slots that are within the time range
-    if (slotMinutes >= startMinutes && slotMinutes <= endMinutes) {
-      slots.push(minutesToTimeString(slotMinutes));
-    }
+  for (let mins = startMinutes; mins <= endMinutes; mins += stepMinutes) {
+    slots.push(minutesToTimeString(mins));
   }
   return slots;
 };
@@ -300,7 +289,6 @@ export function BookingModal({
       isMounted = false;
     };
   }, [open, callDate, serviceProviderId]);
-//hi
   const handlePayNow = async () => {
     if (isSubmitting) return;
     if (!callTime || !availableTimeOptions.includes(callTime)) {
@@ -322,11 +310,11 @@ export function BookingModal({
     const providerTimezone = availability.timezone || 'UTC';
     let scheduledDateISO: string;
     let scheduledDate: Date;
-    
+
     try {
       scheduledDateISO = createDateInTimezone(callDate, callTime, providerTimezone);
       scheduledDate = new Date(scheduledDateISO);
-      
+
       if (Number.isNaN(scheduledDate.getTime())) {
         const message = 'Invalid date or time selection.';
         setSubmissionError(message);
@@ -357,6 +345,8 @@ export function BookingModal({
       requirements: translateActive ? ['Real-time translation requested.'] : [],
       deliverables: [],
       attachments: [],
+      hasRealtimeTranslation: translateActive,
+      discountCode: appliedCoupon || null,
     };
 
     setIsSubmitting(true);
@@ -426,11 +416,11 @@ export function BookingModal({
   const dateSuggestions = useMemo(() => {
     const availableDays = availability.availableDays || [];
     const providerTimezone = availability.timezone || 'UTC';
-    
+
     return Array.from({ length: 5 }, (_, index) => {
       const date = new Date(baseDate);
       date.setDate(baseDate.getDate() + index);
-      
+
       // If provider has specific available days, check if this date is available
       if (availableDays.length > 0) {
         // Get the weekday name in the provider's timezone
@@ -438,27 +428,27 @@ export function BookingModal({
           timeZone: providerTimezone,
           weekday: 'long'
         }).format(date);
-        
+
         // Check if this weekday is in the available days list
-        const isAvailable = availableDays.some(day => 
+        const isAvailable = availableDays.some(day =>
           day.toLowerCase() === weekdayName.toLowerCase()
         );
-        
+
         if (!isAvailable) {
           return null;
         }
       }
-      
+
       return {
         value: date.toISOString().split('T')[0],
         label:
           index === 0
             ? 'Today'
             : date.toLocaleDateString('en-IN', {
-                weekday: 'short',
-                day: 'numeric',
-                month: 'short',
-              }),
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+            }),
       };
     }).filter((item): item is { value: string; label: string } => item !== null);
   }, [baseDate, availability.availableDays, availability.timezone]);
@@ -479,12 +469,12 @@ export function BookingModal({
     return providerBookings
       .filter((slot) => {
         // Only consider bookings on the selected date
+        // Use UTC components because backend query and scheduledDate storage are UTC-based
         const bookingDate = new Date(slot.scheduledDate);
-        // Compare date components directly to avoid timezone issues
         return (
-          bookingDate.getFullYear() === selectedYear &&
-          bookingDate.getMonth() === selectedMonth - 1 && // getMonth() is 0-indexed
-          bookingDate.getDate() === selectedDay
+          bookingDate.getUTCFullYear() === selectedYear &&
+          bookingDate.getUTCMonth() === selectedMonth - 1 &&
+          bookingDate.getUTCDate() === selectedDay
         );
       })
       .map((slot) => {
@@ -500,7 +490,7 @@ export function BookingModal({
   const availableTimeOptions = useMemo(() => {
     const workingStartMinutes = parseTimeToMinutes(availability.startTime);
     const workingEndMinutes = parseTimeToMinutes(availability.endTime);
-    
+
     if (workingStartMinutes === null || workingEndMinutes === null) {
       return timeOptions;
     }
@@ -510,7 +500,7 @@ export function BookingModal({
     return timeOptions.filter((slot) => {
       const slotStart = parseTimeToMinutes(slot);
       if (slotStart === null) return false;
-      
+
       // Check if slot start is within working hours
       if (slotStart < workingStartMinutes) return false;
       if (slotStart > workingEndMinutes) return false;
@@ -528,7 +518,7 @@ export function BookingModal({
         // If there's an overlap, filter this slot out
         if (overlaps) return false;
       }
-      
+
       return true;
     });
   }, [activeMinutes, bookedRanges, timeOptions, availability.startTime, availability.endTime]);
@@ -579,16 +569,14 @@ export function BookingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-      <div className={`relative max-h-[90vh] w-full max-w-[1000px] overflow-y-auto rounded-2xl border-2 shadow-2xl ${
-        isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
-      }`}>
+      <div className={`relative max-h-[90vh] w-full max-w-[1000px] overflow-y-auto rounded-2xl border-2 shadow-2xl ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+        }`}>
         <button
           onClick={onClose}
-          className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border transition ${
-            isDarkMode 
-              ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
-              : 'border-gray-200 text-gray-500 hover:bg-gray-100'
-          }`}
+          className={`absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full border transition ${isDarkMode
+            ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+            : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+            }`}
           aria-label="Close booking modal"
         >
           <span className="text-xl font-semibold">&times;</span>
@@ -596,7 +584,7 @@ export function BookingModal({
 
         <div className="flex flex-col">
           <div className={`border-b-2 px-6 py-10 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-           
+
 
             <div className="mb-8">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select mode to connect</h3>
@@ -605,13 +593,12 @@ export function BookingModal({
                   <button
                     key={mode}
                     onClick={() => setCallMode(mode)}
-                    className={`flex min-w-[180px] items-center gap-3 rounded-xl border-2 px-5 py-4 transition ${
-                      callMode === mode
-                        ? 'border-[#148F80] bg-[#148F80]/10'
-                        : isDarkMode
+                    className={`flex min-w-[180px] items-center gap-3 rounded-xl border-2 px-5 py-4 transition ${callMode === mode
+                      ? 'border-[#148F80] bg-[#148F80]/10'
+                      : isDarkMode
                         ? 'border-gray-600 hover:border-[#148F80] hover:bg-[#148F80]/5'
                         : 'border-gray-200 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                    }`}
+                      }`}
                   >
                     <img
                       src={
@@ -643,13 +630,12 @@ export function BookingModal({
                     <button
                       key={suggestion.value}
                       onClick={() => setCallDate(suggestion.value)}
-                      className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${
-                        callDate === suggestion.value
-                          ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                          : isDarkMode
+                      className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${callDate === suggestion.value
+                        ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                        : isDarkMode
                           ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                      }`}
+                        }`}
                     >
                       {suggestion.label}
                     </button>
@@ -660,11 +646,10 @@ export function BookingModal({
                   min={dateSuggestions[0]?.value}
                   value={callDate}
                   onChange={(event) => setCallDate(event.target.value)}
-                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-200'
-                  }`}
+                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-200'
+                    }`}
                 />
               </div>
 
@@ -676,21 +661,20 @@ export function BookingModal({
                     const workingEndMinutes = parseTimeToMinutes(availability.endTime);
                     const slotEnd = slotStart !== null ? slotStart + activeMinutes : null;
                     const wouldExceedEndTime = slotEnd !== null && workingEndMinutes !== null && slotEnd > workingEndMinutes;
-                    
+
                     return (
                       <button
                         key={slot}
                         onClick={() => setCallTime(slot)}
                         disabled={wouldExceedEndTime}
-                        className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${
-                          callTime === slot
-                            ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                            : wouldExceedEndTime
+                        className={`rounded-xl border-2 px-4 py-2 text-sm font-medium transition ${callTime === slot
+                          ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                          : wouldExceedEndTime
                             ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
                             : isDarkMode
-                            ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                            : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                        }`}
+                              ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
+                              : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
+                          }`}
                         title={wouldExceedEndTime ? `This time slot would exceed the available end time (${formatTimeDisplay(availability.endTime)})` : ''}
                       >
                         {formatTimeDisplay(slot)}
@@ -713,19 +697,12 @@ export function BookingModal({
                   disabled={!availableTimeOptions.length}
                   onChange={(event) => {
                     const newTime = event.target.value;
-                    // Validate that the selected time is in available options
-                    if (availableTimeOptions.includes(newTime)) {
-                      setCallTime(newTime);
-                    } else if (availableTimeOptions.length > 0) {
-                      // If invalid, set to first available option
-                      setCallTime(availableTimeOptions[0]);
-                    }
+                    setCallTime(newTime);
                   }}
-                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-700 text-white' 
-                      : 'border-gray-200'
-                  }`}
+                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-700 text-white'
+                    : 'border-gray-200'
+                    }`}
                 />
               </div>
             </div>
@@ -744,13 +721,12 @@ export function BookingModal({
                         setPlanCategory('single');
                         setCallMinutes(minutes);
                       }}
-                      className={`flex min-w-[160px] flex-col gap-1 rounded-xl border-2 px-4 py-3 text-left text-sm transition ${
-                        isActive
-                          ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                          : isDarkMode
+                      className={`flex min-w-[160px] flex-col gap-1 rounded-xl border-2 px-4 py-3 text-left text-sm transition ${isActive
+                        ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                        : isDarkMode
                           ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                      }`}
+                        }`}
                     >
                       <span className="font-semibold">{minutes} Min</span>
                       <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{formatCurrency(currencySymbol, price)}</span>
@@ -760,9 +736,8 @@ export function BookingModal({
               </div>
             </div>
 
-            <div className={`mb-10 rounded-2xl border-2 p-6 ${
-              isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-            }`}>
+            <div className={`mb-10 rounded-2xl border-2 p-6 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
+              }`}>
               <div className="mb-4 flex items-start gap-3">
                 <h3 className="flex-1 text-lg font-semibold text-[#148F80]">
                   Daily Subscription Plan
@@ -792,13 +767,12 @@ export function BookingModal({
                         setPlanCategory('subscription');
                         setSubscriptionMinutes(minutes);
                       }}
-                      className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${
-                        isActive
-                          ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                          : isDarkMode
+                      className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${isActive
+                        ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                        : isDarkMode
                           ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                      }`}
+                        }`}
                     >
                       {minutes} Min/Day ({formatCurrency(currencySymbol, price)})
                     </button>
@@ -813,15 +787,14 @@ export function BookingModal({
                   return (
                     <label
                       key={type.value}
-                      className={`relative flex cursor-pointer items-center gap-3 rounded-xl border-2 px-5 py-3 text-base font-medium transition ${
-                        isActive
-                          ? isDarkMode
+                      className={`relative flex cursor-pointer items-center gap-3 rounded-xl border-2 px-5 py-3 text-base font-medium transition ${isActive
+                        ? isDarkMode
                           ? 'border-[#148F80] bg-gray-700 text-[#148F80] shadow-lg'
                           : 'border-[#148F80] bg-white text-[#148F80] shadow-lg'
-                          : isDarkMode
+                        : isDarkMode
                           ? 'border-gray-600 bg-gray-700 text-gray-300 hover:border-[#148F80]'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-[#148F80]'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -841,14 +814,12 @@ export function BookingModal({
               </div>
             </div>
 
-            <div className={`rounded-2xl border-2 p-6 ${
-              isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-            }`}>
+            <div className={`rounded-2xl border-2 p-6 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
+              }`}>
               <div className="flex flex-col gap-3">
                 <h3 className="text-lg font-semibold text-[#148F80]">Real-Time Call Translation</h3>
-                <label className={`flex items-center gap-3 text-sm font-semibold ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`flex items-center gap-3 text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   <input
                     type="checkbox"
                     checked={translateActive}
@@ -868,9 +839,8 @@ export function BookingModal({
             </div>
           </div>
 
-          <div className={`border-t-2 px-6 py-10 ${
-            isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
-          }`}>
+          <div className={`border-t-2 px-6 py-10 ${isDarkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'
+            }`}>
             <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Payment Summary</h2>
             <div className={`mt-6 space-y-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               <div className="flex items-center justify-between">
@@ -921,19 +891,17 @@ export function BookingModal({
                   -{formatCurrency(currencySymbol, couponDiscount)}
                 </span>
               </div>
-              <div className={`flex items-center justify-between border-t pt-4 text-base font-semibold ${
-                isDarkMode 
-                  ? 'border-gray-700 text-white' 
-                  : 'border-gray-200 text-gray-900'
-              }`}>
+              <div className={`flex items-center justify-between border-t pt-4 text-base font-semibold ${isDarkMode
+                ? 'border-gray-700 text-white'
+                : 'border-gray-200 text-gray-900'
+                }`}>
                 <span>Total</span>
                 <span>{formatCurrency(currencySymbol, totalPrice)}</span>
               </div>
             </div>
 
-            <div className={`mt-8 rounded-2xl border-2 p-5 ${
-              isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-white'
-            }`}>
+            <div className={`mt-8 rounded-2xl border-2 p-5 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-white'
+              }`}>
               <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Apply Coupon Code</h3>
               <div className="mt-3 flex gap-2">
                 <input
@@ -941,11 +909,10 @@ export function BookingModal({
                   value={couponInput}
                   onChange={(event) => setCouponInput(event.target.value)}
                   placeholder="Enter coupon code"
-                  className={`flex-1 rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${
-                    isDarkMode 
-                      ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400' 
-                      : 'border-gray-200'
-                  }`}
+                  className={`flex-1 rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${isDarkMode
+                    ? 'border-gray-600 bg-gray-800 text-white placeholder-gray-400'
+                    : 'border-gray-200'
+                    }`}
                 />
                 <button
                   onClick={() => setAppliedCoupon(couponInput.trim().toUpperCase())}
@@ -962,13 +929,12 @@ export function BookingModal({
                       setCouponInput(code);
                       setAppliedCoupon(code);
                     }}
-                    className={`rounded-xl border-2 px-3 py-1 text-xs font-semibold transition ${
-                      appliedCoupon === code
-                        ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                        : isDarkMode
+                    className={`rounded-xl border-2 px-3 py-1 text-xs font-semibold transition ${appliedCoupon === code
+                      ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                      : isDarkMode
                         ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                         : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                    }`}
+                      }`}
                   >
                     {code === 'SAVE10' ? 'SAVE10 (10% Off)' : 'FLAT500 (₹500 Off)'}
                   </button>
@@ -980,11 +946,10 @@ export function BookingModal({
               type="button"
               onClick={handlePayNow}
               disabled={isSubmitting || !callTime || !availableTimeOptions.length}
-              className={`mt-6 w-full rounded-xl border-2 px-6 py-3 text-base font-semibold text-white transition ${
-                isSubmitting || !callTime || !availableTimeOptions.length
-                  ? 'cursor-not-allowed border-gray-300 bg-gray-300'
-                  : 'border-[#148F80] bg-[#148F80] hover:border-[#0f6e63] hover:bg-[#0f6e63]'
-              }`}
+              className={`mt-6 w-full rounded-xl border-2 px-6 py-3 text-base font-semibold text-white transition ${isSubmitting || !callTime || !availableTimeOptions.length
+                ? 'cursor-not-allowed border-gray-300 bg-gray-300'
+                : 'border-[#148F80] bg-[#148F80] hover:border-[#0f6e63] hover:bg-[#0f6e63]'
+                }`}
             >
               {isSubmitting ? 'Processing…' : 'Pay Now'}
             </button>

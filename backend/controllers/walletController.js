@@ -131,7 +131,8 @@ exports.getWalletData = async (req, res) => {
             type: 'WALLET',
             status: payment.paymentMethod,
             date: payment.createdAt,
-            amount: payment.amount
+            amount: (payment.paymentDetails?.type === 'deduction') ? -payment.amount : payment.amount,
+            description: payment.paymentDetails?.description || `Wallet Transaction: ${payment.paymentMethod}`
         }));
 
         // Format advertisement transactions

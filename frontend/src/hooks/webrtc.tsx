@@ -75,13 +75,13 @@ const peerConfig: RTCConfiguration = {
 // Simple mobile detection function
 const isMobileDevice = (): boolean => {
     if (typeof window === 'undefined') return false;
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-           window.innerWidth <= 768;
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+        window.innerWidth <= 768;
 };
 
 const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps): WebRTCHookReturn => {
     const currentUser: User | null = user;
-    
+
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -95,18 +95,19 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     const isMobile = isMobileDevice();
     const answerProcessed = useRef<boolean>(false);
     const processedMessages = useRef<Set<string>>(new Set());
+    const iceCandidatesBuffer = useRef<RTCIceCandidateInit[]>([]);
 
     const peerConnectionStarted = useRef<boolean>(false);
     const isInitialized = useRef<boolean>(false);
     const roomJoinedRef = useRef<boolean>(false);
-    
+
     // Pulse system for connection monitoring
     const pulseInterval = useRef<NodeJS.Timeout | null>(null);
     const pulseTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastPulseReceived = useRef<number>(Date.now());
     const pulseIntervalMs = 5000; // Send pulse every 5 seconds
     const pulseTimeoutMs = 15000; // Consider disconnected if no pulse for 15 seconds
-    
+
     // Connection monitoring and reconnection state
     const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
     const [reconnectionAttempt, setReconnectionAttempt] = useState<number>(0);
@@ -116,18 +117,18 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     // Pulse system functions
     const startPulseSystem = (): void => {
         console.log('💓 Starting pulse system for video call monitoring');
-        
+
         // Clear any existing pulse intervals
         stopPulseSystem();
-        
+
         // Send initial pulse
         sendPulse();
-        
+
         // Set up regular pulse sending
         pulseInterval.current = setInterval(() => {
             sendPulse();
         }, pulseIntervalMs);
-        
+
         // Set up pulse timeout monitoring
         pulseTimeout.current = setInterval(() => {
             checkPulseTimeout();
@@ -136,12 +137,12 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
 
     const stopPulseSystem = (): void => {
         console.log('💓 Stopping pulse system');
-        
+
         if (pulseInterval.current) {
             clearInterval(pulseInterval.current);
             pulseInterval.current = null;
         }
-        
+
         if (pulseTimeout.current) {
             clearInterval(pulseTimeout.current);
             pulseTimeout.current = null;
@@ -157,7 +158,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 isAdmin: isAdmin,
                 connectionState: connectionState
             };
-            
+
             console.log('💓 Sending pulse:', pulseData);
             socketConnection.current.emit('video-call-pulse', pulseData);
         }
@@ -166,11 +167,11 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     const checkPulseTimeout = (): void => {
         const now = Date.now();
         const timeSinceLastPulse = now - lastPulseReceived.current;
-        
+
         if (timeSinceLastPulse > pulseTimeoutMs) {
             console.log('💓 Pulse timeout detected - user may be disconnected');
             console.log(`Time since last pulse: ${timeSinceLastPulse}ms (timeout: ${pulseTimeoutMs}ms)`);
-            
+
             // Trigger reconnection
             triggerReconnection();
         }
@@ -179,7 +180,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     const handlePulseReceived = (pulseData: any): void => {
         console.log('💓 Pulse received from other user:', pulseData);
         lastPulseReceived.current = Date.now();
-        
+
         // Update connection state based on pulse
         if (pulseData.connectionState === 'connected') {
             setIsConnected(true);
@@ -192,57 +193,57 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             console.log('No socket connection available for event listeners');
             return;
         }
-        
+
         console.log('Setting up WebRTC event listeners');
-        
+
         socketConnection.current.on('offer', (offer: RTCSessionDescriptionInit) => {
             // Create a unique message ID based on offer content
             const messageId = `offer-${offer.sdp?.substring(0, 50)}`;
-            
-            console.log('🔍 DEBUG: Received offer:', { 
-                isAdmin, 
+
+            console.log('🔍 DEBUG: Received offer:', {
+                isAdmin,
                 offerType: offer.type,
                 roomId: roomId,
                 socketId: socketConnection.current?.id,
                 offerSdpPreview: offer.sdp?.substring(0, 50) + '...',
                 messageId: messageId
             });
-            
+
             // Check if we've already processed this offer
             if (processedMessages.current.has(messageId)) {
                 console.log('Offer already processed, skipping duplicate');
                 return;
             }
-            
+
             processedMessages.current.add(messageId);
             handleOffer(offer);
         });
-        
+
         socketConnection.current.on('answer', (answer: RTCSessionDescriptionInit) => {
             // Create a unique message ID based on answer content
             const messageId = `answer-${answer.sdp?.substring(0, 50)}`;
-            
-            console.log('🔍 DEBUG: Received answer:', { 
-                isAdmin, 
+
+            console.log('🔍 DEBUG: Received answer:', {
+                isAdmin,
                 answerType: answer.type,
                 roomId: roomId,
                 socketId: socketConnection.current?.id,
                 messageId: messageId
             });
-            
+
             // Check if we've already processed this answer
             if (processedMessages.current.has(messageId)) {
                 console.log('Answer already processed, skipping duplicate');
                 return;
             }
-            
+
             processedMessages.current.add(messageId);
             handleAnswer(answer);
         });
-        
+
         socketConnection.current.on('ice-candidate', (candidate: RTCIceCandidateInit) => {
-            console.log('🔍 DEBUG: Received ICE candidate:', { 
-                isAdmin, 
+            console.log('🔍 DEBUG: Received ICE candidate:', {
+                isAdmin,
                 candidateType: candidate.candidate,
                 roomId: roomId,
                 socketId: socketConnection.current?.id
@@ -316,17 +317,17 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 }, 2000); // Wait 2 seconds for receiver to be ready
             }
         });
-        
+
         socketConnection.current.on('user-disconnected', () => {
             console.log('User disconnected event received');
             handleUserDisconnected();
         });
-        
+
         // Pulse system event listeners
         socketConnection.current.on('video-call-pulse', (pulseData: any) => {
             handlePulseReceived(pulseData);
         });
-        
+
         socketConnection.current.on('video-call-pulse-timeout', (data: any) => {
             console.log('💓 Pulse timeout notification received:', data);
             if (data.roomId === roomId) {
@@ -334,12 +335,12 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 triggerReconnection();
             }
         });
-        
+
         // Handle room join confirmation
         socketConnection.current.on('room-joined', (data: any) => {
             console.log('✅ Room joined successfully:', data);
             roomJoinedRef.current = true;
-            
+
             // Start peer connection after room is confirmed joined
             // Only start if we haven't started it yet
             if (!peerConnectionStarted.current) {
@@ -350,7 +351,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 }, startDelay);
             }
         });
-        
+
         // Listen for other users joining the room
         socketConnection.current.on('user-joined-room', (data: any) => {
             console.log('👤 Another user joined the room:', data);
@@ -359,12 +360,12 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
 
     const setupSocketConnection = (): void => {
         if (!socketConnection.current) return;
-        
+
         console.log(`Socket connected with ID: ${socketConnection.current.id}`);
         console.log(`User type: ${isAdmin ? 'Admin' : 'User'}`);
-        
+
         setupWebRTCEventListeners();
-        
+
         if (currentUser) {
             const authData: AuthData = {
                 userId: currentUser._id,
@@ -379,7 +380,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         } else {
             console.log('No current user data available');
         }
-        
+
         if (isAdmin && currentUser?.email) {
             console.log('🔍 DEBUG: Admin joining room:', {
                 adminEmail: currentUser.email,
@@ -402,25 +403,26 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         answerProcessed.current = false;
         processedMessages.current.clear();
         roomJoinedRef.current = false;
-        
-        console.log('🎯 WebRTC hook initializing...', { 
-            isAdmin, 
-            roomId, 
+
+        console.log('🎯 WebRTC hook initializing...', {
+            isAdmin,
+            roomId,
             userType: isAdmin ? 'ADMIN' : 'USER',
             urlParams: typeof window !== 'undefined' ? window.location.search : 'N/A'
         });
-        
+
         // Add a small delay to prevent race conditions between caller and receiver
         const initDelay = isAdmin ? 0 : 1000; // Receiver waits 1 second to let caller initialize first
-        
+
         setTimeout(() => {
             isInitialized.current = true;
-            
+
             // Use the global socket service
             const socket = socketService.getSocket();
             if (socket && socket.connected) {
                 console.log('Using global socket for WebRTC:', socket.id);
                 socketConnection.current = socket;
+                setSocket(socket);
                 setupSocketConnection();
             } else {
                 console.log('Global socket not ready, waiting...');
@@ -438,6 +440,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                     if (currentSocket && currentSocket.connected) {
                         console.log('Global socket ready, setting up WebRTC');
                         socketConnection.current = currentSocket;
+                        setSocket(currentSocket);
                         setupSocketConnection();
                     } else if (attempts < maxAttempts) {
                         setTimeout(checkSocket, 1000);
@@ -459,16 +462,16 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
 
         return () => {
             window.removeEventListener('connection-reconnect', handleReconnectionEvent as EventListener);
-            
+
             // Stop pulse system
             stopPulseSystem();
-            
+
             // Stop connection monitoring
             if (connectionMonitorRef.current) {
                 connectionMonitorRef.current.stopMonitoring();
                 connectionMonitorRef.current = null;
             }
-            
+
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
@@ -490,7 +493,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             try {
                 const cameraPermission = await navigator.permissions.query({ name: 'camera' });
                 const microphonePermission = await navigator.permissions.query({ name: 'microphone' });
-                
+
                 if (cameraPermission.state === 'denied' || microphonePermission.state === 'denied') {
                     throw new Error('Camera or microphone permission denied. Please enable access in browser settings and refresh the page.');
                 }
@@ -503,7 +506,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const cameras = devices.filter(device => device.kind === 'videoinput');
                 const microphones = devices.filter(device => device.kind === 'audioinput');
-                
+
                 if (cameras.length === 0) {
                     throw new Error('No camera devices found. Please connect a camera and refresh the page.');
                 }
@@ -812,13 +815,14 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 // Error closing peer connection
             }
         }
-        
+
         // Reset answer processing flag and processed messages for new connection
         answerProcessed.current = false;
         processedMessages.current.clear();
-        
+        iceCandidatesBuffer.current = [];
+
         const peerConnection = new RTCPeerConnection(peerConfig);
-        
+
         // Initialize connection monitor
         if (!connectionMonitorRef.current) {
             connectionMonitorRef.current = new ConnectionMonitor({
@@ -853,37 +857,37 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                     }, 5000);
                 }
             });
-            
+
             // Set up reconnection callback
             connectionMonitorRef.current.setConnectionLostCallback(() => {
                 console.log('🔄 Connection lost, triggering reconnection...');
                 triggerReconnection();
             });
         }
-        
+
         // Start monitoring this connection
         connectionMonitorRef.current.startMonitoring(peerConnection);
-        
+
         // Reset answer processing flag when connection state changes
         peerConnection.onconnectionstatechange = () => {
             const state = peerConnection.connectionState;
             console.log('🔍 Peer connection state changed:', state);
-            
+
             if (state === 'connected') {
                 setIsConnected(true);
                 setConnectionState('connected');
                 console.log('✅ WebRTC connection established successfully');
-                
+
                 // Start pulse system when connected
                 startPulseSystem();
             } else if (state === 'failed' || state === 'disconnected') {
                 setIsConnected(false);
                 setConnectionState('failed');
                 console.log('❌ WebRTC connection failed or disconnected');
-                
+
                 // Stop pulse system when disconnected
                 stopPulseSystem();
-                
+
                 // Reset answer processing flag on failure
                 answerProcessed.current = false;
             } else if (state === 'connecting') {
@@ -906,37 +910,37 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         }
 
         // Both admin and user should add their local streams
-            if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach(track => {
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => {
                 peerConnection.addTrack(track, localStreamRef.current!);
             });
         }
 
         peerConnection.ontrack = (event: RTCTrackEvent) => {
             console.log('ontrack event received:', { isAdmin, streams: event.streams.length });
-            
+
             // Both admin and user should receive and display remote video
-                setRemoteStream(event.streams[0]);
-                setTimeout(() => {
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = event.streams[0];
-                        videoRef.current.play().then(() => {
-                            setIsConnected(true);
+            setRemoteStream(event.streams[0]);
+            setTimeout(() => {
+                if (videoRef.current) {
+                    videoRef.current.srcObject = event.streams[0];
+                    videoRef.current.play().then(() => {
+                        setIsConnected(true);
                         console.log(`${isAdmin ? 'Admin' : 'User'} video stream set successfully`);
-                        }).catch((error) => {
-                            setIsConnected(true);
-                            if (error.name === 'NotAllowedError') {
-                                console.log('Video autoplay blocked by browser - user interaction required');
-                                setShowVideoPlayError(true);
-                            } else if (error.name === 'AbortError') {
-                                console.log('Video play interrupted - this is normal during reconnections');
-                                // Don't show error for AbortError
-                            } else {
-                                console.error(`${isAdmin ? 'Admin' : 'User'} video play error:`, error);
-                                setShowVideoPlayError(true);
-                            }
-                        });
-                    }
+                    }).catch((error) => {
+                        setIsConnected(true);
+                        if (error.name === 'NotAllowedError') {
+                            console.log('Video autoplay blocked by browser - user interaction required');
+                            setShowVideoPlayError(true);
+                        } else if (error.name === 'AbortError') {
+                            console.log('Video play interrupted - this is normal during reconnections');
+                            // Don't show error for AbortError
+                        } else {
+                            console.error(`${isAdmin ? 'Admin' : 'User'} video play error:`, error);
+                            setShowVideoPlayError(true);
+                        }
+                    });
+                }
             }, 1000);
         }
 
@@ -966,9 +970,9 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
 
     const handleVideoPlay = (): void => {
         if (videoRef.current) {
-        videoRef.current.play();
-        setIsConnected(true);
-        setShowVideoPlayError(false);
+            videoRef.current.play();
+            setIsConnected(true);
+            setShowVideoPlayError(false);
         }
     }
 
@@ -978,12 +982,12 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             console.log('⚠️ Peer connection already started, skipping...');
             return;
         }
-        
+
         try {
             peerConnectionStarted.current = true;
-            console.log('🎯 Starting peer connection:', { 
-                isAdmin, 
-                roomId, 
+            console.log('🎯 Starting peer connection:', {
+                isAdmin,
+                roomId,
                 userType: isAdmin ? 'ADMIN' : 'USER'
             });
 
@@ -991,11 +995,11 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             console.log(`Getting user media for ${isAdmin ? 'admin' : 'user'}...`);
             await getUserMedia();
             console.log(`${isAdmin ? 'Admin' : 'User'} media obtained successfully`);
-            
+
             console.log('Creating peer connection...');
             const peerConnection = createRTCPeerConnection();
             peerConnectionRef.current = peerConnection;
-            
+
             if (isAdmin) {
                 // Admin creates and sends offer
                 // Wait for room join confirmation before sending offer
@@ -1012,13 +1016,13 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                         console.warn('⚠️ Room join confirmation not received, proceeding anyway...');
                     }
                 }
-                
+
                 console.log('Creating offer...');
                 const offer = await peerConnection.createOffer();
-                
+
                 console.log('Setting local description...');
                 await peerConnection.setLocalDescription(offer);
-                
+
                 console.log('🔍 DEBUG: Sending offer to room:', {
                     roomId: roomId,
                     offerType: offer.type,
@@ -1032,7 +1036,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
             } else {
                 // User waits for offer from admin
                 console.log('User waiting for offer from admin...');
-                
+
                 // Request offer retry after a delay if no offer received
                 setTimeout(() => {
                     if (!peerConnectionRef.current?.remoteDescription) {
@@ -1059,42 +1063,58 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 peerConnectionState: peerConnectionRef.current?.connectionState,
                 signalingState: peerConnectionRef.current?.signalingState
             });
-            
+
             // Get user media before creating peer connection
             if (!localStreamRef.current) {
                 console.log('Getting user media for offer handling...');
                 await getUserMedia();
             }
-            
+
             // Create new peer connection if none exists
             if (!peerConnectionRef.current) {
                 console.log('Creating new peer connection for offer handling');
                 const peerConnection = createRTCPeerConnection();
                 peerConnectionRef.current = peerConnection;
             }
-            
+
             // Check if we're in the right state to handle offer
             const currentState = peerConnectionRef.current.signalingState;
             console.log('🔍 DEBUG: Current signaling state:', currentState);
-            
+
             if (currentState === 'stable') {
                 try {
                     // Initial state - we can handle the offer
                     console.log('Setting remote description');
                     await peerConnectionRef.current.setRemoteDescription(offer);
-                    
+
                     console.log('Creating answer');
                     const answer = await peerConnectionRef.current.createAnswer();
-                    
+
                     console.log('Setting local description');
                     await peerConnectionRef.current.setLocalDescription(answer);
-                    
+
                     console.log('🔍 DEBUG: Sending answer to room:', {
                         roomId: roomId,
                         answerType: answer.type,
                         socketId: socketConnection.current?.id
                     });
                     socketConnection.current?.emit('answer', answer, roomId);
+
+                    // Process buffered ICE candidates
+                    if (iceCandidatesBuffer.current.length > 0) {
+                        console.log(`Processing ${iceCandidatesBuffer.current.length} buffered ICE candidates`);
+                        while (iceCandidatesBuffer.current.length > 0) {
+                            const candidate = iceCandidatesBuffer.current.shift();
+                            if (candidate) {
+                                try {
+                                    await peerConnectionRef.current.addIceCandidate(candidate);
+                                    console.log('Buffered ICE candidate added successfully');
+                                } catch (e) {
+                                    console.error('Error adding buffered ICE candidate:', e);
+                                }
+                            }
+                        }
+                    }
                 } catch (setDescError) {
                     console.error('Error setting remote description for offer:', setDescError);
                     // If setting remote description fails, we might need to recreate the connection
@@ -1104,7 +1124,7 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                         peerConnectionRef.current = null;
                         const newPeerConnection = createRTCPeerConnection();
                         peerConnectionRef.current = newPeerConnection;
-                        
+
                         // Retry setting the offer
                         try {
                             await peerConnectionRef.current.setRemoteDescription(offer);
@@ -1145,21 +1165,21 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 answerProcessed: answerProcessed.current,
                 answerSdpPreview: answer.sdp?.substring(0, 50) + '...'
             });
-            
+
             // Prevent duplicate answer processing
             if (answerProcessed.current) {
                 console.log('Answer already processed, skipping...');
                 return;
             }
-            
+
             if (!peerConnectionRef.current) {
                 console.error('No peer connection available for answer');
                 return;
             }
-            
+
             const currentState = peerConnectionRef.current.signalingState;
             console.log('🔍 DEBUG: Current signaling state for answer:', currentState);
-            
+
             // Only process answer if we're in the right state
             if (currentState === 'have-local-offer') {
                 try {
@@ -1167,6 +1187,22 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                     await peerConnectionRef.current.setRemoteDescription(answer);
                     answerProcessed.current = true;
                     console.log('Answer processed successfully');
+
+                    // Process buffered ICE candidates
+                    if (iceCandidatesBuffer.current.length > 0) {
+                        console.log(`Processing ${iceCandidatesBuffer.current.length} buffered ICE candidates`);
+                        while (iceCandidatesBuffer.current.length > 0) {
+                            const candidate = iceCandidatesBuffer.current.shift();
+                            if (candidate) {
+                                try {
+                                    await peerConnectionRef.current.addIceCandidate(candidate);
+                                    console.log('Buffered ICE candidate added successfully');
+                                } catch (e) {
+                                    console.error('Error adding buffered ICE candidate:', e);
+                                }
+                            }
+                        }
+                    }
                 } catch (setDescError) {
                     console.error('Error setting remote description for answer:', setDescError);
                     // If setting remote description fails, mark as processed to prevent retries
@@ -1202,22 +1238,37 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
                 peerConnectionState: peerConnectionRef.current?.connectionState,
                 signalingState: peerConnectionRef.current?.signalingState
             });
-            
-            if (peerConnectionRef.current) {
-                const currentState = peerConnectionRef.current.signalingState;
-                console.log('🔍 DEBUG: Current signaling state for ICE candidate:', currentState);
-                
-                if (currentState !== 'closed') {
-                    await peerConnectionRef.current.addIceCandidate(candidate);
-                    console.log('ICE candidate added successfully');
-                } else {
-                    console.warn('Cannot add ICE candidate - peer connection is closed');
-                }
-            } else {
-                console.error('No peer connection available for ICE candidate');
+
+            // Buffer candidate if peer connection not ready or in closed state
+            if (!peerConnectionRef.current || peerConnectionRef.current.signalingState === 'closed') {
+                console.log('Buffering ICE candidate - PeerConnection not ready or closed');
+                iceCandidatesBuffer.current.push(candidate);
+                return;
+            }
+
+            // Buffer candidate if remote description is not set yet (signaling state is stable but no remote yet, or just having local offer)
+            // Actually, we can just try to add it. If it fails, we might want to buffer it?
+            // Safer: buffer if remote description is missing.
+            if (!peerConnectionRef.current.remoteDescription && peerConnectionRef.current.signalingState !== 'stable') {
+                // Note: 'stable' can mean no offer/answer yet.
+                // If we are 'stable' and have no remote description, we can't add candidate?
+                // Actually addIceCandidate works in 'stable' if it's for the other side?
+                // Usually safe to add only after setRemoteDescription.
+                console.log('Buffering ICE candidate - Remote description not set');
+                iceCandidatesBuffer.current.push(candidate);
+                return;
+            }
+
+            // For simplicity, let's try to add. If it throws because of state, we buffer.
+            try {
+                await peerConnectionRef.current.addIceCandidate(candidate);
+                console.log('ICE candidate added successfully');
+            } catch (e) {
+                console.warn('Failed to add ICE candidate, buffering:', e);
+                iceCandidatesBuffer.current.push(candidate);
             }
         } catch (error) {
-            console.error('Error adding ICE candidate:', error);
+            console.error('Error handling ICE candidate:', error);
         }
     }
 
@@ -1227,27 +1278,27 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
     const triggerReconnection = async (): Promise<void> => {
         try {
             console.log('🔄 Triggering reconnection...');
-            
+
             // Stop pulse system during reconnection
             stopPulseSystem();
-            
+
             // Clean up existing connection
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.close();
                 peerConnectionRef.current = null;
             }
-            
+
             // Reset flags
             answerProcessed.current = false;
             processedMessages.current.clear();
             peerConnectionStarted.current = false;
-            
+
             // Wait a moment before reconnecting
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             // Restart peer connection
             await startPeerConnection();
-            
+
         } catch (error) {
             console.error('Error during reconnection:', error);
         }
@@ -1257,27 +1308,27 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
         try {
             // Stop pulse system
             stopPulseSystem();
-            
+
             // Stop connection monitoring
             if (connectionMonitorRef.current) {
                 connectionMonitorRef.current.stopMonitoring();
                 connectionMonitorRef.current = null;
             }
-            
+
             socketConnection.current?.emit('user-disconnected', roomId);
             setIsConnected(false);
             setIsReconnecting(false);
             setReconnectionAttempt(0);
-            
+
             // Reset flags
             answerProcessed.current = false;
             processedMessages.current.clear();
-            
+
             if (peerConnectionRef.current) {
                 peerConnectionRef.current.close();
                 peerConnectionRef.current = null;
             }
-            
+
             localStream?.getTracks().forEach(track => track.stop());
             if (remoteStream) {
                 remoteStream.getTracks().forEach(track => track.stop());

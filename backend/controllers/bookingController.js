@@ -2,6 +2,7 @@ const Booking = require('../models/booking');
 const P2PProfile = require('../models/p2pProfile');
 const User = require('../models/user');
 const VideoCall = require('../models/videoCall');
+const PaymentTransaction = require('../models/PaymentTransaction');
 const socketService = require('../services/socketService');
 
 const BLOCKING_BOOKING_STATUSES = ['pending', 'accepted', 'in_progress'];
@@ -67,6 +68,8 @@ const getCallRateMultiplier = (profile, callType) => {
 
 // Create a new booking request
 const createBooking = async (req, res) => {
+  const session = await User.startSession();
+  session.startTransaction();
   try {
     const clientId = req.user.id;
     const {
@@ -80,7 +83,9 @@ const createBooking = async (req, res) => {
       duration,
       requirements,
       deliverables,
-      attachments
+      attachments,
+      hasRealtimeTranslation,
+      discountCode
     } = req.body;
 
     // Validate required fields
@@ -189,20 +194,59 @@ const createBooking = async (req, res) => {
     // Get the appropriate call rate based on call type
     const callRate = getCallRateMultiplier(profile, bookingCallType);
 
-    // Calculate total amount
-    let totalAmount;
+    // Calculate base amount
+    let baseAmount;
     const hours = parsedDuration / 60;
-    
-    if (bookingCallType && callRate && profile.hourlyRate) {
-      // For audio/video/chat calls: callRate * hourlyRate * hours
-      // Example: 12 * 100 * 1 = 1200 for 1 hour audio call
-      totalAmount = callRate * profile.hourlyRate * hours;
-    } else if (serviceType === 'hourly') {
-      // For hourly service type: hourlyRate * hours
-      totalAmount = hours * profile.hourlyRate;
+
+    if (bookingCallType && callRate) {
+      // Treat callRate as the price for a 15-minute session (matching frontend logic)
+      baseAmount = (callRate / 15) * parsedDuration;
+    } else if (profile.hourlyRate) {
+      baseAmount = hours * profile.hourlyRate;
     } else {
-      // For fixed price services
-      totalAmount = profile.hourlyRate;
+      baseAmount = 0; // Fallback
+    }
+
+    // Calculate translation amount
+    let translationAmount = 0;
+    const TRANSLATION_RATE_PER_MIN = 4; // Match frontend TRANSLATE_RATE_PER_MINUTE
+    if (hasRealtimeTranslation) {
+      translationAmount = parsedDuration * TRANSLATION_RATE_PER_MIN;
+    }
+
+    // Calculate discount amount
+    let discountAmount = 0;
+    if (discountCode) {
+      // Simple mock discount logic matching frontend COUPONS
+      if (discountCode === 'SAVE10') {
+        discountAmount = baseAmount * 0.1;
+      } else if (discountCode === 'FLAT500') {
+        discountAmount = 500;
+      }
+    }
+
+    const totalAmount = baseAmount + translationAmount - discountAmount;
+
+    // Check client wallet balance
+    const client = await User.findById(clientId).session(session);
+    if (!client || client.balance < totalAmount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({
+        success: false,
+        message: `Insufficient wallet balance. You need ${totalAmount} ${profile.currency || 'USD'} but only have ${client?.balance || 0} ${profile.currency || 'USD'}.`
+      });
+    }
+
+    // Deduct from client
+    client.balance -= totalAmount;
+    await client.save({ session });
+
+    // Add to provider
+    const provider = await User.findById(serviceProviderId).session(session);
+    if (provider) {
+      provider.balance = (provider.balance || 0) + totalAmount;
+      await provider.save({ session });
     }
 
     // Create the booking
@@ -222,10 +266,48 @@ const createBooking = async (req, res) => {
       currency: profile.currency,
       requirements: requirements || [],
       deliverables: deliverables || [],
-      attachments: attachments || []
+      attachments: attachments || [],
+      paymentStatus: 'paid', // Mark as paid since we deducted from wallet
+      paymentMethod: 'wallet',
+      hasRealtimeTranslation: !!hasRealtimeTranslation,
+      translationAmount,
+      discountCode: discountCode || null,
+      discountAmount
     });
 
-    await booking.save();
+    await booking.save({ session });
+
+    // Create Payment Transactions for records
+    const clientTransaction = new PaymentTransaction({
+      userId: clientId,
+      amount: totalAmount,
+      paymentMethod: 'wallet',
+      status: 'completed',
+      bookingId: booking._id,
+      paymentDetails: { type: 'deduction', description: `Payment for booking: ${title}` }
+    });
+    await clientTransaction.save({ session });
+
+    const providerTransaction = new PaymentTransaction({
+      userId: serviceProviderId,
+      amount: totalAmount,
+      paymentMethod: 'wallet',
+      status: 'completed',
+      bookingId: booking._id,
+      paymentDetails: { type: 'addition', description: `Payment received for booking: ${title}` }
+    });
+    await providerTransaction.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Notify users about balance updates via socket
+    if (socketService.io) {
+      socketService.io.to(clientId.toString()).emit('balanceUpdated', { balance: client.balance });
+      if (provider) {
+        socketService.io.to(serviceProviderId.toString()).emit('balanceUpdated', { balance: provider.balance });
+      }
+    }
 
     // Populate the booking with user details
     await booking.populate([
@@ -236,12 +318,14 @@ const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Booking request created successfully',
+      message: 'Booking request created and paid successfully',
       booking
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error('Error creating booking:', error);
-    
+
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
@@ -322,7 +406,7 @@ const getUserBookings = async (req, res) => {
     const { userType = 'client', page = 1, limit = 20, status } = req.query;
 
     const query = userType === 'client' ? { clientId: userId } : { serviceProviderId: userId };
-    
+
     if (status) {
       query.status = status;
     }
@@ -369,10 +453,10 @@ const getUpcomingBookings = async (req, res) => {
       status: { $in: ['accepted', 'in_progress'] },
       scheduledDate: { $gte: new Date() }
     })
-    .populate('clientId', 'name username avatar')
-    .populate('serviceProviderId', 'name username avatar')
-    .populate('p2pProfileId', 'occupation hourlyRate currency')
-    .sort({ scheduledDate: 1 });
+      .populate('clientId', 'name username avatar')
+      .populate('serviceProviderId', 'name username avatar')
+      .populate('p2pProfileId', 'occupation hourlyRate currency')
+      .sort({ scheduledDate: 1 });
 
     res.status(200).json({
       success: true,
@@ -395,7 +479,7 @@ const acceptBooking = async (req, res) => {
     const { bookingId } = req.params;
 
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
@@ -451,7 +535,7 @@ const rejectBooking = async (req, res) => {
     const { reason } = req.body;
 
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
@@ -499,7 +583,7 @@ const startBooking = async (req, res) => {
     const { bookingId } = req.params;
 
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
@@ -545,8 +629,12 @@ const startBooking = async (req, res) => {
       receiverId: booking.serviceProviderId,
       bookingId: booking._id,
       roomId: roomId,
-      callType: 'video',
-      status: 'initiated'
+      callType: booking.callType || 'video',
+      status: 'initiated',
+      serviceType: booking.serviceType,
+      hourlyRate: booking.hourlyRate,
+      currency: booking.currency,
+      hasRealtimeTranslation: booking.hasRealtimeTranslation || false
     });
 
     await videoCall.save();
@@ -565,14 +653,14 @@ const startBooking = async (req, res) => {
 
     // Send video call invitation to client via socket
     const clientRoom = `video_user_${booking.clientId}`;
-    
+
     // Check if client room exists, if not try to find client socket and join them
     const room = socketService.io.sockets.adapter.rooms.get(clientRoom);
     if (!room) {
       console.log(`🔍 DEBUG: Client room ${clientRoom} not found, attempting to find client socket...`);
       const allSockets = Array.from(socketService.io.sockets.sockets.values());
       const clientSocket = allSockets.find(s => s.userId === booking.clientId);
-      
+
       if (clientSocket) {
         console.log(`🔍 DEBUG: Found client socket, joining to video call room:`, clientSocket.id);
         clientSocket.join(clientRoom);
@@ -581,7 +669,7 @@ const startBooking = async (req, res) => {
         console.log(`🔍 DEBUG: Client socket not found for user: ${booking.clientId}`);
       }
     }
-    
+
     const videoCallData = {
       callerId: booking.serviceProviderId,
       callerName: serviceProvider?.name || serviceProvider?.username || 'Service Provider',
@@ -592,20 +680,20 @@ const startBooking = async (req, res) => {
       bookingId: booking._id,
       timestamp: new Date().toISOString()
     };
-    
+
     console.log(`📡 Sending video call invitation:`, videoCallData);
-    
+
     socketService.io.to(clientRoom).emit('incoming-video-call', videoCallData);
-    
+
     // Also try to find the client socket directly and send the notification
     const allSockets = Array.from(socketService.io.sockets.sockets.values());
     const clientSocket = allSockets.find(s => s.userId === booking.clientId);
-    
+
     if (clientSocket) {
       console.log(`📡 Also sending video call invitation directly to client socket:`, clientSocket.id);
       clientSocket.emit('incoming-video-call', videoCallData);
     }
-    
+
     console.log(`📡 Video call invitation sent to room ${clientRoom}`);
 
     res.status(200).json({
@@ -634,7 +722,7 @@ const completeBooking = async (req, res) => {
     const { bookingId } = req.params;
 
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
@@ -683,7 +771,7 @@ const cancelBooking = async (req, res) => {
     const { reason } = req.body;
 
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
@@ -796,19 +884,19 @@ const getBookingStats = async (req, res) => {
 const getBookingByVideoCallId = async (req, res) => {
   try {
     const { callId } = req.params;
-    
+
     const booking = await Booking.findOne({ videoCallId: callId })
       .populate('clientId', 'name username avatar')
       .populate('serviceProviderId', 'name username avatar')
       .populate('p2pProfileId', 'occupation hourlyRate currency');
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
         message: 'Booking not found for this video call'
       });
     }
-    
+
     res.json({
       success: true,
       booking
@@ -847,7 +935,7 @@ const updateBookingTime = async (req, res) => {
     }
 
     const booking = await Booking.findById(bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({
         success: false,
@@ -907,10 +995,10 @@ const updateBookingTime = async (req, res) => {
     }
 
     // Store old time for message
-    const oldTime = originalDate.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    const oldTime = originalDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
 
     // Update booking time
@@ -920,11 +1008,11 @@ const updateBookingTime = async (req, res) => {
     // Send message to client about time change
     const Message = require('../models/message');
     const Conversation = require('../models/conversation');
-    
-    const newTimeFormatted = newScheduledDate.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+
+    const newTimeFormatted = newScheduledDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
     const dateFormatted = newScheduledDate.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -953,7 +1041,7 @@ const updateBookingTime = async (req, res) => {
     // Create or update conversation
     const sortedIds = [userId, booking.clientId.toString()].sort();
     const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
-    
+
     await Conversation.findOneAndUpdate(
       { conversationId },
       {

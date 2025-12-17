@@ -10,15 +10,20 @@ class SocketService {
   private maxReconnectAttempts = 5;
 
   connect() {
-    if (this.socket?.connected) {
-      console.log('🔌 Socket already connected');
-      return;
-    }
-
-    // Disconnect existing socket if any
     if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
+      if (this.socket.connected) {
+        console.log('🔌 Socket already connected');
+        return;
+      }
+      console.log('🔌 Socket exists but not connected, checking state...');
+      // If socket exists, it might be connecting. Don't destroy it unless token changed.
+      // For now, let's assume if connect() is called, we want to ensure connection.
+      // But avoid destroying it if it's already there to prevent race conditions.
+      if (!this.socket.connected) {
+        console.log('🔌 Socket exists but disconnected. Reconnecting...');
+        this.socket.connect();
+        return;
+      }
     }
 
     const token = getToken();
@@ -57,7 +62,7 @@ class SocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('❌ Socket disconnected:', reason);
       this.isConnected = false;
-      
+
       if (reason === 'io server disconnect') {
         // Server disconnected, try to reconnect
         this.handleReconnect();
@@ -179,7 +184,7 @@ class SocketService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       console.log(`🔄 Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-      
+
       setTimeout(() => {
         this.connect();
       }, 2000 * this.reconnectAttempts); // Exponential backoff

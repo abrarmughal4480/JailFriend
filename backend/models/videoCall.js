@@ -138,6 +138,10 @@ const videoCallSchema = new mongoose.Schema({
     type: String,
     default: 'USD'
   },
+  hasRealtimeTranslation: {
+    type: Boolean,
+    default: false
+  },
   // Call feedback
   feedback: {
     callerRating: {
@@ -166,7 +170,7 @@ videoCallSchema.index({ status: 1 });
 videoCallSchema.index({ startTime: -1 });
 
 // Virtual for call duration calculation
-videoCallSchema.virtual('calculatedDuration').get(function() {
+videoCallSchema.virtual('calculatedDuration').get(function () {
   if (this.endTime && this.startTime) {
     return Math.floor((this.endTime - this.startTime) / 1000);
   }
@@ -174,7 +178,7 @@ videoCallSchema.virtual('calculatedDuration').get(function() {
 });
 
 // Method to end the call
-videoCallSchema.methods.endCall = function() {
+videoCallSchema.methods.endCall = function () {
   this.status = 'ended';
   this.endTime = new Date();
   this.duration = this.calculatedDuration;
@@ -182,7 +186,7 @@ videoCallSchema.methods.endCall = function() {
 };
 
 // Method to reject the call
-videoCallSchema.methods.rejectCall = function(reason = 'user_rejected') {
+videoCallSchema.methods.rejectCall = function (reason = 'user_rejected') {
   this.status = 'rejected';
   this.endTime = new Date();
   this.rejectionReason = reason;
@@ -190,52 +194,52 @@ videoCallSchema.methods.rejectCall = function(reason = 'user_rejected') {
 };
 
 // Method to mark as missed
-videoCallSchema.methods.markAsMissed = function() {
+videoCallSchema.methods.markAsMissed = function () {
   this.status = 'missed';
   this.endTime = new Date();
   return this.save();
 };
 
 // Method to answer the call
-videoCallSchema.methods.answerCall = function() {
+videoCallSchema.methods.answerCall = function () {
   this.status = 'answered';
   return this.save();
 };
 
 // Method to start screen sharing
-videoCallSchema.methods.startScreenShare = function() {
+videoCallSchema.methods.startScreenShare = function () {
   this.isScreenSharing = true;
   this.screenShareStartTime = new Date();
   return this.save();
 };
 
 // Method to stop screen sharing
-videoCallSchema.methods.stopScreenShare = function() {
+videoCallSchema.methods.stopScreenShare = function () {
   this.isScreenSharing = false;
   this.screenShareEndTime = new Date();
   return this.save();
 };
 
 // Static method to get user's call history
-videoCallSchema.statics.getUserCallHistory = function(userId, page = 1, limit = 20) {
+videoCallSchema.statics.getUserCallHistory = function (userId, page = 1, limit = 20) {
   const skip = (page - 1) * limit;
-  
+
   return this.find({
     $or: [
       { callerId: userId },
       { receiverId: userId }
     ]
   })
-  .populate('callerId', 'name username avatar')
-  .populate('receiverId', 'name username avatar')
-  .populate('bookingId', 'title serviceType totalAmount')
-  .sort({ createdAt: -1 })
-  .skip(skip)
-  .limit(limit);
+    .populate('callerId', 'name username avatar')
+    .populate('receiverId', 'name username avatar')
+    .populate('bookingId', 'title serviceType totalAmount')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
 };
 
 // Static method to get active calls for a user
-videoCallSchema.statics.getActiveCalls = function(userId) {
+videoCallSchema.statics.getActiveCalls = function (userId) {
   return this.find({
     $or: [
       { callerId: userId },
@@ -243,16 +247,16 @@ videoCallSchema.statics.getActiveCalls = function(userId) {
     ],
     status: { $in: ['initiated', 'ringing', 'answered'] }
   })
-  .populate('callerId', 'name username avatar')
-  .populate('receiverId', 'name username avatar')
-  .populate('bookingId', 'title serviceType');
+    .populate('callerId', 'name username avatar')
+    .populate('receiverId', 'name username avatar')
+    .populate('bookingId', 'title serviceType');
 };
 
 // Static method to get call statistics
-videoCallSchema.statics.getCallStats = function(userId, days = 30) {
+videoCallSchema.statics.getCallStats = function (userId, days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   return this.aggregate([
     {
       $match: {
@@ -290,10 +294,10 @@ videoCallSchema.statics.getCallStats = function(userId, days = 30) {
 };
 
 // Static method to get P2P call statistics
-videoCallSchema.statics.getP2PCallStats = function(userId, days = 30) {
+videoCallSchema.statics.getP2PCallStats = function (userId, days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   return this.aggregate([
     {
       $match: {

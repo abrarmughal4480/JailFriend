@@ -76,7 +76,8 @@ const initiateCall = async (req, res) => {
       status: 'initiated',
       serviceType: booking?.serviceType,
       hourlyRate: booking?.hourlyRate,
-      currency: booking?.currency
+      currency: booking?.currency,
+      hasRealtimeTranslation: booking?.hasRealtimeTranslation || false
     });
 
     await videoCall.save();
@@ -111,7 +112,7 @@ const answerCall = async (req, res) => {
     const { answer } = req.body;
 
     const videoCall = await VideoCall.findById(callId);
-    
+
     if (!videoCall) {
       return res.status(404).json({
         success: false,
@@ -173,7 +174,7 @@ const rejectCall = async (req, res) => {
     const { reason = 'user_rejected' } = req.body;
 
     const videoCall = await VideoCall.findById(callId);
-    
+
     if (!videoCall) {
       return res.status(404).json({
         success: false,
@@ -221,7 +222,7 @@ const endCall = async (req, res) => {
     const { callId } = req.params;
 
     const videoCall = await VideoCall.findById(callId);
-    
+
     if (!videoCall) {
       return res.status(404).json({
         success: false,
@@ -282,7 +283,7 @@ const getCallById = async (req, res) => {
     const videoCall = await VideoCall.findById(callId)
       .populate('callerId', 'name username avatar')
       .populate('receiverId', 'name username avatar')
-      .populate('bookingId', 'title serviceType totalAmount');
+      .populate('bookingId', 'title serviceType totalAmount hasRealtimeTranslation');
 
     if (!videoCall) {
       return res.status(404).json({
@@ -429,7 +430,7 @@ const addIceCandidate = async (req, res) => {
     const { candidate, sdpMLineIndex, sdpMid } = req.body;
 
     const videoCall = await VideoCall.findById(callId);
-    
+
     if (!videoCall) {
       return res.status(404).json({
         success: false,
@@ -466,7 +467,7 @@ const updateCallQuality = async (req, res) => {
     const { audioLevel, videoQuality, connectionQuality, bandwidth, latency } = req.body;
 
     const videoCall = await VideoCall.findById(callId);
-    
+
     if (!videoCall) {
       return res.status(404).json({
         success: false,

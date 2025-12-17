@@ -89,7 +89,7 @@ const bookingSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['stripe', 'paypal', 'bank_transfer', 'cash']
+    enum: ['stripe', 'paypal', 'bank_transfer', 'cash', 'wallet']
   },
   paymentId: {
     type: String
@@ -151,6 +151,24 @@ const bookingSchema = new mongoose.Schema({
     },
     comment: String,
     createdAt: Date
+  },
+  // Real-time Translation
+  hasRealtimeTranslation: {
+    type: Boolean,
+    default: false
+  },
+  translationAmount: {
+    type: Number,
+    default: 0
+  },
+  // Discounts
+  discountCode: {
+    type: String,
+    default: null
+  },
+  discountAmount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true
@@ -164,31 +182,31 @@ bookingSchema.index({ scheduledDate: 1 });
 bookingSchema.index({ p2pProfileId: 1 });
 
 // Virtual for calculating total amount based on duration and hourly rate
-bookingSchema.virtual('calculatedAmount').get(function() {
+bookingSchema.virtual('calculatedAmount').get(function () {
   const hours = this.duration / 60;
-  
+
   // For audio/video/chat calls: callRate * hourlyRate * hours
   if (this.callType && this.callRate && this.hourlyRate) {
     return this.callRate * this.hourlyRate * hours;
   }
-  
+
   // For hourly service type: hourlyRate * hours
   if (this.serviceType === 'hourly') {
     return hours * this.hourlyRate;
   }
-  
+
   return this.totalAmount;
 });
 
 // Method to accept booking
-bookingSchema.methods.acceptBooking = function() {
+bookingSchema.methods.acceptBooking = function () {
   this.status = 'accepted';
   this.acceptedAt = new Date();
   return this.save();
 };
 
 // Method to reject booking
-bookingSchema.methods.rejectBooking = function(reason) {
+bookingSchema.methods.rejectBooking = function (reason) {
   this.status = 'rejected';
   this.cancellationReason = reason;
   this.cancelledAt = new Date();
@@ -196,21 +214,21 @@ bookingSchema.methods.rejectBooking = function(reason) {
 };
 
 // Method to start booking
-bookingSchema.methods.startBooking = function() {
+bookingSchema.methods.startBooking = function () {
   this.status = 'in_progress';
   this.startedAt = new Date();
   return this.save();
 };
 
 // Method to complete booking
-bookingSchema.methods.completeBooking = function() {
+bookingSchema.methods.completeBooking = function () {
   this.status = 'completed';
   this.completedAt = new Date();
   return this.save();
 };
 
 // Method to cancel booking
-bookingSchema.methods.cancelBooking = function(reason) {
+bookingSchema.methods.cancelBooking = function (reason) {
   this.status = 'cancelled';
   this.cancellationReason = reason;
   this.cancelledAt = new Date();
@@ -218,10 +236,10 @@ bookingSchema.methods.cancelBooking = function(reason) {
 };
 
 // Static method to get user's bookings
-bookingSchema.statics.getUserBookings = function(userId, userType = 'client', page = 1, limit = 20) {
+bookingSchema.statics.getUserBookings = function (userId, userType = 'client', page = 1, limit = 20) {
   const skip = (page - 1) * limit;
   const query = userType === 'client' ? { clientId: userId } : { serviceProviderId: userId };
-  
+
   return this.find(query)
     .populate('clientId', 'name username avatar')
     .populate('serviceProviderId', 'name username avatar')
@@ -232,27 +250,27 @@ bookingSchema.statics.getUserBookings = function(userId, userType = 'client', pa
 };
 
 // Static method to get upcoming bookings
-bookingSchema.statics.getUpcomingBookings = function(userId, userType = 'client') {
+bookingSchema.statics.getUpcomingBookings = function (userId, userType = 'client') {
   const query = userType === 'client' ? { clientId: userId } : { serviceProviderId: userId };
-  
+
   return this.find({
     ...query,
     status: { $in: ['accepted', 'in_progress'] },
     scheduledDate: { $gte: new Date() }
   })
-  .populate('clientId', 'name username avatar')
-  .populate('serviceProviderId', 'name username avatar')
-  .populate('p2pProfileId', 'occupation hourlyRate currency')
-  .sort({ scheduledDate: 1 });
+    .populate('clientId', 'name username avatar')
+    .populate('serviceProviderId', 'name username avatar')
+    .populate('p2pProfileId', 'occupation hourlyRate currency')
+    .sort({ scheduledDate: 1 });
 };
 
 // Static method to get booking statistics
-bookingSchema.statics.getBookingStats = function(userId, userType = 'client', days = 30) {
+bookingSchema.statics.getBookingStats = function (userId, userType = 'client', days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   const query = userType === 'client' ? { clientId: userId } : { serviceProviderId: userId };
-  
+
   return this.aggregate([
     {
       $match: {
@@ -272,6 +290,15 @@ bookingSchema.statics.getBookingStats = function(userId, userType = 'client', da
         },
         totalEarnings: {
           $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$totalAmount', 0] }
+        },
+        totalTranslationRevenue: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$translationAmount', 0] }
+        },
+        totalDiscountsGiven: {
+          $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$discountAmount', 0] }
+        },
+        bookingsWithTranslationCount: {
+          $sum: { $cond: ['$hasRealtimeTranslation', 1, 0] }
         },
         averageBookingValue: { $avg: '$totalAmount' }
       }

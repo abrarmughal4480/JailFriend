@@ -39,18 +39,20 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    
+
     let retryCount = 0;
     const maxRetries = 10; // Maximum 20 seconds of retries
-    
+
     // Initialize after ensuring socket is ready
     const initializeWithSocketCheck = () => {
       const token = getToken();
       const userId = getCurrentUserId();
       const user = getCurrentUser();
-      
+
       if (!token || !userId) {
-        console.log('No token or userId found for video call service');
+        console.log('⏳ No token or userId found, waiting for auth...');
+        // Retry in 3 seconds
+        setTimeout(initializeWithSocketCheck, 3000);
         return;
       }
 
@@ -62,25 +64,20 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
           console.log('🎯 Socket not connected, attempting to connect...');
           socketService.connect();
         }
-        
-        retryCount++;
-        if (retryCount < maxRetries) {
-          console.log(`🎯 Socket not ready for video call service, retry ${retryCount}/${maxRetries}...`);
-          setTimeout(initializeWithSocketCheck, 2000);
-        } else {
-          console.error('🎯 Failed to initialize video call service after maximum retries');
-        }
+
+        console.log(`🎯 Socket not ready, retrying in 2 seconds...`);
+        setTimeout(initializeWithSocketCheck, 2000);
         return;
       }
 
       console.log('🎯 Initializing global video call service for user:', userId);
       console.log('🎯 User data:', user);
       console.log('🎯 Socket ready:', socket.id);
-      
+
       // Get user name from stored user data or fallback to username/email
       const userName = user?.name || (user as any)?.username || user?.email || 'User';
       console.log('🎯 Using userName for video call service:', userName);
-      
+
       const service = new VideoCallService({
         userId,
         userName: userName,
@@ -88,7 +85,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
           console.log('📹 Global incoming video call:', callData);
           setIncomingVideoCall(callData);
           setShowVideoCallNotification(true);
-          
+
           // Request browser notification permission and show notification
           if ('Notification' in window) {
             if (Notification.permission === 'granted') {
@@ -111,44 +108,44 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
               });
             }
           }
-          
+
           // Play professional notification sound using Web Audio API
           try {
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            
+
             // Create a more professional ringtone
             const createTone = (frequency: number, startTime: number, duration: number) => {
               const oscillator = audioContext.createOscillator();
               const gainNode = audioContext.createGain();
-              
+
               oscillator.connect(gainNode);
               gainNode.connect(audioContext.destination);
-              
+
               oscillator.frequency.setValueAtTime(frequency, startTime);
               oscillator.type = 'sine';
-              
+
               gainNode.gain.setValueAtTime(0, startTime);
               gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.1);
               gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-              
+
               oscillator.start(startTime);
               oscillator.stop(startTime + duration);
             };
-            
+
             const currentTime = audioContext.currentTime;
-            
+
             // Create a professional ringtone pattern
             createTone(800, currentTime, 0.2);
             createTone(600, currentTime + 0.3, 0.2);
             createTone(800, currentTime + 0.6, 0.2);
-            
+
             // Repeat the pattern
             setTimeout(() => {
               createTone(800, audioContext.currentTime, 0.2);
               createTone(600, audioContext.currentTime + 0.3, 0.2);
               createTone(800, audioContext.currentTime + 0.6, 0.2);
             }, 1000);
-            
+
           } catch (e) {
             console.log('Web Audio API not available for notification sound');
           }
@@ -169,14 +166,14 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
           setIncomingVideoCall(null);
         }
       });
-      
+
       service.connect();
       setVideoCallService(service);
     };
 
     // Start initialization immediately, but with socket checking
     initializeWithSocketCheck();
-    
+
     return () => {
       if (videoCallService) {
         videoCallService.disconnect();
@@ -197,7 +194,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
           return prev - 1;
         });
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [showVideoCallNotification, callTimer, incomingVideoCall]);
@@ -217,7 +214,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
         userType: 'USER',
         url: `/dashboard/video-call/${callId}?type=user&caller=${encodeURIComponent(incomingVideoCall.callerName)}`
       });
-      
+
       videoCallService.acceptCall(callId);
       // Navigate to video call page
       window.location.href = `/dashboard/video-call/${callId}?type=user&caller=${encodeURIComponent(incomingVideoCall.callerName)}`;
@@ -242,7 +239,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
   return (
     <VideoCallContext.Provider value={value}>
       {children}
-      
+
       {/* Global Video Call Notification */}
       {showVideoCallNotification && incomingVideoCall && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 video-call-backdrop">
@@ -257,7 +254,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
                   </h3>
                 </div>
               </div>
-              
+
               {/* Caller Info */}
               <div className="text-center mb-6">
                 {/* Avatar */}
@@ -290,7 +287,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
                   <span className="font-bold text-red-500 text-lg video-call-timer">{callTimer}s</span>
                 </div>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex space-x-3">
                 <button
@@ -307,7 +304,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
                   </svg>
                   <span>Accept</span>
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setShowVideoCallNotification(false);

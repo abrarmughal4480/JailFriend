@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const Message = require('../models/message');
 const User = require('../models/user');
 const Conversation = require('../models/conversation');
+const sonioxService = require('./sonioxService');
 
 class SocketService {
   constructor() {
@@ -30,21 +31,23 @@ class SocketService {
     this.io.use(this.authenticateSocket.bind(this));
     this.setupEventHandlers();
     this.startPulseMonitoring();
-    
+
+
+
     console.log('🔌 Socket.IO service initialized');
   }
 
   async authenticateSocket(socket, next) {
     try {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
-      
+
       console.log('🔐 Socket authentication attempt:', {
         hasToken: !!token,
         tokenLength: token ? token.length : 0,
         authHeader: socket.handshake.auth,
         authHeaders: socket.handshake.headers.authorization ? 'Present' : 'Missing'
       });
-      
+
       if (!token) {
         console.error('❌ No token provided for socket authentication');
         return next(new Error('Authentication error: No token provided'));
@@ -52,22 +55,22 @@ class SocketService {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-super-secret-jwt-key-for-development-only');
       console.log('🔐 Token decoded successfully:', { userId: decoded.userId, id: decoded.id });
-      
+
       // Use userId from token (as set in authController)
       const userId = decoded.userId || decoded.id;
       console.log('🔐 Using userId:', userId);
-      
+
       const user = await User.findById(userId).select('_id name username avatar isOnline');
-      
+
       if (!user) {
         console.error('❌ User not found in database:', userId);
         return next(new Error('Authentication error: User not found'));
       }
 
-      console.log('✅ User authenticated successfully:', { 
-        id: user._id, 
-        name: user.name, 
-        username: user.username 
+      console.log('✅ User authenticated successfully:', {
+        id: user._id,
+        name: user.name,
+        username: user.username
       });
 
       socket.userId = user._id.toString();
@@ -82,10 +85,10 @@ class SocketService {
   setupEventHandlers() {
     this.io.on('connection', (socket) => {
       console.log(`🔌 User connected: ${socket.user.name} (${socket.userId})`);
-      
+
       // Store user connection
       this.connectedUsers.set(socket.userId, socket.id);
-      
+
       // Update user online status
       this.updateUserOnlineStatus(socket.userId, true);
 
@@ -108,7 +111,7 @@ class SocketService {
       socket.on('send_message', async (data) => {
         try {
           const { conversationId, content, type = 'text', replyTo, media } = data;
-          
+
           console.log(`💬 Message from ${socket.user.name} to conversation ${conversationId}:`, content);
 
           // Parse conversation ID to get receiver ID
@@ -130,13 +133,13 @@ class SocketService {
           });
 
           const savedMessage = await messageDoc.save();
-          
+
           // Create or update conversation
           await this.createOrUpdateConversation(socket.userId, receiverId, savedMessage._id, {
             type: 'regular',
             p2pContext: {}
           });
-          
+
           // Populate sender and receiver details
           await savedMessage.populate([
             { path: 'senderId', select: 'name username avatar' },
@@ -170,7 +173,7 @@ class SocketService {
 
           // Broadcast message to conversation participants (excluding sender)
           socket.to(`conversation_${conversationId}`).emit('new_message', message);
-          
+
           console.log(`📡 Broadcasting message to conversation_${conversationId} (excluding sender: ${socket.userId})`);
 
           // Send notification to offline participants
@@ -214,7 +217,7 @@ class SocketService {
       socket.on('initiate_call', async (data) => {
         const { receiverId, callType = 'audio', callId } = data;
         console.log(`📞 Call initiated from ${socket.user.name} to user ${receiverId}`);
-        
+
         // Send call invitation to receiver with actual call ID
         socket.to(`user_${receiverId}`).emit('incoming_call', {
           callId: callId, // Use the actual call ID from database
@@ -245,14 +248,14 @@ class SocketService {
           },
           timestamp: new Date().toISOString()
         });
-        
+
         console.log(`📞 Call accepted event sent to user_${callerId}`);
       });
 
       socket.on('reject_call', (data) => {
         const { callId, callerId, reason } = data;
         console.log(`📞 Call rejected by ${socket.user.name} for call ${callId}`);
-        
+
         // Notify caller that call was rejected
         socket.to(`user_${callerId}`).emit('call_rejected', {
           callId,
@@ -265,7 +268,7 @@ class SocketService {
       socket.on('end_call', (data) => {
         const { callId, otherUserId } = data;
         console.log(`📞 Call ended by ${socket.user.name} for call ${callId}`);
-        
+
         // Notify other participant that call ended
         socket.to(`user_${otherUserId}`).emit('call_ended', {
           callId,
@@ -277,7 +280,7 @@ class SocketService {
       socket.on('cancel_call', (data) => {
         const { callId, receiverId } = data;
         console.log(`📞 Call cancelled by ${socket.user.name} for call ${callId}`);
-        
+
         // Notify receiver that call was cancelled
         socket.to(`user_${receiverId}`).emit('call_cancelled', {
           callId,
@@ -290,7 +293,7 @@ class SocketService {
       socket.on('webrtc_offer', (data) => {
         const { callId, offer, receiverId } = data;
         console.log(`📞 WebRTC offer sent from ${socket.user.name} to user ${receiverId}`);
-        
+
         // Forward offer to receiver
         socket.to(`user_${receiverId}`).emit('webrtc_offer', {
           callId,
@@ -303,7 +306,7 @@ class SocketService {
       socket.on('webrtc_answer', (data) => {
         const { callId, answer, callerId } = data;
         console.log(`📞 WebRTC answer sent from ${socket.user.name} to user ${callerId}`);
-        
+
         // Forward answer to caller
         socket.to(`user_${callerId}`).emit('webrtc_answer', {
           callId,
@@ -315,7 +318,7 @@ class SocketService {
 
       socket.on('webrtc_ice_candidate', (data) => {
         const { callId, candidate, receiverId } = data;
-        
+
         // Forward ICE candidate to receiver
         socket.to(`user_${receiverId}`).emit('webrtc_ice_candidate', {
           callId,
@@ -337,7 +340,7 @@ class SocketService {
         const roomName = `video_user_${userId}`;
         socket.join(roomName);
         console.log(`📹 User joined video call room: ${roomName}`);
-        
+
         // Notify all users in the room that a user has joined
         socket.to(roomName).emit('user-joined-video-service', {
           userId,
@@ -356,19 +359,19 @@ class SocketService {
           callId,
           socketId: socket.id
         });
-        
+
         // Check if receiver room exists
         const receiverRoom = `video_user_${receiverId}`;
         const room = this.io.sockets.adapter.rooms.get(receiverRoom);
         console.log(`🔍 DEBUG: Receiver room ${receiverRoom} exists:`, room ? Array.from(room) : 'Room not found');
-        
+
         // If receiver room doesn't exist, try to find the receiver's socket and join them to the room
         if (!room) {
           console.log(`🔍 DEBUG: Receiver room not found, attempting to find receiver socket...`);
           // Find all connected sockets and check if any belong to the receiver
           const allSockets = Array.from(this.io.sockets.sockets.values());
           const receiverSocket = allSockets.find(s => s.userId === receiverId);
-          
+
           if (receiverSocket) {
             console.log(`🔍 DEBUG: Found receiver socket, joining to video call room:`, receiverSocket.id);
             receiverSocket.join(receiverRoom);
@@ -377,7 +380,7 @@ class SocketService {
             console.log(`🔍 DEBUG: Receiver socket not found for user: ${receiverId}`);
           }
         }
-        
+
         // Send video call invitation to receiver
         socket.to(receiverRoom).emit('incoming-video-call', {
           callerId,
@@ -387,7 +390,7 @@ class SocketService {
           callId,
           timestamp: new Date().toISOString()
         });
-        
+
         // Also notify the caller that the invitation was sent
         socket.emit('video-call-invitation-sent', {
           receiverId,
@@ -395,14 +398,14 @@ class SocketService {
           callId,
           timestamp: new Date().toISOString()
         });
-        
+
         console.log(`📡 Video call invitation sent to room ${receiverRoom}`);
       });
 
       socket.on('accept-video-call', (data) => {
         const { callId, receiverId, receiverName, callerId } = data;
         console.log(`📹 Video call accepted by ${receiverName} for call ${callId}`);
-        
+
         // Notify caller that video call was accepted
         socket.to(`video_user_${callerId}`).emit('video-call-accepted', {
           callId,
@@ -410,7 +413,7 @@ class SocketService {
           receiverName,
           timestamp: new Date().toISOString()
         });
-        
+
         // Also notify the receiver to start their connection
         socket.to(`video_user_${receiverId}`).emit('start-video-connection', {
           callId,
@@ -418,14 +421,14 @@ class SocketService {
           receiverId,
           timestamp: new Date().toISOString()
         });
-        
+
         // Also notify the caller to retry sending the offer
         socket.to(`video_user_${callerId}`).emit('retry-offer-after-accept', {
           callId,
           receiverId,
           timestamp: new Date().toISOString()
         });
-        
+
         console.log(`📡 Video call acceptance notification sent to caller ${callerId}`);
         console.log(`📡 Start connection signal sent to receiver ${receiverId}`);
         console.log(`📡 Retry offer signal sent to caller ${callerId}`);
@@ -434,7 +437,7 @@ class SocketService {
       socket.on('decline-video-call', (data) => {
         const { callId, receiverId, callerId } = data;
         console.log(`📹 Video call declined by user ${receiverId} for call ${callId}`);
-        
+
         // Notify caller that video call was declined
         socket.to(`video_user_${callerId}`).emit('video-call-declined', {
           callId,
@@ -446,7 +449,7 @@ class SocketService {
       socket.on('end-video-call', (data) => {
         const { callId, userId } = data;
         console.log(`📹 Video call ended by user ${userId} for call ${callId}`);
-        
+
         // Notify all participants that video call ended
         socket.broadcast.emit('video-call-ended', {
           callId,
@@ -470,23 +473,23 @@ class SocketService {
           data: data,
           socketId: socket.id
         });
-        
+
         // Join the room
         socket.join(roomId);
-        
+
         // Verify room membership
         const room = this.io.sockets.adapter.rooms.get(roomId);
         const roomMembers = room ? Array.from(room) : [];
         console.log(`📹 User ${socket.user.name} joined video call room ${roomId}`, data || '');
         console.log(`🔍 DEBUG: Room ${roomId} now has ${roomMembers.length} member(s):`, roomMembers);
-        
+
         // Notify the client that they successfully joined
         socket.emit('room-joined', {
           roomId: roomId,
           memberCount: roomMembers.length,
           members: roomMembers
         });
-        
+
         // Notify other members in the room that a new user joined
         socket.to(roomId).emit('user-joined-room', {
           roomId: roomId,
@@ -507,23 +510,23 @@ class SocketService {
           socketId: socket.id
         });
         console.log(`📹 WebRTC offer received from ${socket.user.name} for room ${roomId}`);
-        
+
         // Ensure sender is in the room
         if (!socket.rooms.has(roomId)) {
           console.log(`🔍 DEBUG: Sender not in room ${roomId}, joining now...`);
           socket.join(roomId);
         }
-        
+
         // Check room members before forwarding
         const room = this.io.sockets.adapter.rooms.get(roomId);
         const roomMembers = room ? Array.from(room) : [];
         console.log(`🔍 DEBUG: Room ${roomId} members:`, roomMembers);
-        
+
         if (roomMembers.length < 2) {
           console.warn(`⚠️ WARNING: Room ${roomId} has less than 2 members (${roomMembers.length}). Offer may not be delivered.`);
           // Still try to forward, but log warning
         }
-        
+
         // Forward offer to other participants in the room
         socket.to(roomId).emit('offer', offer);
         console.log(`🔍 DEBUG: offer forwarded to room ${roomId} (excluding sender ${socket.id})`);
@@ -538,22 +541,22 @@ class SocketService {
           socketId: socket.id
         });
         console.log(`📹 WebRTC answer received from ${socket.user.name} for room ${roomId}`);
-        
+
         // Ensure sender is in the room
         if (!socket.rooms.has(roomId)) {
           console.log(`🔍 DEBUG: Sender not in room ${roomId}, joining now...`);
           socket.join(roomId);
         }
-        
+
         // Check room members before forwarding
         const room = this.io.sockets.adapter.rooms.get(roomId);
         const roomMembers = room ? Array.from(room) : [];
         console.log(`🔍 DEBUG: Room ${roomId} members:`, roomMembers);
-        
+
         if (roomMembers.length < 2) {
           console.warn(`⚠️ WARNING: Room ${roomId} has less than 2 members (${roomMembers.length}). Answer may not be delivered.`);
         }
-        
+
         // Forward answer to other participants in the room
         socket.to(roomId).emit('answer', answer);
         console.log(`🔍 DEBUG: answer forwarded to room ${roomId} (excluding sender ${socket.id})`);
@@ -568,21 +571,21 @@ class SocketService {
           socketId: socket.id
         });
         console.log(`📹 ICE candidate received from ${socket.user.name} for room ${roomId}`);
-        
+
         // Ensure sender is in the room
         if (!socket.rooms.has(roomId)) {
           console.log(`🔍 DEBUG: Sender not in room ${roomId}, joining now...`);
           socket.join(roomId);
         }
-        
+
         // Check room members before forwarding
         const room = this.io.sockets.adapter.rooms.get(roomId);
         const roomMembers = room ? Array.from(room) : [];
-        
+
         if (roomMembers.length < 2) {
           console.warn(`⚠️ WARNING: Room ${roomId} has less than 2 members (${roomMembers.length}). ICE candidate may not be delivered.`);
         }
-        
+
         // Forward ICE candidate to other participants in the room
         socket.to(roomId).emit('ice-candidate', candidate);
         console.log(`🔍 DEBUG: ice-candidate forwarded to room ${roomId} (excluding sender ${socket.id})`);
@@ -598,7 +601,7 @@ class SocketService {
           requestingUserId: userId,
           socketId: socket.id
         });
-        
+
         // Forward retry request to other participants in the room
         socket.to(roomId).emit('offer-retry', {
           roomId: roomId,
@@ -623,19 +626,19 @@ class SocketService {
           connectionState: pulseData.connectionState,
           timestamp: pulseData.timestamp
         });
-        
+
         // Forward pulse to other participants in the room
         socket.to(pulseData.roomId).emit('video-call-pulse', {
           ...pulseData,
           senderId: socket.userId,
           senderName: socket.user.name
         });
-        
+
         // Store pulse data for timeout monitoring
         if (!this.pulseData) {
           this.pulseData = new Map();
         }
-        
+
         const pulseKey = `${pulseData.roomId}_${pulseData.userId}`;
         this.pulseData.set(pulseKey, {
           ...pulseData,
@@ -644,16 +647,234 @@ class SocketService {
         });
       });
 
+      // Real-time translation handlers
+      socket.on('enable-translation', async (data) => {
+        console.log('🔍 DEBUG: enable-translation event received', {
+          hasData: !!data,
+          userId: socket.userId,
+          userName: socket.user?.name,
+          data
+        });
+
+        const { roomId, targetLanguage, sourceLanguage, translationType = 'one_way', ttsVoice, callId } = data;
+        console.log(`🌐 Translation enabled by ${socket.user.name}:`, {
+          roomId,
+          targetLanguage,
+          sourceLanguage,
+          translationType,
+          userId: socket.userId,
+          callId
+        });
+
+        // Check authorization
+        const VideoCall = require('../models/videoCall');
+        const AudioCall = require('../models/audioCall');
+
+        let call = await VideoCall.findById(callId || roomId); // Try both as sometimes they send callId or roomId
+        if (!call) {
+          call = await AudioCall.findById(callId || roomId);
+        }
+
+        if (!call || !call.hasRealtimeTranslation) {
+          console.log(`❌ Translation unauthorized for user ${socket.user.name} in call ${callId || roomId}`);
+          socket.emit('translation-error', {
+            error: 'Feature not enabled',
+            message: 'Real-time translation is not enabled for this call.'
+          });
+          return;
+        }
+
+        // Configure translation based on type
+        let translationConfig;
+        if (translationType === 'two_way' && sourceLanguage && targetLanguage) {
+          translationConfig = {
+            type: 'two_way',
+            language_a: sourceLanguage,
+            language_b: targetLanguage
+          };
+        } else if (translationType === 'one_way' && targetLanguage) {
+          translationConfig = {
+            type: 'one_way',
+            target_language: targetLanguage
+          };
+        } else {
+          socket.emit('translation-error', {
+            error: 'Invalid translation configuration',
+            message: 'Please provide valid source and target languages'
+          });
+          return;
+        }
+
+        // Initialize Soniox connection
+        // Create unique language hints array (Soniox requires unique values)
+        const languageHints = sourceLanguage
+          ? Array.from(new Set([sourceLanguage, targetLanguage]))
+          : [targetLanguage];
+
+        const success = await sonioxService.initializeConnection(
+          socket.userId,
+          {
+            model: 'stt-rt-preview', // Official WebSocket API model
+            translation: translationConfig,
+            languageHints,
+            enableSpeakerDiarization: false,
+            enableLanguageIdentification: true, // Supported in WebSocket API
+            enableEndpointDetection: true,
+            enableTTS: true,
+            ttsVoice: ttsVoice || 'a0e99841-438c-4a64-b679-ae501e7d6091', // Default Cartesia voice
+            isTranslatingRemote: data.isTranslatingRemote || false
+          },
+          // onTranscript callback
+          async (result) => {
+            // Only log final translations, not every partial result
+            // console.log(`📝 Translation result for ${socket.user.name}:`, result);
+
+            // Send transcript and translation to the user
+            socket.emit('translation-result', {
+              roomId,
+              transcript: result.transcript,
+              translation: result.translation,
+              isFinal: result.isFinal,
+              speaker: result.speaker,
+              language: result.language
+            });
+
+            // If final and has translation, generate audio and send to other user
+            if (result.isFinal && result.translation) {
+              try {
+                console.log(`🔊 Generating TTS for: "${result.translation}"`);
+                const audioBuffer = await sonioxService.textToSpeech(
+                  socket.userId,
+                  result.translation,
+                  ttsVoice
+                );
+
+                // Decide where to send the audio
+                const connection = sonioxService.connections.get(socket.userId);
+                const isTranslatingRemote = connection?.config?.isTranslatingRemote;
+
+                const audioData = {
+                  audio: audioBuffer,
+                  text: result.translation,
+                  fromUserId: socket.userId,
+                  fromUserName: socket.user.name
+                };
+
+                if (isTranslatingRemote) {
+                  // If I'm translating the remote person, send the translation back to ME
+                  socket.emit('translation-audio', audioData);
+                  console.log(`✅ Sent translation audio back to sender ${socket.userId} (translating remote)`);
+                } else {
+                  // If I'm translating MYSELF, send the translation to OTHERS
+                  socket.to(roomId).emit('translation-audio', audioData);
+                  console.log(`✅ Sent translation audio to room ${roomId} (excluding sender)`);
+                }
+              } catch (error) {
+                console.error(`❌ Error generating TTS for user ${socket.userId}:`, error);
+              }
+            }
+          },
+          // onError callback
+          (status, message) => {
+            console.error(`❌ Soniox error for ${socket.user.name}:`, status, message);
+            socket.emit('translation-error', {
+              status,
+              message,
+              roomId
+            });
+          }
+        );
+
+        if (success) {
+          // Notify user that translation is ready
+          socket.emit('translation-enabled', {
+            roomId,
+            translationType,
+            sourceLanguage,
+            targetLanguage
+          });
+
+          // Notify other participants in the room
+          socket.to(roomId).emit('user-translation-enabled', {
+            userId: socket.userId,
+            userName: socket.user.name,
+            roomId
+          });
+
+          console.log(`✅ Translation enabled for ${socket.user.name}`);
+        } else {
+          socket.emit('translation-error', {
+            error: 'Failed to initialize translation',
+            message: 'Could not connect to translation service'
+          });
+        }
+      });
+
+      socket.on('disable-translation', (data) => {
+        const { roomId } = data;
+        console.log(`🌐 Translation disabled by ${socket.user.name} for room ${roomId}`);
+
+        // Close Soniox connection
+        sonioxService.closeConnection(socket.userId);
+
+        // Notify user
+        socket.emit('translation-disabled', { roomId });
+
+        // Notify other participants
+        socket.to(roomId).emit('user-translation-disabled', {
+          userId: socket.userId,
+          userName: socket.user.name,
+          roomId
+        });
+      });
+
+      socket.on('translation-audio-chunk', (data) => {
+        const { audioChunk, roomId } = data;
+
+        // Only process if Soniox connection exists
+        const hasConnection = sonioxService.connections.has(socket.userId);
+        if (!hasConnection) {
+          // Silently ignore - connection not established yet
+          return;
+        }
+
+        // Convert to Buffer
+        let buffer = Buffer.from(audioChunk);
+
+        // Ensure buffer length is a multiple of 2 (required for PCM16)
+        // Each PCM16 sample is 2 bytes, so total length must be even
+        if (buffer.length % 2 !== 0) {
+          // Trim the last byte if odd length
+          buffer = buffer.slice(0, buffer.length - 1);
+          console.warn(`⚠️ Trimmed audio chunk from ${audioChunk.length} to ${buffer.length} bytes for user ${socket.userId}`);
+        }
+
+        // Send audio chunk to Soniox
+        const success = sonioxService.sendAudioChunk(socket.userId, buffer);
+
+        if (!success) {
+          console.warn(`⚠️ Failed to send audio chunk for user ${socket.userId}`);
+        }
+      });
+
+      socket.on('translation-finalize', () => {
+        console.log(`🎙️ Finalizing translation for ${socket.user.name}`);
+        sonioxService.finalize(socket.userId);
+      });
+
       // Handle user disconnect
       socket.on('disconnect', () => {
         console.log(`🔌 User disconnected: ${socket.user.name} (${socket.userId})`);
-        
+
         // Remove user from connected users
         this.connectedUsers.delete(socket.userId);
-        
+
         // Clean up pulse data for this user
         this.cleanupPulseData(socket.userId);
-        
+
+        // Clean up Soniox translation connection
+        sonioxService.closeConnection(socket.userId);
+
         // Update user offline status
         this.updateUserOnlineStatus(socket.userId, false);
       });
@@ -690,7 +911,7 @@ class SocketService {
         },
         senderId
       });
-      
+
       console.log(`🔔 Sending notification to conversation_${conversationId} (excluding sender: ${senderId})`);
     } catch (error) {
       console.error('Error sending message notification:', error);
@@ -742,11 +963,11 @@ class SocketService {
     try {
       const sortedIds = [senderId, receiverId].sort();
       const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
-      
+
       // Determine conversation type and P2P context
       const conversationType = conversationContext.type || 'regular';
       const p2pContext = conversationContext.p2pContext || {};
-      
+
       const conversation = await Conversation.findOneAndUpdate(
         { conversationId },
         {
@@ -772,13 +993,13 @@ class SocketService {
             createdAt: new Date()
           }
         },
-        { 
-          upsert: true, 
+        {
+          upsert: true,
           new: true,
           runValidators: true
         }
       );
-      
+
       return conversation;
     } catch (error) {
       console.error('Error creating/updating conversation:', error);
@@ -789,7 +1010,7 @@ class SocketService {
   // Pulse monitoring system
   startPulseMonitoring() {
     console.log('💓 Starting pulse monitoring system');
-    
+
     // Check for pulse timeouts every 10 seconds
     this.pulseCheckInterval = setInterval(() => {
       this.checkPulseTimeouts();
@@ -798,7 +1019,7 @@ class SocketService {
 
   stopPulseMonitoring() {
     console.log('💓 Stopping pulse monitoring system');
-    
+
     if (this.pulseCheckInterval) {
       clearInterval(this.pulseCheckInterval);
       this.pulseCheckInterval = null;
@@ -808,11 +1029,11 @@ class SocketService {
   checkPulseTimeouts() {
     const now = Date.now();
     const timeoutKeys = [];
-    
+
     // Check all pulse data for timeouts
     for (const [pulseKey, pulseInfo] of this.pulseData.entries()) {
       const timeSinceLastPulse = now - pulseInfo.lastReceived;
-      
+
       if (timeSinceLastPulse > this.pulseTimeoutMs) {
         console.log(`💓 Pulse timeout detected for ${pulseKey}:`, {
           timeSinceLastPulse: timeSinceLastPulse,
@@ -820,7 +1041,7 @@ class SocketService {
           roomId: pulseInfo.roomId,
           userId: pulseInfo.userId
         });
-        
+
         // Notify other participants in the room about the timeout
         this.io.to(pulseInfo.roomId).emit('video-call-pulse-timeout', {
           roomId: pulseInfo.roomId,
@@ -828,16 +1049,16 @@ class SocketService {
           timeoutDuration: timeSinceLastPulse,
           timestamp: now
         });
-        
+
         timeoutKeys.push(pulseKey);
       }
     }
-    
+
     // Remove timed out pulse data
     timeoutKeys.forEach(key => {
       this.pulseData.delete(key);
     });
-    
+
     if (timeoutKeys.length > 0) {
       console.log(`💓 Removed ${timeoutKeys.length} timed out pulse entries`);
     }
@@ -846,17 +1067,17 @@ class SocketService {
   // Clean up pulse data when user disconnects
   cleanupPulseData(userId) {
     const keysToRemove = [];
-    
+
     for (const [pulseKey, pulseInfo] of this.pulseData.entries()) {
       if (pulseInfo.userId === userId) {
         keysToRemove.push(pulseKey);
       }
     }
-    
+
     keysToRemove.forEach(key => {
       this.pulseData.delete(key);
     });
-    
+
     if (keysToRemove.length > 0) {
       console.log(`💓 Cleaned up pulse data for user ${userId}: ${keysToRemove.length} entries`);
     }

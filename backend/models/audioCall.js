@@ -11,6 +11,10 @@ const audioCallSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  hasRealtimeTranslation: {
+    type: Boolean,
+    default: false
+  },
   status: {
     type: String,
     enum: ['initiated', 'ringing', 'answered', 'rejected', 'ended', 'missed', 'cancelled'],
@@ -107,7 +111,7 @@ audioCallSchema.index({ status: 1 });
 audioCallSchema.index({ startTime: -1 });
 
 // Virtual for call duration calculation
-audioCallSchema.virtual('calculatedDuration').get(function() {
+audioCallSchema.virtual('calculatedDuration').get(function () {
   if (this.endTime && this.startTime) {
     return Math.floor((this.endTime - this.startTime) / 1000);
   }
@@ -115,7 +119,7 @@ audioCallSchema.virtual('calculatedDuration').get(function() {
 });
 
 // Method to end the call
-audioCallSchema.methods.endCall = function() {
+audioCallSchema.methods.endCall = function () {
   this.status = 'ended';
   this.endTime = new Date();
   this.duration = this.calculatedDuration;
@@ -123,7 +127,7 @@ audioCallSchema.methods.endCall = function() {
 };
 
 // Method to reject the call
-audioCallSchema.methods.rejectCall = function(reason = 'user_rejected') {
+audioCallSchema.methods.rejectCall = function (reason = 'user_rejected') {
   this.status = 'rejected';
   this.endTime = new Date();
   this.rejectionReason = reason;
@@ -131,31 +135,31 @@ audioCallSchema.methods.rejectCall = function(reason = 'user_rejected') {
 };
 
 // Method to mark as missed
-audioCallSchema.methods.markAsMissed = function() {
+audioCallSchema.methods.markAsMissed = function () {
   this.status = 'missed';
   this.endTime = new Date();
   return this.save();
 };
 
 // Static method to get user's call history
-audioCallSchema.statics.getUserCallHistory = function(userId, page = 1, limit = 20) {
+audioCallSchema.statics.getUserCallHistory = function (userId, page = 1, limit = 20) {
   const skip = (page - 1) * limit;
-  
+
   return this.find({
     $or: [
       { callerId: userId },
       { receiverId: userId }
     ]
   })
-  .populate('callerId', 'name username avatar')
-  .populate('receiverId', 'name username avatar')
-  .sort({ createdAt: -1 })
-  .skip(skip)
-  .limit(limit);
+    .populate('callerId', 'name username avatar')
+    .populate('receiverId', 'name username avatar')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
 };
 
 // Static method to get active calls for a user
-audioCallSchema.statics.getActiveCalls = function(userId) {
+audioCallSchema.statics.getActiveCalls = function (userId) {
   return this.find({
     $or: [
       { callerId: userId },
@@ -163,15 +167,15 @@ audioCallSchema.statics.getActiveCalls = function(userId) {
     ],
     status: { $in: ['initiated', 'ringing', 'answered'] }
   })
-  .populate('callerId', 'name username avatar')
-  .populate('receiverId', 'name username avatar');
+    .populate('callerId', 'name username avatar')
+    .populate('receiverId', 'name username avatar');
 };
 
 // Static method to get call statistics
-audioCallSchema.statics.getCallStats = function(userId, days = 30) {
+audioCallSchema.statics.getCallStats = function (userId, days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  
+
   return this.aggregate([
     {
       $match: {
