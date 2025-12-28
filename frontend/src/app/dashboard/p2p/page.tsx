@@ -993,8 +993,8 @@ export default function P2PPage() {
                     key={key}
                     onClick={() => setActiveTab(key as any)}
                     className={`py-3 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === key
-                        ? `border-blue-500 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`
-                        : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'} hover:border-gray-300`
+                      ? `border-blue-500 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`
+                      : `border-transparent ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-500 hover:text-gray-700'} hover:border-gray-300`
                       }`}
                   >
                     {label}
@@ -1061,7 +1061,10 @@ export default function P2PPage() {
                                 {new Date(booking.scheduledDate).toLocaleDateString()}
                               </p>
                               <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                                {new Date(booking.scheduledDate).toLocaleTimeString()}
+                                {new Date(booking.scheduledDate).toLocaleTimeString()} ({new Intl.DateTimeFormat().resolvedOptions().timeZone})
+                              </p>
+                              <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
+                                (UTC: {new Date(booking.scheduledDate).toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: true })})
                               </p>
                             </div>
                             <div>
@@ -1189,12 +1192,12 @@ export default function P2PPage() {
 
                         {/* Profile Info */}
                         <div className="text-center w-full">
-                          <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2.5`}>
+                          <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2.5 break-words px-2`}>
                             {user.fullName || user.name}
                           </h1>
 
                           {/* Title/Organization */}
-                          <h3 className={`text-base ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mb-5`}>
+                          <h3 className={`text-base ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mb-5 break-words px-2`}>
                             {(() => {
                               if (myProfile) {
                                 const parts = [];
@@ -1234,7 +1237,7 @@ export default function P2PPage() {
                           </div>
 
                           {/* Description */}
-                          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mb-5 text-center`}>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-[#CCCCCC]'} mb-5 text-center break-words w-full px-2`}>
                             {myProfile?.description || myProfile?.experience || user.bio || 'No description available.'}
                           </p>
                         </div>
@@ -2232,7 +2235,10 @@ export default function P2PPage() {
                                     {dateStr}
                                   </p>
                                   <p className={`text-base font-semibold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-                                    {timeStr} - {endTimeStr} ({booking.duration} minutes)
+                                    {timeStr} - {endTimeStr} ({new Intl.DateTimeFormat().resolvedOptions().timeZone})
+                                  </p>
+                                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
+                                    Scheduled (UTC): {new Date(booking.scheduledDate).toLocaleTimeString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: true })}
                                   </p>
                                 </div>
                                 {isUpcoming && (

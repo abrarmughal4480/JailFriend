@@ -162,11 +162,23 @@ const createBooking = async (req, res) => {
 
     // Validate working hours window
     const workingStartMinutes = parseTimeToMinutes(profile.workingHours?.start || '09:00');
-    const workingEndMinutes = parseTimeToMinutes(profile.workingHours?.end || '17:00');
+    let workingEndMinutes = parseTimeToMinutes(profile.workingHours?.end || '17:00');
+
+    // Treat 00:00 end time as midnight (24:00)
+    if (workingEndMinutes === 0) {
+      workingEndMinutes = 24 * 60;
+    }
+
     if (workingStartMinutes !== null && workingEndMinutes !== null) {
       const requestStartMinutes = getMinutesInTimezone(requestedStart, providerTimezone);
       const requestEndMinutes = getMinutesInTimezone(requestedEnd, providerTimezone);
-      if (requestStartMinutes < workingStartMinutes || requestEndMinutes > workingEndMinutes) {
+
+      // Special handling for requestEndMinutes if it wraps to 00:00 (which is 0)
+      // If a booking ends exactly at midnight, requestEndMinutes will be 0, which is < workingStartMinutes
+      // We should treat it as 24:00 (1440 minutes) for comparison
+      const adjustedRequestEndMinutes = (requestEndMinutes === 0 && requestStartMinutes > 0) ? 24 * 60 : requestEndMinutes;
+
+      if (requestStartMinutes < workingStartMinutes || adjustedRequestEndMinutes > workingEndMinutes) {
         return res.status(400).json({
           success: false,
           message: 'Requested time is outside the service provider’s working hours'

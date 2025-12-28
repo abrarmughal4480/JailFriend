@@ -84,7 +84,12 @@ const formatTimeDisplay = (time: string) => {
   });
 };
 
-const toDateInputValue = (date: Date) => date.toISOString().split('T')[0];
+const toDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 /**
  * Creates an ISO date string representing the given date and time in the specified timezone.
@@ -185,13 +190,27 @@ const buildTimeSlots = (
   stepMinutes = TIME_SLOT_STEP_MINUTES
 ): string[] => {
   const startMinutes = parseTimeToMinutes(start);
-  const endMinutes = parseTimeToMinutes(end);
+  let endMinutes = parseTimeToMinutes(end);
+
+  // Handle case where range ends at midnight (00:00 which parses to 0)
+  if (endMinutes === 0 && startMinutes !== null && startMinutes > 0) {
+    endMinutes = 24 * 60; // Treat as 24:00
+  }
+
   if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
     return [];
   }
 
   const slots: string[] = [];
   for (let mins = startMinutes; mins <= endMinutes; mins += stepMinutes) {
+    // Only add if it's strictly less than end time OR if we want to include the end time?
+    // Typically booking slots are start times.
+    // If working hours are 9-5, last slot is usually 4:30 or 5:00 depending on duration.
+    // Here we just list available start times.
+    // We usually don't list the exact end time as a start time if duration > 0.
+    // But let's follow existing logic which seems to include it, or maybe strict inequality is better?
+    // Validating against previous logic: `mins <= endMinutes` was used.
+    // If range is 00:00 to 24:00. 24:00 (00:00) would be included.
     slots.push(minutesToTimeString(mins));
   }
   return slots;
@@ -291,10 +310,39 @@ export function BookingModal({
   }, [open, callDate, serviceProviderId]);
   const handlePayNow = async () => {
     if (isSubmitting) return;
-    if (!callTime || !availableTimeOptions.includes(callTime)) {
-      const message = 'Please select an available time.';
-      setSubmissionError(message);
-      onBookingError?.(message);
+
+    // Validate time selection
+    const selectedMinutes = parseTimeToMinutes(callTime);
+    const workingStartMinutes = parseTimeToMinutes(availability.startTime);
+    let workingEndMinutes = parseTimeToMinutes(availability.endTime);
+    if (workingEndMinutes === 0) workingEndMinutes = 24 * 60;
+
+    let isValidTime = false;
+    let timeErrorMessage = 'Please select an available time.';
+
+    if (selectedMinutes !== null && workingStartMinutes !== null && workingEndMinutes !== null) {
+      if (selectedMinutes >= workingStartMinutes && selectedMinutes <= workingEndMinutes) {
+
+        // Check for overlaps with booked ranges
+        const slotStart = selectedMinutes;
+        const slotEnd = selectedMinutes + activeMinutes;
+        const overlaps = bookedRanges.some((range) => {
+          return slotStart < range.endMinutes && slotEnd > range.startMinutes;
+        });
+
+        if (!overlaps) {
+          isValidTime = true;
+        } else {
+          timeErrorMessage = 'Selected time overlaps with an existing booking.';
+        }
+      } else {
+        timeErrorMessage = 'Selected time is outside working hours.';
+      }
+    }
+
+    if (!callTime || !isValidTime) {
+      setSubmissionError(timeErrorMessage);
+      onBookingError?.(timeErrorMessage);
       return;
     }
 
@@ -440,7 +488,7 @@ export function BookingModal({
       }
 
       return {
-        value: date.toISOString().split('T')[0],
+        value: toDateInputValue(date),
         label:
           index === 0
             ? 'Today'
@@ -489,11 +537,49 @@ export function BookingModal({
 
   const availableTimeOptions = useMemo(() => {
     const workingStartMinutes = parseTimeToMinutes(availability.startTime);
-    const workingEndMinutes = parseTimeToMinutes(availability.endTime);
+    let workingEndMinutes = parseTimeToMinutes(availability.endTime);
+
+    // Treat 00:00 (0 minutes) as 24:00 (1440 minutes) if it is the end time
+    // This supports ranges ending at midnight (e.g. 09:00 AM - 12:00 AM)
+    if (workingEndMinutes === 0) {
+      workingEndMinutes = 24 * 60;
+    }
 
     if (workingStartMinutes === null || workingEndMinutes === null) {
       return timeOptions;
     }
+
+    // Determine timezone to use for "current time" check
+    // Default to local timezone if not specified
+    const timezone = availability.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Get current time in that timezone
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    const parts = formatter.formatToParts(now);
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+
+    const pYear = getPart('year');
+    const pMonth = getPart('month');
+    const pDay = getPart('day');
+    // Ensure YYYY-MM-DD format matches toDateInputValue
+    const providerDateStr = `${pYear}-${pMonth}-${pDay}`;
+
+    const pHour = parseInt(getPart('hour') || '0', 10);
+    const pMinute = parseInt(getPart('minute') || '0', 10);
+    const currentMinutes = pHour * 60 + pMinute;
+
+    // Check if the selected callDate matches the provider's current date
+    const isToday = callDate === providerDateStr;
 
     // Filter slots that are within working hours
     // Don't filter by duration here - we'll show all slots and disable ones that don't fit
@@ -504,6 +590,9 @@ export function BookingModal({
       // Check if slot start is within working hours
       if (slotStart < workingStartMinutes) return false;
       if (slotStart > workingEndMinutes) return false;
+
+      // Filter passed time slots ONLY if we are looking at "Today" in provider's timezone
+      if (isToday && slotStart < currentMinutes) return false;
 
       // Check if slot overlaps with booked ranges (considering the selected duration)
       // Only filter out if there's an actual booking conflict
@@ -521,17 +610,18 @@ export function BookingModal({
 
       return true;
     });
-  }, [activeMinutes, bookedRanges, timeOptions, availability.startTime, availability.endTime]);
+  }, [activeMinutes, bookedRanges, timeOptions, availability.startTime, availability.endTime, callDate, availability.timezone]);
 
   useEffect(() => {
     if (!availableTimeOptions.length) {
       setCallTime('');
       return;
     }
-    if (!availableTimeOptions.includes(callTime)) {
+    // Only set default if no time is selected yet, or if previous selection was cleared
+    if (!callTime) {
       setCallTime(availableTimeOptions[0]);
     }
-  }, [availableTimeOptions, callTime]);
+  }, [availableTimeOptions]);
 
   const basePrice = useMemo(() => {
     const perMinute = callMode === 'audio' ? pricePerMinute.audio : pricePerMinute.video;
@@ -619,11 +709,9 @@ export function BookingModal({
 
             <div className="mb-10">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select date</h3>
-              {availability.timezone && (
-                <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Availability shown in {availability.timezone}.
-                </p>
-              )}
+              <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Times shown in your local time ({Intl.DateTimeFormat().resolvedOptions().timeZone}).
+              </p>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <div className="flex flex-wrap gap-3">
                   {dateSuggestions.map((suggestion) => (
@@ -658,9 +746,30 @@ export function BookingModal({
                 <div className="flex flex-wrap gap-3">
                   {availableTimeOptions.map((slot) => {
                     const slotStart = parseTimeToMinutes(slot);
-                    const workingEndMinutes = parseTimeToMinutes(availability.endTime);
+                    let workingEndMinutes = parseTimeToMinutes(availability.endTime);
+                    if (workingEndMinutes === 0) workingEndMinutes = 24 * 60;
+
                     const slotEnd = slotStart !== null ? slotStart + activeMinutes : null;
                     const wouldExceedEndTime = slotEnd !== null && workingEndMinutes !== null && slotEnd > workingEndMinutes;
+
+                    // Convert provider slot time to user local time for display
+                    const providerTimezone = availability.timezone || 'UTC';
+                    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+                    let displayLabel = formatTimeDisplay(slot); // Default fallback
+
+                    try {
+                      // Construct the full provider date-time
+                      const pDate = new Date(createDateInTimezone(callDate, slot, providerTimezone));
+                      // Format to user's local time
+                      displayLabel = pDate.toLocaleTimeString(undefined, {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      });
+                    } catch (e) {
+                      // If conversion fails, fallback to slot string
+                    }
 
                     return (
                       <button
@@ -675,9 +784,9 @@ export function BookingModal({
                               ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
                               : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                           }`}
-                        title={wouldExceedEndTime ? `This time slot would exceed the available end time (${formatTimeDisplay(availability.endTime)})` : ''}
+                        title={wouldExceedEndTime ? `This time slot would exceed the available end time` : ''}
                       >
-                        {formatTimeDisplay(slot)}
+                        {displayLabel}
                       </button>
                     );
                   })}
@@ -685,25 +794,77 @@ export function BookingModal({
                     <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Checking availability...</span>
                   )}
                   {!isLoadingAvailability && !availableTimeOptions.length && (
-                    <span className="text-sm text-red-600">No slots available for this date. Please choose another date.</span>
+                    <span className="text-sm text-red-600">No slots available for this date. (Slots may be booked or past working hours). Please choose another date.</span>
                   )}
                 </div>
-                <input
-                  type="time"
-                  value={callTime}
-                  min={availability.startTime}
-                  max={availability.endTime}
-                  step={TIME_SLOT_STEP_MINUTES * 60}
-                  disabled={!availableTimeOptions.length}
-                  onChange={(event) => {
-                    const newTime = event.target.value;
-                    setCallTime(newTime);
-                  }}
-                  className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-200'
-                    }`}
-                />
+                {/* Time Input in Local Time */}
+                {(() => {
+                  // Calculate local time for input value
+                  const providerTimezone = availability.timezone || 'UTC';
+                  let localInputValue = '';
+                  try {
+                    const pDate = new Date(createDateInTimezone(callDate, callTime, providerTimezone));
+                    // Input type="time" needs HH:mm in 24h format
+                    localInputValue = pDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                  } catch (e) {
+                    localInputValue = callTime;
+                  }
+
+                  return (
+                    <input
+                      type="time"
+                      value={localInputValue}
+                      // min/max also need conversion ideally, but for now we skip strict html validation on input
+                      step={300}
+                      onChange={(event) => {
+                        const newLocalTime = event.target.value; // HH:mm (Local)
+                        if (!newLocalTime) return;
+
+                        // Convert Local Time back to Provider Time (callTime)
+                        // We assume date is 'Today' relative to the user selection
+                        // This is a bit non-trivial: Local Date + Local Time -> Provider Time
+                        // We approximate by: create a Date object with [CallDate components] + [Local Time components] ?? 
+                        // Actually, 'callDate' is already potentially shifted.
+
+                        // Better approach: Get the currently rendered 'base' date object in local time
+                        // We know 'pDate' (Above) represents the current selected moment.
+                        // We update its hours/minutes.
+                        try {
+                          const currentPDate = new Date(createDateInTimezone(callDate, callTime, providerTimezone));
+                          const [h, m] = newLocalTime.split(':').map(Number);
+                          currentPDate.setHours(h);
+                          currentPDate.setMinutes(m);
+
+                          // Now currentPDate represents the Desired Moment.
+                          // We need to express this in Provider Timezone to get HH:mm string
+                          const providerFormatter = new Intl.DateTimeFormat('en-GB', {
+                            timeZone: providerTimezone,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          });
+                          const parts = providerFormatter.formatToParts(currentPDate);
+                          // formatToParts might behave differently, simple lookup
+                          // 'en-GB' forces 24h usually, but verifying... 
+                          // Actually, simple toLocaleString with 'en-GB' and options works well
+                          const pTimeStr = currentPDate.toLocaleTimeString('en-GB', {
+                            timeZone: providerTimezone,
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }); // Returns "HH:mm"
+                          setCallTime(pTimeStr);
+
+                        } catch (err) {
+                          // Fallback
+                          setCallTime(newLocalTime);
+                        }
+                      }}
+                      className={`rounded-xl border-2 px-4 py-2 text-sm focus:border-[#148F80] focus:outline-none focus:ring-2 focus:ring-[#148F80]/20 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700 text-white'
+                        : 'border-gray-200'
+                        }`}
+                    />
+                  );
+                })()}
               </div>
             </div>
 

@@ -133,11 +133,13 @@ const timeStringToMinutes = (value?: string | null): number | null => {
     return dateCandidate.getHours() * 60 + dateCandidate.getMinutes();
   }
 
-  const meridianMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  // Handle AM/PM format
+  const meridianMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(AM|PM)$/i);
   if (meridianMatch) {
     let hours = parseInt(meridianMatch[1], 10);
     const minutes = parseInt(meridianMatch[2] ?? '0', 10);
-    const meridian = meridianMatch[3].toUpperCase();
+    const meridian = meridianMatch[4]?.toUpperCase(); // Capture group 4 is AM/PM now 
+
     if (hours === 12) {
       hours = meridian === 'AM' ? 0 : 12;
     } else if (meridian === 'PM') {
@@ -146,7 +148,8 @@ const timeStringToMinutes = (value?: string | null): number | null => {
     return hours * 60 + minutes;
   }
 
-  const timeMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?$/);
+  // Handle 24-hour HH:MM or HH:MM:SS format
+  const timeMatch = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?$/);
   if (!timeMatch) return null;
 
   const hours = parseInt(timeMatch[1], 10);
@@ -178,13 +181,21 @@ const ensureValidTimeRange = (startInput: string, endInput: string) => {
   }
 
   let endMinutes = timeStringToMinutes(endInput);
+
+  // Special handling: If end time is 00:00 (0 minutes), treat it as 24:00 (1440 minutes)
+  // This allows ranges like "09:00 - 00:00" (9 AM to Midnight) to work correctly
+  if (endMinutes === 0) {
+    endMinutes = 24 * 60;
+  }
+
   if (endMinutes === null || endMinutes <= startMinutes) {
-    endMinutes = startMinutes + 60;
+    endMinutes = startMinutes + 60; // Ensure at least 60 mins duration
+    if (endMinutes > 24 * 60) endMinutes = 24 * 60; // Cap at end of day
   }
 
   return {
     start: minutesToTimeString(startMinutes),
-    end: minutesToTimeString(endMinutes),
+    end: minutesToTimeString(endMinutes === 1440 ? 0 : endMinutes), // Convert back to 00:00 string if needed, or keep logic using minutes elsewhere
   };
 };
 
@@ -227,16 +238,33 @@ export default function ExpertDetailPage() {
       };
     }
 
-    const startCandidate =
-      normalizeTimeTo24h(profile.availableFromTime) ??
-      normalizeTimeTo24h(profile.workingHours?.start) ??
-      DEFAULT_TIME_RANGE.start;
-    const endCandidate =
-      normalizeTimeTo24h(profile.availableToTime) ??
-      normalizeTimeTo24h(profile.workingHours?.end) ??
-      DEFAULT_TIME_RANGE.end;
+    // Prioritize workingHours for daily recurring schedules
+    // availableFromTime might be a one-time start date or legacy field
+    let startCandidate = null;
+    let endCandidate = null;
+
+    if (profile.workingHours?.start) {
+      startCandidate = normalizeTimeTo24h(profile.workingHours.start);
+    }
+    if (profile.workingHours?.end) {
+      endCandidate = normalizeTimeTo24h(profile.workingHours.end);
+    }
+
+    // If workingHours not found, try availableFromTime
+    if (!startCandidate) {
+      startCandidate = normalizeTimeTo24h(profile.availableFromTime);
+    }
+    if (!endCandidate) {
+      endCandidate = normalizeTimeTo24h(profile.availableToTime);
+    }
+
+    // Fallback to widened default range if completely missing
+    if (!startCandidate) startCandidate = '08:00';
+    if (!endCandidate) endCandidate = '22:00';
 
     const { start, end } = ensureValidTimeRange(startCandidate, endCandidate);
+
+    // availableFromTime might still be useful as the "Base Date" if it's a future date
     const parsedBase = parseDateValue(profile.availableFromTime);
     const baseDate = parsedBase && parsedBase.getTime() >= now.getTime() ? parsedBase : now;
 
@@ -466,12 +494,20 @@ export default function ExpertDetailPage() {
 
       const bookingsForDay = bookedRanges.filter((range) => range.dateKey === dateKey);
 
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const isToday = dateKey === now.toISOString().split('T')[0];
+
       const slots: string[] = [];
       for (
         let current = startMinutes;
         current + DEFAULT_PLAN_MINUTES <= endMinutes;
         current += TIME_SLOT_STEP_MINUTES
       ) {
+        if (isToday && current < currentMinutes) {
+          continue;
+        }
+
         const end = current + DEFAULT_PLAN_MINUTES;
         const overlaps = bookingsForDay.some((booking) => {
           const bookingStart = booking.start.getHours() * 60 + booking.start.getMinutes();
