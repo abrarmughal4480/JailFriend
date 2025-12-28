@@ -17,6 +17,7 @@ const AdvertisingPage = () => {
 
   // Wallet and campaigns state
   const [walletBalance, setWalletBalance] = useState(0);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [userCampaigns, setUserCampaigns] = useState<any[]>([]);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const [loadingCampaigns, setLoadingCampaigns] = useState(true);
@@ -376,6 +377,7 @@ const AdvertisingPage = () => {
       if (response.ok) {
         const data = await response.json();
         setWalletBalance(data.balance || 0);
+        setTransactions(data.transactions || []);
       }
     } catch (error) {
       console.error('Error fetching wallet balance:', error);
@@ -435,11 +437,11 @@ const AdvertisingPage = () => {
           <div className="max-w-4xl mx-auto">
 
             {/* Tabs */}
-            <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 mb-8">
-              <div className="flex">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 dark:border-gray-700 mb-8 gap-4 pb-4 sm:pb-0">
+              <div className="flex overflow-x-auto w-full scrollbar-hide">
                 <button
                   onClick={() => setActiveTab('campaigns')}
-                  className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'campaigns'
+                  className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors flex-shrink-0 ${activeTab === 'campaigns'
                     ? 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
@@ -448,7 +450,7 @@ const AdvertisingPage = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('wallet')}
-                  className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'wallet'
+                  className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors flex-shrink-0 ${activeTab === 'wallet'
                     ? 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
@@ -460,7 +462,7 @@ const AdvertisingPage = () => {
               {/* Create New Button */}
               <button
                 onClick={goToCreateAd}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+                className="w-full sm:w-auto px-6 py-2 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
               >
                 Create New
               </button>
@@ -556,14 +558,14 @@ const AdvertisingPage = () => {
                             </button>
                           </div>
                         )}
-                        <div className="flex gap-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
                           {campaign.imageUrl && (
-                            <img src={campaign.imageUrl} alt={campaign.title} className="w-32 h-32 object-cover rounded-lg" />
+                            <img src={campaign.imageUrl} alt={campaign.title} className="w-full sm:w-32 h-48 sm:h-32 object-cover rounded-lg" />
                           )}
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{campaign.title}</h3>
-                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-2">{campaign.description}</p>
-                            <div className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 break-all">{campaign.title}</h3>
+                            <p className="text-gray-600 dark:text-gray-300 text-sm mb-2 break-all">{campaign.description}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
                               <span>Budget: ${campaign.budget}</span>
                               <span>Views: {campaign.views || 0}</span>
                               <span>Clicks: {campaign.clicks || 0}</span>
@@ -967,8 +969,8 @@ const AdvertisingPage = () => {
                         ${loadingWallet ? '...' : walletBalance.toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex gap-4">
-                      <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                    <div className="flex gap-4 !overflow-x-auto pb-4 scrollbar-hide flex-shrink-0">
+                      <button className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex-shrink-0 min-w-[100px]">
                         <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
                           <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -978,7 +980,7 @@ const AdvertisingPage = () => {
                       </button>
                       <button
                         onClick={goToSendMoney}
-                        className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex-shrink-0 min-w-[100px]"
                       >
                         <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-2">
                           <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -989,7 +991,7 @@ const AdvertisingPage = () => {
                       </button>
                       <button
                         onClick={goToWithdrawal}
-                        className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        className="flex flex-col items-center p-4 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex-shrink-0 min-w-[100px]"
                       >
                         <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-2">
                           <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1006,13 +1008,42 @@ const AdvertisingPage = () => {
                 <div className="bg-white dark:bg-gray-700 rounded-lg border dark:border-gray-600 p-6">
                   <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-6">Transactions</h3>
 
-                  <div className="text-center py-16">
-                    <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-10 h-10 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-600 dark:text-gray-300">Looks like you don't have any transaction yet!</p>
+                  <div className="space-y-4">
+                    {transactions.length > 0 ? (
+                      transactions.map((transaction) => (
+                        <div
+                          key={transaction._id}
+                          className={`flex items-center justify-between p-4 rounded-lg border ${isDarkMode ? 'border-gray-600 bg-gray-800/50' : 'border-gray-100 bg-gray-50'} gap-2`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${transaction.type === 'deposit' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                              {transaction.type === 'deposit' ? '↓' : '↑'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate uppercase text-sm sm:text-base`}>{transaction.type}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{new Date(transaction.date).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm sm:text-base`}>
+                              ${transaction.amount.toFixed(2)}
+                            </p>
+                            <p className={`text-xs ${transaction.status === 'completed' ? 'text-green-500' : 'text-orange-500'} truncate`}>
+                              {transaction.status}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-10 h-10 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-600 dark:text-gray-300">Looks like you don't have any transaction yet!</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1236,10 +1267,10 @@ const AdvertisingPage = () => {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'} break-all`}>
                     {campaignTitle || 'Title'}
                   </p>
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} break-all`}>
                     {campaignDescription || 'Description'}
                   </p>
                 </div>
@@ -1565,9 +1596,8 @@ const AdvertisingPage = () => {
                             {audience.length === 0 ? 'Nothing selected' : audience.join(', ')}
                           </p>
                           <svg
-                            className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} transform transition-transform ${
-                              isAudienceOpen ? 'rotate-180' : ''
-                            }`}
+                            className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} transform transition-transform ${isAudienceOpen ? 'rotate-180' : ''
+                              }`}
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1600,9 +1630,8 @@ const AdvertisingPage = () => {
                                 return (
                                   <label
                                     key={country}
-                                    className={`flex items-center gap-2 px-4 py-1 cursor-pointer ${
-                                      isDarkMode ? 'text-gray-200 hover:bg-gray-600' : 'text-gray-800 hover:bg-gray-100'
-                                    }`}
+                                    className={`flex items-center gap-2 px-4 py-1 cursor-pointer ${isDarkMode ? 'text-gray-200 hover:bg-gray-600' : 'text-gray-800 hover:bg-gray-100'
+                                      }`}
                                   >
                                     <input
                                       type="checkbox"

@@ -150,6 +150,29 @@ export default function Dashboard() {
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Website settings state
+  const [websiteSettings, setWebsiteSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/api/website-settings`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWebsiteSettings(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editTitle, setEditTitle] = useState('');
@@ -170,7 +193,12 @@ export default function Dashboard() {
 
   const generateAIText = async () => {
     if (!newPost.trim()) {
-      showPopup('warning', 'Input Required', 'Please enter a prompt for the AI');
+      showPopup('warning', 'Input Required', 'Please enter a prompt for the AI in the post box');
+      return;
+    }
+
+    if (!websiteSettings?.ai?.postSystem?.enabled) {
+      showPopup('error', 'Error', 'AI Post system is disabled by admin');
       return;
     }
     setIsGeneratingAI(true);
@@ -192,13 +220,19 @@ export default function Dashboard() {
       showPopup('error', 'AI Error', 'Failed to connect to AI service');
     } finally {
       setIsGeneratingAI(false);
+      setShowModalAIOptions(false);
       setShowAIOptions(false);
     }
   };
 
   const generateAIImage = async () => {
     if (!newPost.trim()) {
-      showPopup('warning', 'Input Required', 'Please enter a prompt for the AI');
+      showPopup('warning', 'Input Required', 'Please enter a prompt for the AI in the post box');
+      return;
+    }
+
+    if (!websiteSettings?.ai?.imagesSystem?.enabled) {
+      showPopup('error', 'Error', 'AI Image system is disabled by admin');
       return;
     }
     setIsGeneratingAI(true);
@@ -216,6 +250,7 @@ export default function Dashboard() {
         const blob = await imageRes.blob();
         const file = new File([blob], "ai-generated.png", { type: "image/png" });
         setMediaFiles(prev => [...prev, file]);
+        setModalMediaFiles(prev => [...prev, file]);
         showPopup('success', 'AI Magic', 'Image generated successfully!');
       } else {
         showPopup('error', 'AI Error', data.message || 'Failed to generate image');
@@ -224,6 +259,7 @@ export default function Dashboard() {
       showPopup('error', 'AI Error', 'Failed to connect to AI service');
     } finally {
       setIsGeneratingAI(false);
+      setShowModalAIOptions(false);
       setShowAIOptions(false);
     }
   };
@@ -1789,6 +1825,7 @@ export default function Dashboard() {
   };
 
   // State for different modal types
+  const [showModalAIOptions, setShowModalAIOptions] = useState(false);
   const [showGifModal, setShowGifModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showFeelingsModal, setShowFeelingsModal] = useState(false);
@@ -1893,6 +1930,10 @@ export default function Dashboard() {
 
   const handleModalLocation = () => {
     setShowLocationModal(true);
+  };
+
+  const handleModalAI = () => {
+    setShowModalAIOptions(!showModalAIOptions);
   };
 
   // Location search handler for worldwide locations
@@ -2387,47 +2428,7 @@ export default function Dashboard() {
                       </button>
                     </div>
 
-                    {/* AI Button */}
-                    <div className="relative flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 flex-shrink-0">
-                      <button
-                        className={`flex items-center justify-center w-8 h-8 xs:w-10 xs:h-10 transition-colors rounded-full ${isDarkMode
-                          ? 'text-purple-400 hover:text-purple-300 hover:bg-gray-700'
-                          : 'text-purple-600 hover:text-purple-500 hover:bg-gray-100'
-                          }`}
-                        onClick={() => setShowAIOptions(!showAIOptions)}
-                        disabled={posting || isGeneratingAI}
-                        title="Generate with AI"
-                      >
-                        {isGeneratingAI ? (
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500"></div>
-                        ) : (
-                          <Sparkles className="w-5 h-5" />
-                        )}
-                      </button>
 
-                      {/* AI Options Dropdown */}
-                      {showAIOptions && (
-                        <div className={`absolute top-full right-0 mt-2 w-48 rounded-xl shadow-lg border z-50 overflow-hidden ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                          }`}>
-                          <button
-                            onClick={generateAIText}
-                            className={`w-full px-4 py-3 text-left text-sm flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
-                              }`}
-                          >
-                            <Bot className="w-4 h-4" />
-                            Generate Text
-                          </button>
-                          <button
-                            onClick={generateAIImage}
-                            className={`w-full px-4 py-3 text-left text-sm flex items-center gap-2 transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
-                              }`}
-                          >
-                            <ImageIcon className="w-4 h-4" />
-                            Generate Image
-                          </button>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
 
@@ -4233,7 +4234,13 @@ export default function Dashboard() {
                     { icon: '🏪', action: handleModalSell, label: 'Sell something' },
                     { icon: '📊', action: handleModalPoll, label: 'Create poll' },
                     { icon: '📍', action: handleModalLocation, label: 'Add location' },
-                  ].map((item, index) => (
+                    { icon: '✨', action: handleModalAI, label: 'AI Magic' },
+                  ].filter(item => {
+                    if (item.label === 'AI Magic') {
+                      return websiteSettings?.ai?.imagesSystem?.enabled || websiteSettings?.ai?.postSystem?.enabled;
+                    }
+                    return true;
+                  }).map((item, index) => (
                     <button
                       key={index}
                       onClick={item.action}
@@ -4245,6 +4252,51 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* AI Options in Modal */}
+              {showModalAIOptions && (
+                <div className={`mt-4 p-4 rounded-xl border animate-in fade-in slide-in-from-top-2 duration-200 ${isDarkMode ? 'bg-gray-700/50 border-purple-500/30' : 'bg-purple-50/50 border-purple-200'}`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-purple-500" />
+                      <span className={`font-semibold ${isDarkMode ? 'text-purple-300' : 'text-purple-700'}`}>AI Assistant</span>
+                    </div>
+                    <button onClick={() => setShowModalAIOptions(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {websiteSettings?.ai?.postSystem?.enabled && (
+                      <button
+                        onClick={generateAIText}
+                        disabled={isGeneratingAI}
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${isDarkMode
+                          ? 'bg-gray-800 border-gray-600 hover:border-purple-500 text-gray-200'
+                          : 'bg-white border-gray-200 hover:border-purple-400 text-gray-700'
+                          }`}
+                      >
+                        {isGeneratingAI ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div> : <Bot className="w-4 h-4 text-purple-500" />}
+                        <span className="text-sm font-medium">Generate Text</span>
+                      </button>
+                    )}
+                    {websiteSettings?.ai?.imagesSystem?.enabled && (
+                      <button
+                        onClick={generateAIImage}
+                        disabled={isGeneratingAI}
+                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${isDarkMode
+                          ? 'bg-gray-800 border-gray-600 hover:border-purple-500 text-gray-200'
+                          : 'bg-white border-gray-200 hover:border-purple-400 text-gray-700'
+                          }`}
+                      >
+                        {isGeneratingAI ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-500"></div> : <ImageIcon className="w-4 h-4 text-purple-500" />}
+                        <span className="text-sm font-medium">Generate Image</span>
+                      </button>
+                    )}
+                  </div>
+                  <p className={`mt-2 text-xs text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Use your current text as a prompt for the AI
+                  </p>
+                </div>
+              )}
+
               <div className="hidden sm:grid grid-cols-3 lg:grid-cols-4 gap-3 mt-4">
                 {[
                   { icon: '📷', label: 'Images', action: handleModalImageUpload },
@@ -4256,7 +4308,13 @@ export default function Dashboard() {
                   { icon: '🏪', label: 'Sell', action: handleModalSell },
                   { icon: '📊', label: 'Poll', action: handleModalPoll },
                   { icon: '📍', label: 'Location', action: handleModalLocation },
-                ].map((item, index) => (
+                  { icon: '✨', label: 'AI Magic', action: handleModalAI },
+                ].filter(item => {
+                  if (item.label === 'AI Magic') {
+                    return websiteSettings?.ai?.imagesSystem?.enabled || websiteSettings?.ai?.postSystem?.enabled;
+                  }
+                  return true;
+                }).map((item, index) => (
                   <button
                     key={index}
                     onClick={item.action}
@@ -4267,14 +4325,6 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
-
-
-
-              {/* Mark/Formatting Icons */}
-
-
-              {/* Emoji Picker */}
-
 
               {/* Hidden file inputs */}
               <input
@@ -4312,642 +4362,305 @@ export default function Dashboard() {
                 title="Note: Document files will be referenced in post content but not uploaded to server"
               />
             </div>
-
           </div>
         </div>
       )}
 
       {/* GIF Selection Modal */}
-      {showGifModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'}`}>
-            <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select GIF</h3>
-              <button
-                onClick={() => setShowGifModal(false)}
-                className={isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="mb-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search GIFs..."
-                    value={gifSearchQuery}
-                    className={`w-full px-3 py-2 border rounded-lg pr-10 ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
-                    onChange={(e) => handleGifSearch(e.target.value)}
-                  />
-                  {gifSearchLoading && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 max-h-96 overflow-y-auto">
-                {gifResults.length > 0 ? (
-                  gifResults.map((gif: any, index: number) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setSelectedGif({
-                          url: gif.images.fixed_height.url,
-                          source: 'giphy',
-                          tags: gif.tags || [],
-                          width: gif.images.fixed_height.width,
-                          height: gif.images.fixed_height.height,
-                          giphyId: gif.id
-                        });
-                        setShowGifModal(false);
-                      }}
-                      className={`w-full h-24 rounded-lg transition-colors overflow-hidden ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
-                    >
-                      <img
-                        src={gif.images.fixed_height.url}
-                        alt={gif.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))
-                ) : (
-                  // Fallback to emoji placeholders if no GIFs loaded
-                  ['🎭', '🎪', '🎨', '🎬', '🎤', '🎧', '🎮', '🎯', '🎲', '🎸', '🎹', '🎺'].map((gif, index) => (
-                    <button
-                      key={index}
-                      onClick={() => {
-                        setSelectedGif({ url: gif, source: 'emoji', tags: ['fun'], width: 200, height: 200 });
-                        setShowGifModal(false);
-                      }}
-                      className={`w-full h-24 rounded-lg flex items-center justify-center text-4xl transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
-                    >
-                      {gif}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Voice Recording Modal */}
-      {showVoiceModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'}`}>
-            <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Record Voice</h3>
-              <button
-                onClick={() => setShowVoiceModal(false)}
-                className={isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="text-center">
+      {
+        showGifModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
+            <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'}`}>
+              <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select GIF</h3>
                 <button
-                  className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl mb-4 transition-colors ${isRecording ? 'bg-red-600 animate-pulse' : 'bg-red-500 hover:bg-red-600'
-                    }`}
-                  onClick={isRecording ? stopRecording : startRecording}
+                  onClick={() => setShowGifModal(false)}
+                  className={isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}
                 >
-                  {isRecording ? '⏹️' : '🎤'}
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
-                <p className={`mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {isRecording ? 'Recording... Click to stop' : 'Click to start recording'}
-                </p>
-                {recordingTime > 0 && (
-                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-4`}>Duration: {recordingTime}s</p>
-                )}
-                {voiceRecording && (
-                  <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-green-900/20' : 'bg-green-50'}`}>
-                    <p className={`text-sm ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>Voice recorded successfully!</p>
-                    <audio controls className="w-full mt-2">
-                      <source src={URL.createObjectURL(voiceRecording)} type="audio/wav" />
-                    </audio>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  {!voiceRecording ? (
-                    <button
-                      onClick={() => setShowVoiceModal(false)}
-                      className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-                    >
-                      Cancel
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => {
-                          setVoiceRecording(null);
-                          setRecordingTime(0);
-                        }}
-                        className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
-                      >
-                        Re-record
-                      </button>
-                      <button
-                        onClick={() => setShowVoiceModal(false)}
-                        className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-                      >
-                        Use Recording
-                      </button>
-                    </>
-                  )}
-                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Feelings Selection Modal */}
-      {showFeelingsModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-            }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>How are you feeling?</h3>
-              <button
-                onClick={() => setShowFeelingsModal(false)}
-                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-4 gap-3 max-h-96 overflow-y-auto">
-                {[
-                  { type: 'happy', emoji: '😊', description: 'Happy' },
-                  { type: 'excited', emoji: '🤩', description: 'Excited' },
-                  { type: 'grateful', emoji: '🙏', description: 'Grateful' },
-                  { type: 'loved', emoji: '💕', description: 'Loved' },
-                  { type: 'sad', emoji: '😢', description: 'Sad' },
-                  { type: 'angry', emoji: '😠', description: 'Angry' },
-                  { type: 'surprised', emoji: '😮', description: 'Surprised' },
-                  { type: 'scared', emoji: '😨', description: 'Scared' },
-                  { type: 'calm', emoji: '😌', description: 'Calm' },
-                  { type: 'proud', emoji: '😎', description: 'Proud' },
-                  { type: 'tired', emoji: '😴', description: 'Tired' },
-                  { type: 'confused', emoji: '😕', description: 'Confused' }
-                ].map((feeling) => (
-                  <button
-                    key={feeling.type}
-                    onClick={() => {
-                      setSelectedFeeling(feeling);
-                      setShowFeelingsModal(false);
-                    }}
-                    className={`flex flex-col items-center p-3 rounded-lg transition-colors duration-200 ${isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600'
-                      : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                  >
-                    <span className="text-3xl mb-2">{feeling.emoji}</span>
-                    <span className={`text-xs text-center transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}>{feeling.description}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sell Product Modal */}
-      {showSellModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-            }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>Sell Product</h3>
-              <button
-                onClick={() => setShowSellModal(false)}
-                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Product name"
-                  value={sellFormData.productName || ''}
-                  onChange={(e) => setSellFormData(prev => ({ ...prev, productName: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <input
-                  type="number"
-                  placeholder="Price"
-                  value={sellFormData.price || ''}
-                  onChange={(e) => setSellFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <select
-                  value={sellFormData.condition || 'New'}
-                  onChange={(e) => setSellFormData(prev => ({ ...prev, condition: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                >
-                  <option value="New">New</option>
-                  <option value="Used">Used</option>
-                  <option value="Refurbished">Refurbished</option>
-                </select>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="negotiable"
-                    checked={sellFormData.negotiable || false}
-                    onChange={(e) => setSellFormData(prev => ({ ...prev, negotiable: e.target.checked }))}
-                    className={`w-3 xs:w-4 h-3 xs:h-4 text-blue-600 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} rounded focus:ring-blue-500`}
-                  />
-                  <label htmlFor="negotiable" className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Price negotiable</label>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (sellFormData.productName && sellFormData.price) {
-                        setSellData(sellFormData);
-                        setShowSellModal(false);
-                        setSellFormData({});
-                      } else {
-                        showPopup('error', 'Missing Information', 'Please fill in product name and price');
-                      }
-                    }}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                  >
-                    Add Product
-                  </button>
-                  <button
-                    onClick={() => setShowSellModal(false)}
-                    className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Poll Modal */}
-      {showPollModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-            }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>Create Poll</h3>
-              <button
-                onClick={() => setShowPollModal(false)}
-                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Poll question"
-                  value={pollFormData.question || ''}
-                  onChange={(e) => setPollFormData(prev => ({ ...prev, question: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <input
-                  type="text"
-                  placeholder="Option 1"
-                  value={pollFormData.option1 || ''}
-                  onChange={(e) => setPollFormData(prev => ({ ...prev, option1: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <input
-                  type="text"
-                  placeholder="Option 2"
-                  value={pollFormData.option2 || ''}
-                  onChange={(e) => setPollFormData(prev => ({ ...prev, option2: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <input
-                  type="text"
-                  placeholder="Option 3 (optional)"
-                  value={pollFormData.option3 || ''}
-                  onChange={(e) => setPollFormData(prev => ({ ...prev, option3: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <input
-                  type="text"
-                  placeholder="Option 4 (optional)"
-                  value={pollFormData.option4 || ''}
-                  onChange={(e) => setPollFormData(prev => ({ ...prev, option4: e.target.value }))}
-                  className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white'
-                    : 'border-gray-300 bg-white text-gray-900'
-                    }`}
-                />
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="multipleChoice"
-                    checked={pollFormData.isMultipleChoice || false}
-                    onChange={(e) => setPollFormData(prev => ({ ...prev, isMultipleChoice: e.target.checked }))}
-                    className={`w-3 xs:w-4 h-3 xs:h-4 text-blue-600 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} rounded focus:ring-blue-500`}
-                  />
-                  <label htmlFor="multipleChoice" className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>Allow multiple choices</label>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      if (pollFormData.question && pollFormData.option1 && pollFormData.option2) {
-                        const options = [pollFormData.option1, pollFormData.option2];
-                        if (pollFormData.option3) options.push(pollFormData.option3);
-                        if (pollFormData.option4) options.push(pollFormData.option4);
-
-                        setPollData({
-                          question: pollFormData.question,
-                          options: options,
-                          isMultipleChoice: pollFormData.isMultipleChoice || false
-                        });
-                        setShowPollModal(false);
-                        setPollFormData({});
-                      } else {
-                        showPopup('error', 'Missing Information', 'Please fill in question and at least 2 options');
-                      }
-                    }}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                  >
-                    Create Poll
-                  </button>
-                  <button
-                    onClick={() => setShowPollModal(false)}
-                    className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Location Modal */}
-      {showLocationModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
-          <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
-            }`}>
-            <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-              <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>Add Location</h3>
-              <button
-                onClick={() => setShowLocationModal(false)}
-                className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="space-y-3">
-                {/* Worldwide Location Search */}
-                <div className="space-y-2">
-                  <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
-                    🌍 Search Worldwide Location
-                  </label>
+              <div className="p-4">
+                <div className="mb-4">
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Search for any location worldwide..."
-                      value={locationSearchQuery}
-                      onChange={(e) => {
-                        setLocationSearchQuery(e.target.value);
-                        searchWorldwideLocation(e.target.value);
-                      }}
-                      className={`w-full px-3 py-2 border rounded-lg pr-10 transition-colors duration-200 ${isDarkMode
-                        ? 'border-gray-600 bg-gray-700 text-white'
-                        : 'border-gray-300 bg-white text-gray-900'
-                        }`}
+                      placeholder="Search GIFs..."
+                      value={gifSearchQuery}
+                      className={`w-full px-3 py-2 border rounded-lg pr-10 ${isDarkMode ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-300 bg-white text-gray-900'}`}
+                      onChange={(e) => handleGifSearch(e.target.value)}
                     />
-                    {locationSearchLoading && (
+                    {gifSearchLoading && (
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       </div>
                     )}
                   </div>
-
-                  {/* Search Results */}
-                  {locationSearchResults.length > 0 && (
-                    <div className={`max-h-40 overflow-y-auto border rounded-lg transition-colors duration-200 ${isDarkMode
-                      ? 'border-gray-600 bg-gray-700'
-                      : 'border-gray-200 bg-white'
-                      }`}>
-                      {locationSearchResults.map((result, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            setLocationFormData({
-                              name: result.display_name.split(',')[0],
-                              address: result.display_name,
-                              category: 'other',
-                              coordinates: {
-                                lat: parseFloat(result.lat),
-                                lng: parseFloat(result.lon)
-                              }
-                            });
-                            setLocationSearchQuery(result.display_name);
-                            setLocationSearchResults([]);
-                          }}
-                          className={`w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors duration-200 ${isDarkMode
-                            ? 'hover:bg-gray-600 border-gray-600'
-                            : 'hover:bg-gray-100 border-gray-100'
-                            }`}
-                        >
-                          <div className={`font-medium text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
-                            {result.display_name.split(',')[0]}
-                          </div>
-                          <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                            {result.display_name}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 max-h-96 overflow-y-auto">
+                  {gifResults.length > 0 ? (
+                    gifResults.map((gif: any, index: number) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setSelectedGif({
+                            url: gif.images.fixed_height.url,
+                            source: 'giphy',
+                            tags: gif.tags || [],
+                            width: gif.images.fixed_height.width,
+                            height: gif.images.fixed_height.height,
+                            giphyId: gif.id
+                          });
+                          setShowGifModal(false);
+                        }}
+                        className={`w-full h-24 rounded-lg transition-colors overflow-hidden ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                      >
+                        <img
+                          src={gif.images.fixed_height.url}
+                          alt={gif.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))
+                  ) : (
+                    // Fallback to emoji placeholders if no GIFs loaded
+                    ['🎭', '🎪', '🎨', '🎬', '🎤', '🎧', '🎮', '🎯', '🎲', '🎸', '🎹', '🎺'].map((gif, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setSelectedGif({ url: gif, source: 'emoji', tags: ['fun'], width: 200, height: 200 });
+                          setShowGifModal(false);
+                        }}
+                        className={`w-full h-24 rounded-lg flex items-center justify-center text-4xl transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}
+                      >
+                        {gif}
+                      </button>
+                    ))
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
-
-                {/* Current Location Button */}
+      {/* Voice Recording Modal */}
+      {
+        showVoiceModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
+            <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'}`}>
+              <div className={`flex items-center justify-between p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Record Voice</h3>
                 <button
-                  onClick={() => {
-                    if (navigator.geolocation) {
-                      navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                          const { latitude, longitude } = position.coords;
-                          // Reverse geocode to get address
-                          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`)
-                            .then(response => response.json())
-                            .then(data => {
-                              setLocationFormData({
-                                name: data.display_name.split(',')[0],
-                                address: data.display_name,
-                                category: 'other',
-                                coordinates: { lat: latitude, lng: longitude }
-                              });
-                              setLocationSearchQuery(data.display_name);
-                            })
-                            .catch(() => {
-                              setLocationFormData({
-                                name: 'Current Location',
-                                address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-                                category: 'other',
-                                coordinates: { lat: latitude, lng: longitude }
-                              });
-                            });
-                        },
-                        (error) => {
-                          showPopup('error', 'Location Error', 'Could not get your current location. Please search manually.');
-                        }
-                      );
-                    } else {
-                      showPopup('error', 'Not Supported', 'Geolocation is not supported by your browser.');
-                    }
-                  }}
-                  className="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => setShowVoiceModal(false)}
+                  className={isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}
                 >
-                  📍 Use Current Location
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
+              </div>
+              <div className="p-4">
+                <div className="text-center">
+                  <button
+                    className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl mb-4 transition-colors ${isRecording ? 'bg-red-600 animate-pulse' : 'bg-red-500 hover:bg-red-600'
+                      }`}
+                    onClick={isRecording ? stopRecording : startRecording}
+                  >
+                    {isRecording ? '⏹️' : '🎤'}
+                  </button>
+                  <p className={`mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {isRecording ? 'Recording... Click to stop' : 'Click to start recording'}
+                  </p>
+                  {recordingTime > 0 && (
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-4`}>Duration: {recordingTime}s</p>
+                  )}
+                  {voiceRecording && (
+                    <div className={`mb-4 p-3 rounded-lg ${isDarkMode ? 'bg-green-900/20' : 'bg-green-50'}`}>
+                      <p className={`text-sm ${isDarkMode ? 'text-green-300' : 'text-green-700'}`}>Voice recorded successfully!</p>
+                      <audio controls className="w-full mt-2">
+                        <source src={URL.createObjectURL(voiceRecording)} type="audio/wav" />
+                      </audio>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    {!voiceRecording ? (
+                      <button
+                        onClick={() => setShowVoiceModal(false)}
+                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setVoiceRecording(null);
+                            setRecordingTime(0);
+                          }}
+                          className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600"
+                        >
+                          Re-record
+                        </button>
+                        <button
+                          onClick={() => setShowVoiceModal(false)}
+                          className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+                        >
+                          Use Recording
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
 
-                {/* Manual Location Input */}
-                <div className="space-y-2">
-                  <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
-                    📝 Manual Location Input
-                  </label>
+      {/* Feelings Selection Modal */}
+      {
+        showFeelingsModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
+            <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
+              }`}>
+              <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>How are you feeling?</h3>
+                <button
+                  onClick={() => setShowFeelingsModal(false)}
+                  className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="grid grid-cols-4 gap-3 max-h-96 overflow-y-auto">
+                  {[
+                    { type: 'happy', emoji: '😊', description: 'Happy' },
+                    { type: 'excited', emoji: '🤩', description: 'Excited' },
+                    { type: 'grateful', emoji: '🙏', description: 'Grateful' },
+                    { type: 'loved', emoji: '💕', description: 'Loved' },
+                    { type: 'sad', emoji: '😢', description: 'Sad' },
+                    { type: 'angry', emoji: '😠', description: 'Angry' },
+                    { type: 'surprised', emoji: '😮', description: 'Surprised' },
+                    { type: 'scared', emoji: '😨', description: 'Scared' },
+                    { type: 'calm', emoji: '😌', description: 'Calm' },
+                    { type: 'proud', emoji: '😎', description: 'Proud' },
+                    { type: 'tired', emoji: '😴', description: 'Tired' },
+                    { type: 'confused', emoji: '😕', description: 'Confused' }
+                  ].map((feeling) => (
+                    <button
+                      key={feeling.type}
+                      onClick={() => {
+                        setSelectedFeeling(feeling);
+                        setShowFeelingsModal(false);
+                      }}
+                      className={`flex flex-col items-center p-3 rounded-lg transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600'
+                        : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                    >
+                      <span className="text-3xl mb-2">{feeling.emoji}</span>
+                      <span className={`text-xs text-center transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>{feeling.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Sell Product Modal */}
+      {
+        showSellModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
+            <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
+              }`}>
+              <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Sell Product</h3>
+                <button
+                  onClick={() => setShowSellModal(false)}
+                  className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="space-y-3">
                   <input
                     type="text"
-                    placeholder="Location name"
-                    value={locationFormData.name || ''}
-                    onChange={(e) => setLocationFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Product name"
+                    value={sellFormData.productName || ''}
+                    onChange={(e) => setSellFormData(prev => ({ ...prev, productName: e.target.value }))}
                     className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
                       ? 'border-gray-600 bg-gray-700 text-white'
                       : 'border-gray-300 bg-white text-gray-900'
                       }`}
                   />
                   <input
-                    type="text"
-                    placeholder="Address"
-                    value={locationFormData.address || ''}
-                    onChange={(e) => setLocationFormData(prev => ({ ...prev, address: e.target.value }))}
+                    type="number"
+                    placeholder="Price"
+                    value={sellFormData.price || ''}
+                    onChange={(e) => setSellFormData(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
                     className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
                       ? 'border-gray-600 bg-gray-700 text-white'
                       : 'border-gray-300 bg-white text-gray-900'
                       }`}
                   />
                   <select
-                    value={locationFormData.category || ''}
-                    onChange={(e) => setLocationFormData(prev => ({ ...prev, category: e.target.value }))}
+                    value={sellFormData.condition || 'New'}
+                    onChange={(e) => setSellFormData(prev => ({ ...prev, condition: e.target.value }))}
                     className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
                       ? 'border-gray-600 bg-gray-700 text-white'
                       : 'border-gray-300 bg-white text-gray-900'
                       }`}
                   >
-                    <option value="">Select category</option>
-                    <option value="restaurant">Restaurant</option>
-                    <option value="cafe">Cafe</option>
-                    <option value="park">Park</option>
-                    <option value="shopping">Shopping</option>
-                    <option value="entertainment">Entertainment</option>
-                    <option value="other">Other</option>
+                    <option value="New">New</option>
+                    <option value="Used">Used</option>
+                    <option value="Refurbished">Refurbished</option>
                   </select>
-
-                  {/* Map Preview */}
-                  {locationFormData.coordinates && (
-                    <div className="space-y-2">
-                      <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>
-                        🗺️ Location Preview
-                      </label>
-                      <div className={`w-full h-32 rounded-lg flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-100'
-                        }`}>
-                        <div className="text-center">
-                          <div className="text-lg">📍</div>
-                          <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                            }`}>
-                            {locationFormData.name}
-                          </div>
-                          <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                            {locationFormData.coordinates.lat.toFixed(6)}, {locationFormData.coordinates.lng.toFixed(6)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="negotiable"
+                      checked={sellFormData.negotiable || false}
+                      onChange={(e) => setSellFormData(prev => ({ ...prev, negotiable: e.target.checked }))}
+                      className={`w-3 xs:w-4 h-3 xs:h-4 text-blue-600 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} rounded focus:ring-blue-500`}
+                    />
+                    <label htmlFor="negotiable" className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>Price negotiable</label>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        if (locationFormData.name && locationFormData.address) {
-                          setLocationData(locationFormData);
-                          setShowLocationModal(false);
-                          setLocationFormData({});
+                        if (sellFormData.productName && sellFormData.price) {
+                          setSellData(sellFormData);
+                          setShowSellModal(false);
+                          setSellFormData({});
                         } else {
-                          showPopup('error', 'Missing Information', 'Please fill in location name and address');
+                          showPopup('error', 'Missing Information', 'Please fill in product name and price');
                         }
                       }}
                       className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
                     >
-                      Add Location
+                      Add Product
                     </button>
                     <button
-                      onClick={() => setShowLocationModal(false)}
+                      onClick={() => setShowSellModal(false)}
                       className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
                     >
                       Cancel
@@ -4957,9 +4670,357 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+
+      {/* Create Poll Modal */}
+      {
+        showPollModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
+            <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
+              }`}>
+              <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Create Poll</h3>
+                <button
+                  onClick={() => setShowPollModal(false)}
+                  className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Poll question"
+                    value={pollFormData.question || ''}
+                    onChange={(e) => setPollFormData(prev => ({ ...prev, question: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Option 1"
+                    value={pollFormData.option1 || ''}
+                    onChange={(e) => setPollFormData(prev => ({ ...prev, option1: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Option 2"
+                    value={pollFormData.option2 || ''}
+                    onChange={(e) => setPollFormData(prev => ({ ...prev, option2: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Option 3 (optional)"
+                    value={pollFormData.option3 || ''}
+                    onChange={(e) => setPollFormData(prev => ({ ...prev, option3: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Option 4 (optional)"
+                    value={pollFormData.option4 || ''}
+                    onChange={(e) => setPollFormData(prev => ({ ...prev, option4: e.target.value }))}
+                    className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                      ? 'border-gray-600 bg-gray-700 text-white'
+                      : 'border-gray-300 bg-white text-gray-900'
+                      }`}
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="multipleChoice"
+                      checked={pollFormData.isMultipleChoice || false}
+                      onChange={(e) => setPollFormData(prev => ({ ...prev, isMultipleChoice: e.target.checked }))}
+                      className={`w-3 xs:w-4 h-3 xs:h-4 text-blue-600 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300'} rounded focus:ring-blue-500`}
+                    />
+                    <label htmlFor="multipleChoice" className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>Allow multiple choices</label>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (pollFormData.question && pollFormData.option1 && pollFormData.option2) {
+                          const options = [pollFormData.option1, pollFormData.option2];
+                          if (pollFormData.option3) options.push(pollFormData.option3);
+                          if (pollFormData.option4) options.push(pollFormData.option4);
+
+                          setPollData({
+                            question: pollFormData.question,
+                            options: options,
+                            isMultipleChoice: pollFormData.isMultipleChoice || false
+                          });
+                          setShowPollModal(false);
+                          setPollFormData({});
+                        } else {
+                          showPopup('error', 'Missing Information', 'Please fill in question and at least 2 options');
+                        }
+                      }}
+                      className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                    >
+                      Create Poll
+                    </button>
+                    <button
+                      onClick={() => setShowPollModal(false)}
+                      className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Location Modal */}
+      {
+        showLocationModal && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/20 backdrop-blur-md">
+            <div className={`backdrop-blur-sm border rounded-xl shadow-2xl max-w-md w-full max-h-[85vh] sm:max-h-[80vh] overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800/90 border-gray-700/30' : 'bg-white/90 border-white/20'
+              }`}>
+              <div className={`flex items-center justify-between p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                <h3 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Add Location</h3>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className={`transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="space-y-3">
+                  {/* Worldwide Location Search */}
+                  <div className="space-y-2">
+                    <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                      🌍 Search Worldwide Location
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search for any location worldwide..."
+                        value={locationSearchQuery}
+                        onChange={(e) => {
+                          setLocationSearchQuery(e.target.value);
+                          searchWorldwideLocation(e.target.value);
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg pr-10 transition-colors duration-200 ${isDarkMode
+                          ? 'border-gray-600 bg-gray-700 text-white'
+                          : 'border-gray-300 bg-white text-gray-900'
+                          }`}
+                      />
+                      {locationSearchLoading && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Search Results */}
+                    {locationSearchResults.length > 0 && (
+                      <div className={`max-h-40 overflow-y-auto border rounded-lg transition-colors duration-200 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700'
+                        : 'border-gray-200 bg-white'
+                        }`}>
+                        {locationSearchResults.map((result, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setLocationFormData({
+                                name: result.display_name.split(',')[0],
+                                address: result.display_name,
+                                category: 'other',
+                                coordinates: {
+                                  lat: parseFloat(result.lat),
+                                  lng: parseFloat(result.lon)
+                                }
+                              });
+                              setLocationSearchQuery(result.display_name);
+                              setLocationSearchResults([]);
+                            }}
+                            className={`w-full text-left px-3 py-2 border-b last:border-b-0 transition-colors duration-200 ${isDarkMode
+                              ? 'hover:bg-gray-600 border-gray-600'
+                              : 'hover:bg-gray-100 border-gray-100'
+                              }`}
+                          >
+                            <div className={`font-medium text-sm transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
+                              {result.display_name.split(',')[0]}
+                            </div>
+                            <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>
+                              {result.display_name}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+
+                  {/* Current Location Button */}
+                  <button
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            const { latitude, longitude } = position.coords;
+                            // Reverse geocode to get address
+                            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`)
+                              .then(response => response.json())
+                              .then(data => {
+                                setLocationFormData({
+                                  name: data.display_name.split(',')[0],
+                                  address: data.display_name,
+                                  category: 'other',
+                                  coordinates: { lat: latitude, lng: longitude }
+                                });
+                                setLocationSearchQuery(data.display_name);
+                              })
+                              .catch(() => {
+                                setLocationFormData({
+                                  name: 'Current Location',
+                                  address: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
+                                  category: 'other',
+                                  coordinates: { lat: latitude, lng: longitude }
+                                });
+                              });
+                          },
+                          (error) => {
+                            showPopup('error', 'Location Error', 'Could not get your current location. Please search manually.');
+                          }
+                        );
+                      } else {
+                        showPopup('error', 'Not Supported', 'Geolocation is not supported by your browser.');
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    📍 Use Current Location
+                  </button>
+
+                  {/* Manual Location Input */}
+                  <div className="space-y-2">
+                    <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                      }`}>
+                      📝 Manual Location Input
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Location name"
+                      value={locationFormData.name || ''}
+                      onChange={(e) => setLocationFormData(prev => ({ ...prev, name: e.target.value }))}
+                      className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700 text-white'
+                        : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Address"
+                      value={locationFormData.address || ''}
+                      onChange={(e) => setLocationFormData(prev => ({ ...prev, address: e.target.value }))}
+                      className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700 text-white'
+                        : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                    />
+                    <select
+                      value={locationFormData.category || ''}
+                      onChange={(e) => setLocationFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className={`w-full px-3 py-2 border rounded-lg transition-colors duration-200 ${isDarkMode
+                        ? 'border-gray-600 bg-gray-700 text-white'
+                        : 'border-gray-300 bg-white text-gray-900'
+                        }`}
+                    >
+                      <option value="">Select category</option>
+                      <option value="restaurant">Restaurant</option>
+                      <option value="cafe">Cafe</option>
+                      <option value="park">Park</option>
+                      <option value="shopping">Shopping</option>
+                      <option value="entertainment">Entertainment</option>
+                      <option value="other">Other</option>
+                    </select>
+
+                    {/* Map Preview */}
+                    {locationFormData.coordinates && (
+                      <div className="space-y-2">
+                        <label className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                          🗺️ Location Preview
+                        </label>
+                        <div className={`w-full h-32 rounded-lg flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-100'
+                          }`}>
+                          <div className="text-center">
+                            <div className="text-lg">📍</div>
+                            <div className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                              }`}>
+                              {locationFormData.name}
+                            </div>
+                            <div className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                              }`}>
+                              {locationFormData.coordinates.lat.toFixed(6)}, {locationFormData.coordinates.lng.toFixed(6)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (locationFormData.name && locationFormData.address) {
+                            setLocationData(locationFormData);
+                            setShowLocationModal(false);
+                            setLocationFormData({});
+                          } else {
+                            showPopup('error', 'Missing Information', 'Please fill in location name and address');
+                          }
+                        }}
+                        className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                      >
+                        Add Location
+                      </button>
+                      <button
+                        onClick={() => setShowLocationModal(false)}
+                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }
 

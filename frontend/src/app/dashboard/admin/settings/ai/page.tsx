@@ -24,6 +24,8 @@ const AiSettingsPage = () => {
   const [inferenceSteps, setInferenceSteps] = useState("1");
   const [guidanceScale, setGuidanceScale] = useState("1");
   const [seed, setSeed] = useState("");
+  const [cartesiaKey, setCartesiaKey] = useState("");
+  const [sonioxKey, setSonioxKey] = useState("");
 
   const [creditPrice, setCreditPrice] = useState("100");
   const [imageCreditEnabled, setImageCreditEnabled] = useState(true);
@@ -43,8 +45,8 @@ const AiSettingsPage = () => {
     : "bg-white border-gray-200 shadow-md";
 
   const inputStyles = `w-full rounded-lg border px-4 py-2 focus:outline-none focus:ring-2 ${isDarkMode
-      ? "bg-gray-900 border-gray-700 text-white focus:ring-red-500"
-      : "bg-white border-gray-300 text-gray-900 focus:ring-red-400"
+    ? "bg-gray-900 border-gray-700 text-white focus:ring-red-500"
+    : "bg-white border-gray-300 text-gray-900 focus:ring-red-400"
     }`;
 
   useEffect(() => {
@@ -67,6 +69,47 @@ const AiSettingsPage = () => {
           if (aiSettings.openai) {
             setOpenAiKey(aiSettings.openai.apiKey || '');
             setOpenAiModel(aiSettings.openai.model || 'gpt-3.5-turbo');
+          }
+          if (aiSettings.cartesia) {
+            setCartesiaKey(aiSettings.cartesia.key || '');
+          }
+          if (aiSettings.soniox) {
+            setSonioxKey(aiSettings.soniox.key || '');
+          }
+
+          if (aiSettings.replicate) {
+            setReplicateModel(aiSettings.replicate.model || 'prompthero/openjourney');
+            setReplicateToken(aiSettings.replicate.apiToken || '');
+            setInferenceSteps(aiSettings.replicate.inferenceSteps || '1');
+            setGuidanceScale(aiSettings.replicate.guidanceScale || '1');
+            setSeed(aiSettings.replicate.seed || '');
+          }
+          if (aiSettings.imagesSystem) {
+            setImagesEnabled(aiSettings.imagesSystem.enabled);
+            setImagesApi(aiSettings.imagesSystem.api);
+          }
+          if (aiSettings.postSystem) {
+            setPostsEnabled(aiSettings.postSystem.enabled);
+            setPostsApi(aiSettings.postSystem.api);
+          }
+          if (aiSettings.blogSystem) {
+            setBlogEnabled(aiSettings.blogSystem.enabled);
+            setBlogApi(aiSettings.blogSystem.api);
+          }
+          if (aiSettings.avatarSystem) {
+            setAvatarEnabled(aiSettings.avatarSystem.enabled);
+            setAvatarApi(aiSettings.avatarSystem.api);
+          }
+          if (aiSettings.creditSystem) {
+            setCreditPrice(aiSettings.creditSystem.creditPrice?.toString() || '100');
+            if (aiSettings.creditSystem.image) {
+              setImageCreditEnabled(aiSettings.creditSystem.image.enabled);
+              setImagePrice(aiSettings.creditSystem.image.price?.toString() || '10');
+            }
+            if (aiSettings.creditSystem.text) {
+              setTextCreditEnabled(aiSettings.creditSystem.text.enabled);
+              setTextPrice(aiSettings.creditSystem.text.price?.toString() || '1');
+            }
           }
         }
       }
@@ -96,6 +139,48 @@ const AiSettingsPage = () => {
               enabled: true,
               apiKey: openAiKey,
               model: openAiModel
+            },
+            cartesia: {
+              enabled: true,
+              key: cartesiaKey
+            },
+            soniox: {
+              enabled: true,
+              key: sonioxKey
+            },
+            replicate: {
+              model: replicateModel,
+              apiToken: replicateToken,
+              inferenceSteps: inferenceSteps,
+              guidanceScale: guidanceScale,
+              seed: seed
+            },
+            imagesSystem: {
+              enabled: imagesEnabled,
+              api: imagesApi
+            },
+            postSystem: {
+              enabled: postsEnabled,
+              api: postsApi
+            },
+            blogSystem: {
+              enabled: blogEnabled,
+              api: blogApi
+            },
+            avatarSystem: {
+              enabled: avatarEnabled,
+              api: avatarApi
+            },
+            creditSystem: {
+              creditPrice: Number(creditPrice),
+              image: {
+                enabled: imageCreditEnabled,
+                price: Number(imagePrice)
+              },
+              text: {
+                enabled: textCreditEnabled,
+                price: Number(textPrice)
+              }
             }
           }
         })
@@ -305,6 +390,44 @@ const AiSettingsPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Cartesia Settings */}
+        <div className={`${cardBase} rounded-2xl border p-6`}>
+          <h2 className={`text-2xl font-semibold ${textPrimary} mb-6`}>
+            Cartesia TTS Settings
+          </h2>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className={`text-sm font-medium ${textPrimary}`}>Cartesia API Key</label>
+              <input
+                type="text"
+                value={cartesiaKey}
+                onChange={(e) => setCartesiaKey(e.target.value)}
+                placeholder="Cartesia API Key"
+                className={inputStyles}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Soniox Settings */}
+        <div className={`${cardBase} rounded-2xl border p-6`}>
+          <h2 className={`text-2xl font-semibold ${textPrimary} mb-6`}>
+            Soniox STT Settings
+          </h2>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className={`text-sm font-medium ${textPrimary}`}>Soniox API Key</label>
+              <input
+                type="text"
+                value={sonioxKey}
+                onChange={(e) => setSonioxKey(e.target.value)}
+                placeholder="Soniox API Key"
+                className={inputStyles}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* AI Feature Settings */}
@@ -451,7 +574,7 @@ const AiSettingsPage = () => {
           )}
         </button>
       </div>
-    </div>
+    </div >
   );
 };
 

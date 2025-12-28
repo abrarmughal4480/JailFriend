@@ -35,7 +35,7 @@ const MarketplaceSeller: React.FC = () => {
     price: '',
     type: 'New',
     location: '',
-    category: 'Autos & Vehicles',
+    category: '',
     totalItemUnits: '',
     photos: []
   });
@@ -61,7 +61,7 @@ const MarketplaceSeller: React.FC = () => {
     if (activeTab === 'My Products') {
       setLoading(true);
       const currentUserId = getCurrentUserId();
-      
+
       if (!currentUserId) {
         console.error('No current user ID found');
         setError('Please login to view your products');
@@ -79,20 +79,20 @@ const MarketplaceSeller: React.FC = () => {
         .then(data => {
           console.log('Products fetched:', data.length);
           console.log('Products data:', data);
-          
+
           // Filter products to show only those created by the current user
           const myProducts = data.filter((product: any) => {
             // Check multiple possible fields for user ID
             const productUserId = product.userId || product.user?.id || product.user?._id || product.sellerId || product.createdBy;
             const normalizedProductUserId = productUserId ? String(productUserId).trim() : '';
             const normalizedCurrentUserId = String(currentUserId).trim();
-            
+
             return normalizedProductUserId === normalizedCurrentUserId;
           });
-          
+
           console.log('My products filtered:', myProducts.length);
           console.log('Current user ID:', currentUserId);
-          
+
           // Log image information for each product
           myProducts.forEach((product: any, index: number) => {
             console.log(`Product ${index + 1}:`, {
@@ -103,7 +103,7 @@ const MarketplaceSeller: React.FC = () => {
               userId: product.userId || product.user?.id || product.user?._id || product.sellerId || product.createdBy
             });
           });
-          
+
           setProducts(myProducts);
           setLoading(false);
         })
@@ -122,14 +122,7 @@ const MarketplaceSeller: React.FC = () => {
 
   const currencies: string[] = ['USD ($)', 'EUR (€)', 'GBP (£)', 'CAD ($)', 'AUD ($)'];
   const types: string[] = ['New', 'Used', 'Refurbished'];
-  const [categories, setCategories] = useState<string[]>([
-    'Autos & Vehicles',
-    'Baby & Children\'s Products',
-    'Beauty Products & Services',
-    'Computers & Peripherals',
-    'Consumer Electronics',
-    'Other'
-  ]);
+  const [categories, setCategories] = useState<string[]>([]);
 
   // Load product categories created in admin
   useEffect(() => {
@@ -186,7 +179,7 @@ const MarketplaceSeller: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const token = localStorage.getItem('token');
-      
+
       // Check if token exists and is valid
       if (!token || token === 'null' || token === 'undefined') {
         alert('Please log in to create a product');
@@ -218,7 +211,7 @@ const MarketplaceSeller: React.FC = () => {
       console.log('Token exists:', !!token);
       console.log('Token length:', token.length);
       console.log('Form data:', formData);
-          console.log('API URL:', API_URL);
+      console.log('API URL:', API_URL);
 
       const form = new FormData();
       form.append('name', formData.name.trim());
@@ -229,13 +222,13 @@ const MarketplaceSeller: React.FC = () => {
       form.append('location', formData.location.trim());
       form.append('category', formData.category);
       form.append('totalItemUnits', formData.totalItemUnits || '1');
-      
+
       // Only append image if it exists
       if (formData.photos[0]) {
         form.append('image', formData.photos[0]);
         console.log('Image file attached:', formData.photos[0].name, formData.photos[0].size, formData.photos[0].type);
       }
-      
+
       // Log the FormData contents for debugging
       console.log('FormData contents:');
       for (let [key, value] of form.entries()) {
@@ -245,10 +238,10 @@ const MarketplaceSeller: React.FC = () => {
           console.log(`${key}: ${value}`);
         }
       }
-      
-  const apiUrl = `${API_URL}/api/products`;
+
+      const apiUrl = `${API_URL}/api/products`;
       console.log('Making request to:', apiUrl);
-      
+
       const res = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -256,19 +249,19 @@ const MarketplaceSeller: React.FC = () => {
         },
         body: form
       });
-      
+
       console.log('Response status:', res.status);
       console.log('Response status text:', res.statusText);
       console.log('Response headers:', Object.fromEntries(res.headers.entries()));
-      
+
       if (res.ok) {
         const productData = await res.json();
         console.log('Product created successfully:', productData);
-        
+
         alert('Product created successfully!');
         setShowSellModal(false);
         resetForm();
-        
+
         // Refresh products list
         const currentUserId = getCurrentUserId();
         if (currentUserId) {
@@ -291,7 +284,7 @@ const MarketplaceSeller: React.FC = () => {
       } else {
         console.error('Server response error:', res.status, res.statusText);
         let errorMessage = `Server error: ${res.status} ${res.statusText}`;
-        
+
         try {
           const data = await res.json();
           console.error('Server error details:', data);
@@ -307,7 +300,7 @@ const MarketplaceSeller: React.FC = () => {
             console.error('Failed to get raw response text:', textError);
           }
         }
-        
+
         alert('Error: ' + errorMessage);
       }
     } catch (err) {
@@ -349,7 +342,7 @@ const MarketplaceSeller: React.FC = () => {
         return;
       }
 
-  const response = await fetch(`${API_URL}/api/products/${productId}`, {
+      const response = await fetch(`${API_URL}/api/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -361,11 +354,11 @@ const MarketplaceSeller: React.FC = () => {
         console.log('Product deleted successfully');
         // Remove the product from the local state
         setProducts(prevProducts => prevProducts.filter(product => product._id !== productId));
-        
+
         // Show success popup
         setDeleteMessage('Product deleted successfully!');
         setShowDeletePopup(true);
-        
+
         // Auto-hide popup after 3 seconds
         setTimeout(() => {
           setShowDeletePopup(false);
@@ -376,7 +369,7 @@ const MarketplaceSeller: React.FC = () => {
         // Show error popup
         setDeleteMessage('Failed to delete product. Please try again.');
         setShowDeletePopup(true);
-        
+
         // Auto-hide popup after 3 seconds
         setTimeout(() => {
           setShowDeletePopup(false);
@@ -388,7 +381,7 @@ const MarketplaceSeller: React.FC = () => {
       // Show error popup
       setDeleteMessage('Error deleting product. Please try again.');
       setShowDeletePopup(true);
-      
+
       // Auto-hide popup after 3 seconds
       setTimeout(() => {
         setShowDeletePopup(false);
@@ -402,28 +395,28 @@ const MarketplaceSeller: React.FC = () => {
     // Helper function to get the correct image URL
     const getImageUrl = (imagePath: string): string | undefined => {
       if (!imagePath) return undefined;
-      
+
       // If it's already a full URL (starts with http/https), return as is
       // This handles Cloudinary URLs and other external URLs
       if (imagePath.startsWith('http')) {
         return imagePath;
       }
-      
+
       // If it's a relative path (local uploads), prefix with API URL
       // Always use HTTPS to avoid mixed content errors
-  const apiUrl = API_URL;
-      
+      const apiUrl = API_URL;
+
       // Ensure we're using HTTPS
       const secureUrl = apiUrl.replace('http://', 'https://');
-      
+
       // Ensure proper URL construction with forward slash
       const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-      
+
       return `${secureUrl}${cleanPath}`;
     };
 
     const imageUrl = getImageUrl(product.image);
-    
+
     // Debug logging
     console.log('Product image debug:', {
       productName: product.name,
@@ -433,7 +426,7 @@ const MarketplaceSeller: React.FC = () => {
       imageType: typeof product.image,
       imageLength: product.image ? product.image.length : 0
     });
-    
+
     // Test if the image URL is accessible
     if (imageUrl) {
       fetch(imageUrl, { method: 'HEAD' })
@@ -444,17 +437,16 @@ const MarketplaceSeller: React.FC = () => {
           console.error(`❌ Image not accessible: ${imageUrl} - Error:`, error);
         });
     }
-    
+
     return (
-      <div className={`rounded-lg border overflow-hidden hover:shadow-md transition-all duration-200 ${viewMode === 'list' ? 'flex items-center p-4 gap-4' : 'flex flex-col'} ${
-        isDarkMode 
-          ? 'bg-gray-800 border-gray-700' 
+      <div className={`rounded-lg border overflow-hidden hover:shadow-md transition-all duration-200 ${viewMode === 'list' ? 'flex items-center p-4 gap-4' : 'flex flex-col'} ${isDarkMode
+          ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-gray-200'
-      }`}>
+        }`}>
         {imageUrl ? (
-          <img 
-            src={imageUrl} 
-            alt={product.name} 
+          <img
+            src={imageUrl}
+            alt={product.name}
             className={`object-cover ${viewMode === 'list' ? 'w-16 h-16 sm:w-20 sm:h-20 rounded-lg flex-shrink-0' : 'w-full h-32 sm:h-40'}`}
             onError={(e) => {
               console.error('❌ Image failed to load:', {
@@ -471,84 +463,78 @@ const MarketplaceSeller: React.FC = () => {
             <Package className="w-8 h-8 text-gray-400" />
           </div>
         )}
-      
-      <div className={`${viewMode === 'list' ? 'flex-1 min-w-0' : 'p-3 sm:p-4'} flex flex-col`}>
-        <h3 className={`font-semibold text-sm sm:text-base truncate mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
-        <p className={`text-xs sm:text-sm mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{product.category}</p>
-        <p className="text-blue-600 font-bold text-sm sm:text-base mb-1">{product.currency} {product.price}</p>
-        <p className={`text-xs mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{product.type}</p>
-        {product.sellerName && (
-          <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>by {product.sellerName}</p>
-        )}
-        
-        {viewMode === 'list' && (
-          <div className="flex items-center gap-2 mt-2">
-            <button className={`p-1.5 rounded transition-colors duration-200 ${
-              isDarkMode 
-                ? 'text-gray-400 hover:text-blue-400 hover:bg-blue-900' 
-                : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-            }`}>
-              <Eye className="w-4 h-4" />
-            </button>
-            <button className={`p-1.5 rounded transition-colors duration-200 ${
-              isDarkMode 
-                ? 'text-gray-400 hover:text-green-400 hover:bg-green-900' 
-                : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-            }`}>
-              <Edit className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={() => handleDeleteProduct(product._id)}
-              className={`p-1.5 rounded transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-red-400 hover:bg-red-900' 
-                  : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
-              }`}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+
+        <div className={`${viewMode === 'list' ? 'flex-1 min-w-0' : 'p-3 sm:p-4'} flex flex-col`}>
+          <h3 className={`font-semibold text-sm sm:text-base truncate mb-1 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
+          <p className={`text-xs sm:text-sm mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{product.category}</p>
+          <p className="text-blue-600 font-bold text-sm sm:text-base mb-1">{product.currency} {product.price}</p>
+          <p className={`text-xs mb-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{product.type}</p>
+          {product.sellerName && (
+            <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>by {product.sellerName}</p>
+          )}
+
+          {viewMode === 'list' && (
+            <div className="flex items-center gap-2 mt-2">
+              <button className={`p-1.5 rounded transition-colors duration-200 ${isDarkMode
+                  ? 'text-gray-400 hover:text-blue-400 hover:bg-blue-900'
+                  : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                }`}>
+                <Eye className="w-4 h-4" />
+              </button>
+              <button className={`p-1.5 rounded transition-colors duration-200 ${isDarkMode
+                  ? 'text-gray-400 hover:text-green-400 hover:bg-green-900'
+                  : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+                }`}>
+                <Edit className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDeleteProduct(product._id)}
+                className={`p-1.5 rounded transition-colors duration-200 ${isDarkMode
+                    ? 'text-gray-400 hover:text-red-400 hover:bg-red-900'
+                    : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                  }`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {viewMode === 'grid' && (
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                <span className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>4.5</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button className={`p-1.5 rounded transition-colors duration-200 ${isDarkMode
+                    ? 'text-gray-400 hover:text-blue-400 hover:bg-blue-900'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  }`}>
+                  <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+                <button className={`p-1.5 rounded transition-colors duration-200 ${isDarkMode
+                    ? 'text-gray-400 hover:text-green-400 hover:bg-green-900'
+                    : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+                  }`}>
+                  <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeleteProduct(product._id)}
+                  className={`p-1.5 rounded transition-colors duration-200 ${isDarkMode
+                      ? 'text-gray-400 hover:text-red-400 hover:bg-red-900'
+                      : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                >
+                  <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
-      
-      {viewMode === 'grid' && (
-        <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-              <span className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>4.5</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button className={`p-1.5 rounded transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-blue-400 hover:bg-blue-900' 
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-              }`}>
-                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-              </button>
-              <button className={`p-1.5 rounded transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-green-400 hover:bg-green-900' 
-                  : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
-              }`}>
-                <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-              </button>
-              <button 
-                onClick={() => handleDeleteProduct(product._id)}
-                className={`p-1.5 rounded transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-red-400 hover:bg-red-900' 
-                    : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
-                }`}
-              >
-                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    );
   };
 
   // My Products Page
@@ -586,47 +572,43 @@ const MarketplaceSeller: React.FC = () => {
               <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{products.length} product{products.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
+              <button className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700'
                   : 'hover:bg-gray-100'
-              }`}>
+                }`}>
                 <Search className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
+              <button className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700'
                   : 'hover:bg-gray-100'
-              }`}>
+                }`}>
                 <Filter className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
               {/* View Mode Toggle */}
               <div className={`hidden sm:flex rounded-lg p-1 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded transition-colors duration-200 ${
-                    viewMode === 'grid' 
-                      ? isDarkMode 
-                        ? 'bg-gray-600 shadow-sm' 
+                  className={`p-1.5 rounded transition-colors duration-200 ${viewMode === 'grid'
+                      ? isDarkMode
+                        ? 'bg-gray-600 shadow-sm'
                         : 'bg-white shadow-sm'
-                      : isDarkMode 
-                        ? 'hover:bg-gray-600' 
+                      : isDarkMode
+                        ? 'hover:bg-gray-600'
                         : 'hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   <Package className={`w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded transition-colors duration-200 ${
-                    viewMode === 'list' 
-                      ? isDarkMode 
-                        ? 'bg-gray-600 shadow-sm' 
+                  className={`p-1.5 rounded transition-colors duration-200 ${viewMode === 'list'
+                      ? isDarkMode
+                        ? 'bg-gray-600 shadow-sm'
                         : 'bg-white shadow-sm'
-                      : isDarkMode 
-                        ? 'hover:bg-gray-600' 
+                      : isDarkMode
+                        ? 'hover:bg-gray-600'
                         : 'hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   <Menu className={`w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
                 </button>
@@ -642,8 +624,8 @@ const MarketplaceSeller: React.FC = () => {
           </div>
 
           {/* Products Grid/List */}
-          <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6' 
+          <div className={viewMode === 'grid'
+            ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6'
             : 'space-y-3'
           }>
             {products.map(product => (
@@ -684,40 +666,36 @@ const MarketplaceSeller: React.FC = () => {
         <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button className={`lg:hidden p-2 rounded-full transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
+              <button className={`lg:hidden p-2 rounded-full transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700'
                   : 'hover:bg-gray-100'
-              }`}>
+                }`}>
                 <ArrowLeft className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
               <h1 className={`text-xl sm:text-2xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>My-Product</h1>
             </div>
-            
+
             <div className="flex items-center gap-2 sm:gap-3">
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
+              <button className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700'
                   : 'hover:bg-gray-100'
-              }`}>
+                }`}>
                 <Camera className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
-              <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
+              <button className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700'
                   : 'hover:bg-gray-100'
-              }`}>
+                }`}>
                 <Users className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
-              
+
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setShowMobileMenu(true)}
-                className={`sm:hidden p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700' 
+                className={`sm:hidden p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'hover:bg-gray-700'
                     : 'hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <Menu className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
@@ -735,17 +713,16 @@ const MarketplaceSeller: React.FC = () => {
                 <h2 className={`text-lg font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Menu</h2>
                 <button
                   onClick={() => setShowMobileMenu(false)}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700' 
+                  className={`p-2 rounded-full transition-colors duration-200 ${isDarkMode
+                      ? 'hover:bg-gray-700'
                       : 'hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <X className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
                 </button>
               </div>
             </div>
-            
+
             <div className="p-4 space-y-2">
               {tabs.map((tab: Tab) => (
                 <button
@@ -754,13 +731,12 @@ const MarketplaceSeller: React.FC = () => {
                     setActiveTab(tab.name);
                     setShowMobileMenu(false);
                   }}
-                  className={`w-full text-left p-3 rounded-lg transition-colors duration-200 ${
-                    activeTab === tab.name
+                  className={`w-full text-left p-3 rounded-lg transition-colors duration-200 ${activeTab === tab.name
                       ? 'bg-blue-50 text-blue-600'
-                      : isDarkMode 
-                        ? 'hover:bg-gray-700 text-gray-300' 
+                      : isDarkMode
+                        ? 'hover:bg-gray-700 text-gray-300'
                         : 'hover:bg-gray-50 text-gray-700'
-                  }`}
+                    }`}
                 >
                   {tab.name}
                 </button>
@@ -778,13 +754,12 @@ const MarketplaceSeller: React.FC = () => {
               <button
                 key={tab.name}
                 onClick={() => setActiveTab(tab.name)}
-                className={`flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                  activeTab === tab.name
+                className={`flex-shrink-0 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors duration-200 ${activeTab === tab.name
                     ? 'text-blue-600 border-blue-600'
-                    : isDarkMode 
-                      ? 'text-gray-300 border-transparent hover:text-blue-400' 
+                    : isDarkMode
+                      ? 'text-gray-300 border-transparent hover:text-blue-400'
                       : 'text-gray-500 border-transparent hover:text-blue-600'
-                }`}
+                  }`}
               >
                 {tab.name}
               </button>
@@ -800,10 +775,10 @@ const MarketplaceSeller: React.FC = () => {
 
       {/* Floating Action Button */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[9999] pointer-events-none">
-        <button 
+        <button
           onClick={() => setShowSellModal(true)}
           className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 hover:shadow-xl transition-all flex items-center justify-center group pointer-events-auto"
-          style={{ 
+          style={{
             position: 'relative',
             width: '3rem',
             height: '3rem',
@@ -820,15 +795,14 @@ const MarketplaceSeller: React.FC = () => {
       {/* Sell New Product Modal */}
       {showSellModal && (
         <div className="fixed inset-0 modal-glassmorphism-bg flex items-center justify-center p-2 sm:p-4 z-50">
-          <div 
-            className={`rounded-2xl shadow-2xl w-full max-w-[90vw] sm:max-w-lg lg:max-w-xl max-h-[70vh] sm:max-h-[80vh] overflow-y-auto scrollbar-hide transition-all duration-300 transform border ${
-              isDarkMode 
-                ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl' 
+          <div
+            className={`rounded-2xl shadow-2xl w-full max-w-[90vw] sm:max-w-lg lg:max-w-xl max-h-[70vh] sm:max-h-[80vh] overflow-y-auto scrollbar-hide transition-all duration-300 transform border ${isDarkMode
+                ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl'
                 : 'bg-white/80 border-gray-300/50 backdrop-blur-xl'
-            }`}
+              }`}
             style={{
-              boxShadow: isDarkMode 
-                ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)' 
+              boxShadow: isDarkMode
+                ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
                 : '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
             }}
           >
@@ -837,11 +811,10 @@ const MarketplaceSeller: React.FC = () => {
               <h2 className={`text-lg sm:text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Sell new product</h2>
               <button
                 onClick={handleCancel}
-                className={`p-2 rounded-full transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                className={`p-2 rounded-full transition-colors duration-200 ${isDarkMode
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                     : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -858,11 +831,10 @@ const MarketplaceSeller: React.FC = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   placeholder="Enter product name"
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
+                    }`}
                   required
                 />
               </div>
@@ -876,11 +848,10 @@ const MarketplaceSeller: React.FC = () => {
                   onChange={handleInputChange}
                   placeholder="Describe your product in detail"
                   rows={4}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
+                    }`}
                   required
                 />
                 <p className={`text-xs mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Minimum 10 characters</p>
@@ -894,11 +865,10 @@ const MarketplaceSeller: React.FC = () => {
                     name="currency"
                     value={formData.currency}
                     onChange={handleInputChange}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   >
                     {currencies.map((currency: string) => (
                       <option key={currency} value={currency}>{currency}</option>
@@ -916,11 +886,10 @@ const MarketplaceSeller: React.FC = () => {
                     placeholder="0.00"
                     step="0.01"
                     min="0"
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                    }`}
+                      }`}
                     required
                   />
                 </div>
@@ -931,11 +900,10 @@ const MarketplaceSeller: React.FC = () => {
                     name="type"
                     value={formData.type}
                     onChange={handleInputChange}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   >
                     {types.map((type: string) => (
                       <option key={type} value={type}>{type}</option>
@@ -954,11 +922,10 @@ const MarketplaceSeller: React.FC = () => {
                     value={formData.location}
                     onChange={handleInputChange}
                     placeholder="City, Country"
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -968,15 +935,21 @@ const MarketplaceSeller: React.FC = () => {
                     name="category"
                     value={formData.category}
                     onChange={handleInputChange}
-                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
-                      isDarkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                    className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   >
-                    {categories.map((category: string) => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
+                    {categories.length === 0 ? (
+                      <option value="">Loading categories...</option>
+                    ) : (
+                      <>
+                        <option value="">Select a category</option>
+                        {categories.map((category: string) => (
+                          <option key={category} value={category}>{category}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
@@ -991,27 +964,25 @@ const MarketplaceSeller: React.FC = () => {
                   onChange={handleInputChange}
                   placeholder="1"
                   min="1"
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  }`}
+                    }`}
                 />
               </div>
 
               {/* Photos */}
               <div>
                 <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Product Photos</label>
-                <div className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'border-gray-600 hover:border-gray-500' 
+                <div className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors duration-200 ${isDarkMode
+                    ? 'border-gray-600 hover:border-gray-500'
                     : 'border-gray-300 hover:border-gray-400'
-                }`}>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleImageChange} 
-                    className="hidden" 
+                  }`}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
                     id="photo-upload"
                   />
                   <label htmlFor="photo-upload" className="cursor-pointer">
@@ -1038,11 +1009,10 @@ const MarketplaceSeller: React.FC = () => {
             <div className={`flex flex-col sm:flex-row justify-end gap-3 p-4 sm:p-6 border-t sticky bottom-0 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
               <button
                 onClick={handleCancel}
-                className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-colors duration-200 font-medium text-sm sm:text-base ${
-                  isDarkMode 
-                    ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600' 
+                className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg transition-colors duration-200 font-medium text-sm sm:text-base ${isDarkMode
+                    ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600'
                     : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -1063,11 +1033,10 @@ const MarketplaceSeller: React.FC = () => {
       {/* Delete Success/Error Popup */}
       {showDeletePopup && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
-          <div className={`px-4 py-3 rounded-lg shadow-lg max-w-sm transition-colors duration-200 ${
-            deleteMessage.includes('successfully') 
-              ? 'bg-green-500 text-white' 
+          <div className={`px-4 py-3 rounded-lg shadow-lg max-w-sm transition-colors duration-200 ${deleteMessage.includes('successfully')
+              ? 'bg-green-500 text-white'
               : 'bg-red-500 text-white'
-          }`}>
+            }`}>
             <div className="flex items-center gap-2">
               <div className="flex-shrink-0">
                 {deleteMessage.includes('successfully') ? (

@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const { CartesiaClient } = require('@cartesia/cartesia-js');
+const WebsiteSettings = require('../models/websiteSettings');
 
 class SonioxService {
     constructor() {
@@ -10,9 +11,18 @@ class SonioxService {
     /**
      * Get or create Cartesia client
      */
-    getCartesiaClient() {
+    async getCartesiaClient() {
         if (!this.cartesiaClient) {
-            const apiKey = process.env.CARTESIA_API_KEY;
+            let apiKey = process.env.CARTESIA_API_KEY;
+
+            try {
+                const settings = await WebsiteSettings.getSettings();
+                if (settings.ai && settings.ai.cartesia && settings.ai.cartesia.key) {
+                    apiKey = settings.ai.cartesia.key;
+                }
+            } catch (err) {
+                console.error('Error fetching settings for Cartesia:', err);
+            }
 
             console.log('🔑 Cartesia API Key check:', {
                 exists: !!apiKey,
@@ -21,7 +31,7 @@ class SonioxService {
             });
 
             if (!apiKey) {
-                throw new Error('CARTESIA_API_KEY not configured in environment variables');
+                throw new Error('CARTESIA_API_KEY not configured in environment variables or settings');
             }
 
             try {
@@ -47,7 +57,16 @@ class SonioxService {
      */
     async initializeConnection(userId, config, onTranscript, onError) {
         try {
-            const sonioxApiKey = process.env.SONIOX_API_KEY;
+            let sonioxApiKey = process.env.SONIOX_API_KEY;
+
+            try {
+                const settings = await WebsiteSettings.getSettings();
+                if (settings.ai && settings.ai.soniox && settings.ai.soniox.key) {
+                    sonioxApiKey = settings.ai.soniox.key;
+                }
+            } catch (err) {
+                console.error('Error fetching settings for Soniox:', err);
+            }
 
             console.log(`🔑 Soniox API Key check:`, {
                 exists: !!sonioxApiKey,
@@ -56,7 +75,7 @@ class SonioxService {
             });
 
             if (!sonioxApiKey) {
-                const errorMsg = 'SONIOX_API_KEY not configured in environment variables';
+                const errorMsg = 'SONIOX_API_KEY not configured in environment variables or settings';
                 console.error(`❌ ${errorMsg}`);
                 if (onError) {
                     onError('initialization_error', errorMsg);
@@ -341,7 +360,17 @@ class SonioxService {
         try {
             console.log(`🔊 Converting text to speech for user ${userId}:`, text);
 
-            const apiKey = process.env.CARTESIA_API_KEY;
+            let apiKey = process.env.CARTESIA_API_KEY;
+
+            try {
+                const settings = await WebsiteSettings.getSettings();
+                if (settings.ai && settings.ai.cartesia && settings.ai.cartesia.key) {
+                    apiKey = settings.ai.cartesia.key;
+                }
+            } catch (err) {
+                console.error('Error fetching settings for Cartesia TTS:', err);
+            }
+
             if (!apiKey) {
                 throw new Error('CARTESIA_API_KEY not configured');
             }

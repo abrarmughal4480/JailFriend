@@ -828,6 +828,60 @@ const websiteSettingsSchema = new mongoose.Schema({
         type: Boolean,
         default: false
       }
+    },
+    cartesia: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      key: {
+        type: String,
+        default: ''
+      }
+    },
+    soniox: {
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      key: {
+        type: String,
+        default: ''
+      }
+    },
+    imagesSystem: {
+      enabled: { type: Boolean, default: false },
+      api: { type: String, default: 'OpenAI' }
+    },
+    postSystem: {
+      enabled: { type: Boolean, default: false },
+      api: { type: String, default: 'OpenAI' }
+    },
+    blogSystem: {
+      enabled: { type: Boolean, default: false },
+      api: { type: String, default: 'OpenAI' }
+    },
+    avatarSystem: {
+      enabled: { type: Boolean, default: false },
+      api: { type: String, default: 'Replicate' }
+    },
+    creditSystem: {
+      creditPrice: { type: Number, default: 100 },
+      image: {
+        enabled: { type: Boolean, default: true },
+        price: { type: Number, default: 10 }
+      },
+      text: {
+        enabled: { type: Boolean, default: true },
+        price: { type: Number, default: 1 }
+      }
+    },
+    replicate: {
+      model: { type: String, default: 'prompthero/openjourney' },
+      apiToken: { type: String, default: '' },
+      inferenceSteps: { type: String, default: '1' },
+      guidanceScale: { type: String, default: '1' },
+      seed: { type: String, default: '' }
     }
   },
 

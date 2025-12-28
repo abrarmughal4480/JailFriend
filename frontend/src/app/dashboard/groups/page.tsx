@@ -72,7 +72,7 @@ const GroupsPage: React.FC = () => {
     name: '',
     description: '',
     privacy: 'public',
-    category: 'general',
+    category: '',
     website: '',
     email: '',
     phone: '',
@@ -92,17 +92,7 @@ const GroupsPage: React.FC = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
-  const [groupCategories, setGroupCategories] = useState<string[]>([
-    'general',
-    'business',
-    'education',
-    'entertainment',
-    'health',
-    'sports',
-    'technology',
-    'travel',
-    'other'
-  ]);
+  const [groupCategories, setGroupCategories] = useState<string[]>([]);
 
   const getCategoryName = (category: any) => {
     if (!category || typeof category !== 'object') return 'Untitled Category';
@@ -124,9 +114,9 @@ const GroupsPage: React.FC = () => {
         setLoading(true);
       }
       console.log('Fetching groups...');
-      
+
       const token = localStorage.getItem('token');
-      
+
       if (!token) {
         console.log('No token found');
         setLoading(false);
@@ -134,7 +124,7 @@ const GroupsPage: React.FC = () => {
         return;
       }
 
-  const apiUrl = `${API_URL}/api/groups`;
+      const apiUrl = `${API_URL}/api/groups`;
 
       const response = await fetch(apiUrl, {
         headers: {
@@ -192,7 +182,7 @@ const GroupsPage: React.FC = () => {
         if (names.length) {
           setGroupCategories(names);
           setFormData(prev => {
-            const current = prev.category || 'general';
+            const current = prev.category || '';
             const nextCategory = names.includes(current) ? current : names[0];
             return { ...prev, category: nextCategory };
           });
@@ -217,7 +207,7 @@ const GroupsPage: React.FC = () => {
     try {
       setCreating(true);
       console.log('Creating group with data:', formData);
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         console.log('No token found for group creation');
@@ -253,11 +243,11 @@ const GroupsPage: React.FC = () => {
         formDataToSend.append('tags', JSON.stringify(tagsArray));
       }
 
-  const apiUrl = `${API_URL}/api/groups`;
+      const apiUrl = `${API_URL}/api/groups`;
 
       console.log('Sending group creation request to:', apiUrl);
 
-  const response = await fetch(apiUrl, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -270,16 +260,16 @@ const GroupsPage: React.FC = () => {
       if (response.ok) {
         const newGroup = await response.json();
         console.log('Group created successfully:', newGroup);
-        
+
         // Add the new group to the beginning of the list
         setGroups(prev => [newGroup, ...prev]);
-        
+
         setShowCreateModal(false);
         setFormData({
           name: '',
           description: '',
           privacy: 'public',
-          category: 'general',
+          category: '',
           website: '',
           email: '',
           phone: '',
@@ -287,31 +277,31 @@ const GroupsPage: React.FC = () => {
           tags: '',
           url: ''
         });
-        
+
         // Show success message
         setSuccessMessage('Group created successfully!');
         setShowSuccessMessage(true);
-        
+
         // Hide success message after 3 seconds
         setTimeout(() => {
           setShowSuccessMessage(false);
         }, 3000);
-        
-       
+
+
       } else {
         console.error('Failed to create group:', response.status);
         let errorMessage = 'Failed to create group. Please try again.';
-        
+
         try {
           const errorData = await response.json();
-        console.error('Error details:', errorData);
+          console.error('Error details:', errorData);
           errorMessage = errorData.error || errorData.message || errorMessage;
         } catch (parseError) {
           console.error('Failed to parse error response:', parseError);
           const errorText = await response.text();
           console.error('Raw error response:', errorText);
         }
-        
+
         alert(errorMessage);
       }
     } catch (error) {
@@ -328,7 +318,7 @@ const GroupsPage: React.FC = () => {
       name: '',
       description: '',
       privacy: 'public',
-      category: 'general',
+      category: '',
       website: '',
       email: '',
       phone: '',
@@ -340,10 +330,10 @@ const GroupsPage: React.FC = () => {
 
   const handleLeaveGroup = async (groupId: string) => {
     if (!confirm('Are you sure you want to leave this group?')) return;
-    
+
     try {
       console.log('Leaving group:', groupId);
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         console.log('No token found for leaving group');
@@ -351,7 +341,7 @@ const GroupsPage: React.FC = () => {
         return;
       }
 
-  const response = await fetch(`${API_URL}/api/groups/${groupId}/leave`, {
+      const response = await fetch(`${API_URL}/api/groups/${groupId}/leave`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -362,18 +352,18 @@ const GroupsPage: React.FC = () => {
 
       if (response.ok) {
         console.log('Successfully left group');
-        
+
         // Show success message
         setSuccessMessage('Successfully left the group!');
         setShowSuccessMessage(true);
-        
+
         // Hide success message after 3 seconds
         setTimeout(() => {
           setShowSuccessMessage(false);
         }, 3000);
-        
+
         // Refresh groups to update the UI
-  const groupsResponse = await fetch(`${API_URL}/api/groups`, {
+        const groupsResponse = await fetch(`${API_URL}/api/groups`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -385,14 +375,14 @@ const GroupsPage: React.FC = () => {
       } else {
         console.error('Failed to leave group:', response.status);
         let errorMessage = 'Failed to leave group. Please try again.';
-        
+
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.message || errorMessage;
         } catch (parseError) {
           console.error('Failed to parse error response:', parseError);
         }
-        
+
         alert(errorMessage);
       }
     } catch (error) {
@@ -404,7 +394,7 @@ const GroupsPage: React.FC = () => {
   const handleJoinGroup = async (groupId: string) => {
     try {
       console.log('Joining group:', groupId);
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         console.log('No token found for joining group');
@@ -412,7 +402,7 @@ const GroupsPage: React.FC = () => {
         return;
       }
 
-  const response = await fetch(`${API_URL}/api/groups/${groupId}/join`, {
+      const response = await fetch(`${API_URL}/api/groups/${groupId}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -423,18 +413,18 @@ const GroupsPage: React.FC = () => {
 
       if (response.ok) {
         console.log('Successfully joined group');
-        
+
         // Show success message
         setSuccessMessage('Successfully joined the group!');
         setShowSuccessMessage(true);
-        
+
         // Hide success message after 3 seconds
         setTimeout(() => {
           setShowSuccessMessage(false);
         }, 3000);
-        
+
         // Refresh groups to update the UI
-          const groupsResponse = await fetch(`${API_URL}/api/groups`, {
+        const groupsResponse = await fetch(`${API_URL}/api/groups`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -446,14 +436,14 @@ const GroupsPage: React.FC = () => {
       } else {
         console.error('Failed to join group:', response.status);
         let errorMessage = 'Failed to join group. Please try again.';
-        
+
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.message || errorMessage;
         } catch (parseError) {
           console.error('Failed to parse error response:', parseError);
         }
-        
+
         alert(errorMessage);
       }
     } catch (error) {
@@ -467,19 +457,19 @@ const GroupsPage: React.FC = () => {
       console.error('Cannot edit: group is null or undefined');
       return;
     }
-    
+
     console.log('Editing group:', group);
     setEditingGroup(group);
     setFormData({
       name: group.name || '',
       description: group.description || '',
       privacy: group.privacy || 'public',
-      category: group.category || 'general',
+      category: group.category || '',
       website: group.website || '',
       email: group.email || '',
       phone: group.phone || '',
-      location: typeof group.location === 'object' && group.location?.name 
-        ? group.location.name 
+      location: typeof group.location === 'object' && group.location?.name
+        ? group.location.name
         : (typeof group.location === 'string' ? group.location : ''),
       tags: group.tags && Array.isArray(group.tags) ? group.tags.join(', ') : '',
       url: ''
@@ -489,11 +479,11 @@ const GroupsPage: React.FC = () => {
 
   const handleUpdateGroup = async () => {
     if (!editingGroup) return;
-    
+
     try {
       setUpdating(true);
       console.log('Updating group:', editingGroup._id);
-      
+
       const token = localStorage.getItem('token');
       if (!token || token === 'null' || token === 'undefined') {
         alert('Please log in to update a group');
@@ -525,7 +515,7 @@ const GroupsPage: React.FC = () => {
         formDataToSend.append('tags', JSON.stringify(tagsArray));
       }
 
-  const response = await fetch(`${API_URL}/api/groups/${editingGroup._id}`, {
+      const response = await fetch(`${API_URL}/api/groups/${editingGroup._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -539,16 +529,16 @@ const GroupsPage: React.FC = () => {
         const responseData = await response.json();
         const updatedGroup = responseData.group || responseData;
         console.log('Group updated successfully:', updatedGroup);
-        
+
         // Update the group in state immediately
         setGroups(prev => prev.map(g => g._id === editingGroup._id ? { ...g, ...updatedGroup } : g));
-        
+
         // Reset form data
         setFormData({
           name: '',
           description: '',
           privacy: 'public',
-          category: 'general',
+          category: '',
           website: '',
           email: '',
           phone: '',
@@ -556,14 +546,14 @@ const GroupsPage: React.FC = () => {
           tags: '',
           url: ''
         });
-        
+
         // Close edit form
         setShowEditForm(false);
         setEditingGroup(null);
-        
+
         // Refresh groups list
         await fetchGroups();
-        
+
         alert('Group updated successfully!');
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -592,7 +582,7 @@ const GroupsPage: React.FC = () => {
       name: '',
       description: '',
       privacy: 'public',
-      category: 'general',
+      category: '',
       website: '',
       email: '',
       phone: '',
@@ -604,17 +594,17 @@ const GroupsPage: React.FC = () => {
 
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Are you sure you want to delete this group?')) return;
-    
+
     try {
       console.log('Deleting group:', groupId);
-      
+
       const token = localStorage.getItem('token');
       if (!token) {
         console.log('No token found for deleting group');
         return;
       }
 
-  const response = await fetch(`${API_URL}/api/groups/${groupId}`, {
+      const response = await fetch(`${API_URL}/api/groups/${groupId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -638,69 +628,69 @@ const GroupsPage: React.FC = () => {
 
   const getGroupsForTab = (): Group[] => {
     const userId = getCurrentUserId();
-    
+
     console.log('Filtering groups for tab:', activeTab, 'User ID:', userId);
     console.log('Total groups:', groups.length);
     console.log('Groups data:', groups);
-    
+
     if (!userId) {
       console.log('❌ No user ID found, showing all groups');
       return groups;
     }
-    
+
     let filteredGroups: Group[] = [];
-    
+
     switch (activeTab) {
       case 'My Groups':
-          filteredGroups = groups.filter(group => {
-            const creatorId = typeof group.creator === 'object' ? group.creator?._id : group.creator;
-            const isCreator = creatorId === userId;
-            const isAdmin = group.members?.some(member => {
-              const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
-              return memberId === userId && member.role === 'admin';
-            });
-            return isCreator || isAdmin;
+        filteredGroups = groups.filter(group => {
+          const creatorId = typeof group.creator === 'object' ? group.creator?._id : group.creator;
+          const isCreator = creatorId === userId;
+          const isAdmin = group.members?.some(member => {
+            const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
+            return memberId === userId && member.role === 'admin';
           });
+          return isCreator || isAdmin;
+        });
         break;
-          
+
       case 'Suggested groups':
-          filteredGroups = groups.filter(group => {
-            const isPublic = group.privacy === 'public';
-            const isNotMember = !group.members?.some(member => {
-              const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
-              return memberId === userId;
-            });
-            const creatorId = typeof group.creator === 'object' ? group.creator?._id : group.creator;
-            const isNotCreator = creatorId !== userId;
-            return isPublic && isNotMember && isNotCreator;
+        filteredGroups = groups.filter(group => {
+          const isPublic = group.privacy === 'public';
+          const isNotMember = !group.members?.some(member => {
+            const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
+            return memberId === userId;
           });
+          const creatorId = typeof group.creator === 'object' ? group.creator?._id : group.creator;
+          const isNotCreator = creatorId !== userId;
+          return isPublic && isNotMember && isNotCreator;
+        });
         break;
-          
+
       case 'Joined Groups':
-          filteredGroups = groups.filter(group => {
-            const isMember = group.members?.some(member => {
-              const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
-              return memberId === userId;
-            });
-            const creatorId = typeof group.creator === 'object' ? group.creator?._id : group.creator;
-            const isCreator = creatorId === userId;
-            return isMember || isCreator;
+        filteredGroups = groups.filter(group => {
+          const isMember = group.members?.some(member => {
+            const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
+            return memberId === userId;
           });
+          const creatorId = typeof group.creator === 'object' ? group.creator?._id : group.creator;
+          const isCreator = creatorId === userId;
+          return isMember || isCreator;
+        });
         break;
-        
+
       default:
         return [];
     }
-    
+
     // Apply search filter
     if (searchQuery.trim()) {
-      filteredGroups = filteredGroups.filter(group => 
+      filteredGroups = filteredGroups.filter(group =>
         group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         group.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         group.category.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     return filteredGroups;
   };
 
@@ -708,7 +698,7 @@ const GroupsPage: React.FC = () => {
   const GroupCard: React.FC<{ group: Group }> = ({ group }) => {
     const userId = getCurrentUserId();
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-    
+
     const isMember = group.members?.some(member => {
       const memberId = typeof member.user === 'object' ? member.user?._id : member.user;
       return memberId === userId;
@@ -723,146 +713,141 @@ const GroupsPage: React.FC = () => {
     console.log(`Group ${group.name}: userId=${userId}, isMember=${isMember}, isAdmin=${isAdmin}, isCreator=${isCreator}`);
 
     return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer transform" onClick={() => router.push(`/dashboard/groups/${group._id}`)}>
-      <div className="relative">
-        <img 
-            src={group.avatar || group.coverPhoto || '/avatars/1.png.png'} onError={(e) => { console.log('❌ Avatar load failed for user:', group.avatar || group.coverPhoto || '/avatars/1.png.png'); e.currentTarget.src = '/default-avatar.svg'; }} 
-          alt={group.name}
-          className="w-full h-32 sm:h-40 object-cover"
-        />
-        <div className="absolute top-2 left-2 flex gap-2">
-          <span className={`px-2 py-1 text-xs rounded-full ${
-              group?.privacy === 'public' 
-              ? 'bg-green-100 text-green-700' 
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all duration-200 cursor-pointer transform" onClick={() => router.push(`/dashboard/groups/${group._id}`)}>
+        <div className="relative">
+          <img
+            src={group.avatar || group.coverPhoto || '/avatars/1.png.png'} onError={(e) => { console.log('❌ Avatar load failed for user:', group.avatar || group.coverPhoto || '/avatars/1.png.png'); e.currentTarget.src = '/default-avatar.svg'; }}
+            alt={group.name}
+            className="w-full h-32 sm:h-40 object-cover"
+          />
+          <div className="absolute top-2 left-2 flex gap-2">
+            <span className={`px-2 py-1 text-xs rounded-full ${group?.privacy === 'public'
+                ? 'bg-green-100 text-green-700'
                 : group?.privacy === 'private'
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-red-100 text-red-700'
-          }`}>
+                  ? 'bg-orange-100 text-orange-700'
+                  : 'bg-red-100 text-red-700'
+              }`}>
               {(group?.privacy || 'public').charAt(0).toUpperCase() + (group?.privacy || 'public').slice(1)}
-          </span>
-          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+            </span>
+            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
               {(group?.category || 'general').charAt(0).toUpperCase() + (group?.category || 'general').slice(1)}
-          </span>
-        </div>
-      </div>
-      
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <h3 className="font-semibold text-gray-900 text-lg line-clamp-1">{group?.name || 'Unnamed Group'}</h3>
-          <div className="flex items-center gap-2">
-            {isCreator && (
-              <div className="relative">
-                <button 
-                  className={`p-1.5 rounded-lg transition-all duration-200 ${
-                    isDarkMode 
-                      ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                  } ${openDropdownId === group._id ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenDropdownId(openDropdownId === group._id ? null : group._id);
-                  }}
-                  title="More options"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-                
-                {openDropdownId === group._id && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-10" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOpenDropdownId(null);
-                      }}
-                    />
-                    <div 
-                      className={`absolute right-0 top-full mt-2 w-40 rounded-lg shadow-lg border z-20 ${
-                        isDarkMode 
-                          ? 'bg-gray-800 border-gray-700' 
-                          : 'bg-white border-gray-200'
-                      }`}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenDropdownId(null);
-                          if (group && group._id) {
-                            handleEditGroup(group);
-                          } else {
-                            console.error('Cannot edit: Invalid group object', group);
-                            alert('Error: Unable to edit this group. Please try again.');
-                          }
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-t-lg transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-700 text-gray-300' 
-                            : 'hover:bg-gray-50 text-gray-700'
-                        }`}
-                      >
-                        <Edit3 className="w-4 h-4" />
-                        <span className="text-sm font-medium">Edit</span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenDropdownId(null);
-                          if (confirm('Are you sure you want to delete this group?')) {
-                            handleDeleteGroup(group._id);
-                          }
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-b-lg transition-colors duration-200 ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-700 text-red-400' 
-                            : 'hover:bg-gray-50 text-red-600'
-                        }`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="text-sm font-medium">Delete</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          <button 
-            className="text-gray-400 hover:text-gray-600 p-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Handle favorite functionality
-            }}
-          >
-            <Star className="w-4 h-4" />
-          </button>
+            </span>
           </div>
         </div>
-        
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{group?.description || 'No description'}</p>
-        
-        <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-          <div className="flex items-center gap-1">
-            <Users className="w-4 h-4" />
+
+        <div className="p-4">
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="font-semibold text-gray-900 text-lg line-clamp-1">{group?.name || 'Unnamed Group'}</h3>
+            <div className="flex items-center gap-2">
+              {isCreator && (
+                <div className="relative">
+                  <button
+                    className={`p-1.5 rounded-lg transition-all duration-200 ${isDarkMode
+                        ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      } ${openDropdownId === group._id ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenDropdownId(openDropdownId === group._id ? null : group._id);
+                    }}
+                    title="More options"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+
+                  {openDropdownId === group._id && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdownId(null);
+                        }}
+                      />
+                      <div
+                        className={`absolute right-0 top-full mt-2 w-40 rounded-lg shadow-lg border z-20 ${isDarkMode
+                            ? 'bg-gray-800 border-gray-700'
+                            : 'bg-white border-gray-200'
+                          }`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdownId(null);
+                            if (group && group._id) {
+                              handleEditGroup(group);
+                            } else {
+                              console.error('Cannot edit: Invalid group object', group);
+                              alert('Error: Unable to edit this group. Please try again.');
+                            }
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-t-lg transition-colors duration-200 ${isDarkMode
+                              ? 'hover:bg-gray-700 text-gray-300'
+                              : 'hover:bg-gray-50 text-gray-700'
+                            }`}
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          <span className="text-sm font-medium">Edit</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdownId(null);
+                            if (confirm('Are you sure you want to delete this group?')) {
+                              handleDeleteGroup(group._id);
+                            }
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-b-lg transition-colors duration-200 ${isDarkMode
+                              ? 'hover:bg-gray-700 text-red-400'
+                              : 'hover:bg-gray-50 text-red-600'
+                            }`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="text-sm font-medium">Delete</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <button
+                className="text-gray-400 hover:text-gray-600 p-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Handle favorite functionality
+                }}
+              >
+                <Star className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{group?.description || 'No description'}</p>
+
+          <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
               <span>{group.stats?.memberCount || group.members?.length || 0} members</span>
             </div>
             <span>Created {new Date(group.createdAt).toLocaleDateString()}</span>
-        </div>
-        
-        <div className="flex gap-2">
+          </div>
+
+          <div className="flex gap-2">
             {isMember || isAdmin || isCreator ? (
-            <>
-              <button 
-                className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Handle chat functionality
-                }}
-              >
-                <MessageCircle className="w-4 h-4" />
-                Chat
-              </button>
+              <>
+                <button
+                  className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Handle chat functionality
+                  }}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Chat
+                </button>
                 {!isCreator && (
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleLeaveGroup(group._id);
@@ -872,22 +857,22 @@ const GroupsPage: React.FC = () => {
                     Leave
                   </button>
                 )}
-            </>
-          ) : (
-            <button 
+              </>
+            ) : (
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   handleJoinGroup(group._id);
                 }}
-              className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
-            >
-              Join Group
-            </button>
-          )}
+                className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+              >
+                Join Group
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
   };
 
   // Empty State Component
@@ -895,14 +880,14 @@ const GroupsPage: React.FC = () => {
     <div className="flex flex-col items-center justify-center py-12 sm:py-16">
       <div className="w-12 h-12 sm:w-16 sm:h-16 mb-4 sm:mb-6 text-purple-400">
         <svg viewBox="0 0 64 64" fill="currentColor" className="w-full h-full">
-          <path d="M32 8c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm-12 20c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm24 0c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm-12 12c-6.6 0-12 5.4-12 12v4h24v-4c0-6.6-5.4-12-12-12z"/>
+          <path d="M32 8c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm-12 20c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm24 0c-3.3 0-6 2.7-6 6s2.7 6 6 6 6-2.7 6-6-2.7-6-6-6zm-12 12c-6.6 0-12 5.4-12 12v4h24v-4c0-6.6-5.4-12-12-12z" />
         </svg>
       </div>
       <p className="text-gray-500 text-base sm:text-lg mb-4 sm:mb-6">No groups to show</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full max-w-4xl">
         {/* Create New Group Card */}
-        <div 
-        onClick={() => setShowCreateModal(true)}
+        <div
+          onClick={() => setShowCreateModal(true)}
           className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-100 transition-all duration-200 min-h-[200px]"
         >
           <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mb-3">
@@ -916,44 +901,37 @@ const GroupsPage: React.FC = () => {
 
   // Edit Group Form Component
   const EditGroupForm: React.FC = () => (
-    <div className={`rounded-2xl border p-8 max-w-3xl mx-auto shadow-lg transition-colors duration-200 ${
-      isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-    }`}>
+    <div className={`rounded-2xl border p-8 max-w-3xl mx-auto shadow-lg transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+      }`}>
       {/* Form Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center transition-colors duration-200 ${
-            isDarkMode ? 'bg-green-700' : ''
-          }`}>
+          <div className={`w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-green-700' : ''
+            }`}>
             <Edit3 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className={`text-2xl font-bold transition-colors duration-200 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Edit Group</h2>
-            <p className={`mt-1 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-500'
-            }`}>Update your group information</p>
+            <h2 className={`text-2xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Edit Group</h2>
+            <p className={`mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'
+              }`}>Update your group information</p>
           </div>
         </div>
         <button
           onClick={handleGoBack}
-          className={`sm:hidden p-3 rounded-xl transition-colors ${
-            isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-          }`}
+          className={`sm:hidden p-3 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+            }`}
         >
-          <X className={`w-6 h-6 transition-colors duration-200 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-600'
-          }`} />
+          <X className={`w-6 h-6 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+            }`} />
         </button>
       </div>
 
       <form onSubmit={(e) => e.preventDefault()} noValidate className="space-y-6">
         {/* Group Name */}
         <div>
-          <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>
+          <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
             Group Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -962,27 +940,25 @@ const GroupsPage: React.FC = () => {
             value={formData.name}
             onChange={handleInputChange}
             placeholder="Enter group name"
-            className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-              formData.name.length > 0 
-                ? formData.name.length >= 3 
+            className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${formData.name.length > 0
+                ? formData.name.length >= 3
                   ? isDarkMode
                     ? 'border-green-500 bg-green-900/20 text-white'
                     : 'border-green-300 bg-green-50'
                   : isDarkMode
                     ? 'border-red-500 bg-red-900/20 text-white'
-                  : 'border-red-300 bg-red-50'
+                    : 'border-red-300 bg-red-50'
                 : isDarkMode
                   ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
           />
         </div>
 
         {/* Group Description */}
         <div>
-          <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-            isDarkMode ? 'text-gray-300' : 'text-gray-700'
-          }`}>
+          <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            }`}>
             Group Description <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -991,55 +967,57 @@ const GroupsPage: React.FC = () => {
             onChange={handleInputChange}
             rows={4}
             placeholder="Describe what your group is about..."
-            className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base transition-all duration-200 ${
-              isDarkMode
+            className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base transition-all duration-200 ${isDarkMode
                 ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
                 : 'border-gray-200 hover:border-gray-300'
-            }`}
+              }`}
           />
         </div>
 
         {/* Privacy and Category */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Privacy <span className="text-red-500">*</span></label>
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Privacy <span className="text-red-500">*</span></label>
             <select
               name="privacy"
               value={formData.privacy}
               onChange={handleInputChange}
-              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white' 
+              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
                   : 'bg-white border-gray-200 text-gray-900'
-              }`}
+                }`}
             >
               <option value="public">Public</option>
               <option value="private">Private</option>
               <option value="secret">Secret</option>
             </select>
           </div>
-          
+
           <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Category <span className="text-red-500">*</span></label>
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Category <span className="text-red-500">*</span></label>
             <select
               name="category"
               value={formData.category}
               onChange={handleInputChange}
-              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                isDarkMode 
-                  ? 'bg-gray-700 border-gray-600 text-white' 
+              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
                   : 'bg-white border-gray-200 text-gray-900'
-              }`}
+                }`}
             >
-              {groupCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
+              {groupCategories.length === 0 ? (
+                <option value="">Loading categories...</option>
+              ) : (
+                <>
+                  <option value="">Select a category</option>
+                  {groupCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -1047,94 +1025,84 @@ const GroupsPage: React.FC = () => {
         {/* Optional Fields */}
         <div className="space-y-4">
           <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Website</label>
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Website</label>
             <input
               type="url"
               name="website"
               value={formData.website}
               onChange={handleInputChange}
               placeholder="https://example.com"
-              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                isDarkMode
+              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
                   ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
                   : 'border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Email</label>
+              <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Email</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="group@example.com"
-                className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                  isDarkMode
+                className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
                     ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Phone</label>
+              <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Phone</label>
               <input
                 type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
                 placeholder="+1234567890"
-                className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                  isDarkMode
+                className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
                     ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               />
             </div>
           </div>
 
           <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Location</label>
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Location</label>
             <input
               type="text"
               name="location"
               value={formData.location}
               onChange={handleInputChange}
               placeholder="City, Country"
-              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                isDarkMode
+              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
                   ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
                   : 'border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             />
           </div>
 
           <div>
-            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Tags (comma separated)</label>
+            <label className={`block text-sm font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Tags (comma separated)</label>
             <input
               type="text"
               name="tags"
               value={formData.tags}
               onChange={handleInputChange}
               placeholder="tag1, tag2, tag3"
-              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${
-                isDarkMode
+              className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
                   ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
                   : 'border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             />
           </div>
         </div>
@@ -1144,11 +1112,10 @@ const GroupsPage: React.FC = () => {
           <button
             onClick={handleGoBack}
             disabled={updating}
-            className={`hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-colors disabled:opacity-50 ${
-              isDarkMode 
-                ? 'text-gray-300 hover:text-white hover:bg-gray-700' 
+            className={`hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-colors disabled:opacity-50 ${isDarkMode
+                ? 'text-gray-300 hover:text-white hover:bg-gray-700'
                 : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-            }`}
+              }`}
           >
             <ArrowLeft className="w-5 h-5" />
             Go back
@@ -1156,9 +1123,8 @@ const GroupsPage: React.FC = () => {
           <button
             onClick={handleUpdateGroup}
             disabled={updating || !formData.name.trim()}
-            className={`w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-3 ${
-              isDarkMode ? 'disabled:bg-gray-700' : ''
-            }`}
+            className={`w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-3 ${isDarkMode ? 'disabled:bg-gray-700' : ''
+              }`}
           >
             {updating ? (
               <>
@@ -1180,16 +1146,15 @@ const GroupsPage: React.FC = () => {
   // Enhanced Create Group Modal Component
   const CreateGroupModal: React.FC = () => (
     <div className="fixed inset-0 modal-glassmorphism-bg flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className={`rounded-2xl shadow-2xl max-w-[90vw] sm:max-w-lg lg:max-w-xl w-full max-h-[85vh] sm:max-h-[85vh] overflow-y-auto scrollbar-hide transition-all duration-300 transform border ${
-        isDarkMode 
-          ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl' 
+      <div className={`rounded-2xl shadow-2xl max-w-[90vw] sm:max-w-lg lg:max-w-xl w-full max-h-[85vh] sm:max-h-[85vh] overflow-y-auto scrollbar-hide transition-all duration-300 transform border ${isDarkMode
+          ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl'
           : 'bg-white/80 border-gray-300/50 backdrop-blur-xl'
-      }`}
-      style={{
-        boxShadow: isDarkMode 
-          ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)' 
-          : '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
-      }}>
+        }`}
+        style={{
+          boxShadow: isDarkMode
+            ? '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
+            : '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+        }}>
         <div className="p-4 sm:p-6">
           {/* Form Header */}
           <div className="mb-4 sm:mb-6">
@@ -1197,11 +1162,10 @@ const GroupsPage: React.FC = () => {
               <h2 className={`text-xl sm:text-2xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Create New Group</h2>
               <button
                 onClick={handleCancel}
-                className={`p-2 rounded-full transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' 
+                className={`p-2 rounded-full transition-colors duration-200 ${isDarkMode
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
                     : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1220,11 +1184,10 @@ const GroupsPage: React.FC = () => {
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Group name"
-                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
+                  }`}
               />
             </div>
 
@@ -1238,11 +1201,10 @@ const GroupsPage: React.FC = () => {
                 name="url"
                 value={formData.name ? formData.name.toLowerCase().replace(/\s+/g, '') : ''}
                 placeholder="Group URL"
-                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
+                  }`}
                 readOnly
               />
               <p className={`text-sm mt-1 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -1258,36 +1220,41 @@ const GroupsPage: React.FC = () => {
                   name="privacy"
                   value={formData.privacy}
                   onChange={handleInputChange}
-                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
-                  }`}
+                    }`}
                 >
                   <option value="public">Public</option>
                   <option value="private">Private</option>
                   <option value="secret">Secret</option>
                 </select>
               </div>
-              
+
               <div>
-              <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Category</label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
-              >
-                {groupCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+                <label className={`block text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Category</label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                >
+                  {groupCategories.length === 0 ? (
+                    <option value="">Loading categories...</option>
+                  ) : (
+                    <>
+                      <option value="">Select a category</option>
+                      {groupCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
               </div>
             </div>
 
@@ -1296,11 +1263,10 @@ const GroupsPage: React.FC = () => {
               <button
                 onClick={handleCancel}
                 disabled={creating}
-                className={`px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg transition-colors font-medium text-sm sm:text-base disabled:opacity-50 w-full sm:w-auto ${
-                  isDarkMode 
-                    ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600' 
+                className={`px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg transition-colors font-medium text-sm sm:text-base disabled:opacity-50 w-full sm:w-auto ${isDarkMode
+                    ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600'
                     : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -1320,7 +1286,7 @@ const GroupsPage: React.FC = () => {
 
   return (
     <div className="w-full">
-      
+
       {/* Header */}
       <div className={`border-b sticky top-0 z-30 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className="px-4 sm:px-6 py-3 sm:py-4">
@@ -1338,11 +1304,10 @@ const GroupsPage: React.FC = () => {
               <button
                 onClick={() => fetchGroups(true)}
                 disabled={refreshing}
-                className={`p-2 transition-colors ${refreshing ? 'opacity-50' : ''} ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
+                className={`p-2 transition-colors ${refreshing ? 'opacity-50' : ''} ${isDarkMode
+                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
                     : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }`}
+                  }`}
                 title="Refresh groups"
               >
                 <div className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`}>
@@ -1351,7 +1316,7 @@ const GroupsPage: React.FC = () => {
                   </svg>
                 </div>
               </button>
-              
+
               <div className="relative hidden sm:block">
                 <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`} />
                 <input
@@ -1359,48 +1324,44 @@ const GroupsPage: React.FC = () => {
                   placeholder="Search groups..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`pl-10 pr-4 py-2 w-64 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                  className={`pl-10 pr-4 py-2 w-64 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                       : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
-                  }`}
+                    }`}
                 />
               </div>
-              <button className={`p-2 transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
+              <button className={`p-2 transition-colors duration-200 ${isDarkMode
+                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
                   : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-              }`}>
+                }`}>
                 <Users className="w-5 h-5" />
               </button>
-              
+
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={`sm:hidden p-2 transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700' 
+                className={`sm:hidden p-2 transition-colors duration-200 ${isDarkMode
+                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
                     : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
               </button>
             </div>
           </div>
-          
+
           {/* Desktop Tabs */}
           <div className="hidden sm:flex space-x-1 mt-4">
             {tabs.map((tab: string) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                  activeTab === tab
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${activeTab === tab
                     ? 'bg-blue-100 text-blue-700'
-                    : isDarkMode 
-                      ? 'text-gray-300 hover:text-white hover:bg-gray-700' 
+                    : isDarkMode
+                      ? 'text-gray-300 hover:text-white hover:bg-gray-700'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 {tab}
               </button>
@@ -1414,7 +1375,7 @@ const GroupsPage: React.FC = () => {
               <span className={`text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{activeTab}</span>
             </div>
           </div>
-          
+
           {/* Mobile Search Bar */}
           <div className="sm:hidden mt-3">
             <div className="relative">
@@ -1424,11 +1385,10 @@ const GroupsPage: React.FC = () => {
                 placeholder="Search groups..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                     : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
-                }`}
+                  }`}
               />
             </div>
           </div>
@@ -1438,7 +1398,7 @@ const GroupsPage: React.FC = () => {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <>
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40 sm:hidden"
             onClick={() => setMobileMenuOpen(false)}
           />
@@ -1454,13 +1414,12 @@ const GroupsPage: React.FC = () => {
                     setActiveTab(tab);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-3 text-sm transition-colors duration-200 ${
-                    activeTab === tab
+                  className={`w-full text-left px-4 py-3 text-sm transition-colors duration-200 ${activeTab === tab
                       ? 'text-blue-600 bg-blue-50'
-                      : isDarkMode 
-                        ? 'text-gray-300 hover:bg-gray-700' 
+                      : isDarkMode
+                        ? 'text-gray-300 hover:bg-gray-700'
                         : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>
@@ -1493,7 +1452,7 @@ const GroupsPage: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {/* Create New Group Card */}
-            <div 
+            <div
               onClick={() => setShowCreateModal(true)}
               className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-100 transition-all duration-200 min-h-[200px]"
             >
@@ -1502,7 +1461,7 @@ const GroupsPage: React.FC = () => {
               </div>
               <p className="text-gray-700 font-medium text-center">Create New Group</p>
             </div>
-            
+
             {/* Existing Groups */}
             {getGroupsForTab().map((group) => (
               <GroupCard key={group._id} group={group} />

@@ -225,11 +225,47 @@ const UserProfile: React.FC = () => {
     message: ''
   });
 
-  // AI Cover Generation states
-  const [showAICoverModal, setShowAICoverModal] = useState(false);
+  // AI Image Generation states
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiImageType, setAiImageType] = useState<'cover' | 'avatar'>('cover');
   const [aiPrompt, setAiPrompt] = useState('');
-  const [generatingCover, setGeneratingCover] = useState(false);
-  const [imageCredits, setImageCredits] = useState(0);
+  const [generatingImage, setGeneratingImage] = useState(false);
+
+  // Website settings state
+  const [websiteSettings, setWebsiteSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/website-settings`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWebsiteSettings(data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const showPopup = (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => {
+    setPopup({
+      isOpen: true,
+      type,
+      title,
+      message
+    });
+  };
+
+  const closePopup = () => {
+    setPopup(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Follow by ID states
   const [followById, setFollowById] = useState<string>('');
@@ -338,9 +374,9 @@ const UserProfile: React.FC = () => {
       { key: 'country', label: 'Add your country', completed: false },
       { key: 'address', label: 'Add your address', completed: false }
     ];
-    
+
     if (!user) return { percentage: 0, completed: 0, total: 5, items: defaultItems };
-    
+
     const items = [
       { key: 'avatar', label: 'Add your profile picture', completed: !!(userImages.avatar || user.avatar) },
       { key: 'name', label: 'Add your name', completed: !!(user.name && user.name.trim() !== '') },
@@ -348,10 +384,10 @@ const UserProfile: React.FC = () => {
       { key: 'country', label: 'Add your country', completed: !!(user.country && user.country.trim() !== '') },
       { key: 'address', label: 'Add your address', completed: !!(user.address && user.address.trim() !== '') }
     ];
-    
+
     const completed = items.filter(item => item.completed).length;
     const percentage = Math.round((completed / items.length) * 100);
-    
+
     return { percentage, completed, total: items.length, items };
   };
 
@@ -575,29 +611,6 @@ const UserProfile: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching user images:', error);
-    }
-  };
-
-  const fetchImageCredits = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      // Try to fetch credits from user profile or dedicated endpoint
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        // Assuming credits are stored in userData.imageCredits or similar
-        setImageCredits(userData.imageCredits || userData.credits?.images || 0);
-      }
-    } catch (error) {
-      console.error('Error fetching image credits:', error);
-      setImageCredits(0);
     }
   };
 
@@ -1165,22 +1178,23 @@ const UserProfile: React.FC = () => {
       console.error('Error uploading cover photo:', error);
       showPopup('error', 'Upload Failed', 'Failed to upload cover photo. Please try again.');
     } finally {
-      setUploadingCover(false);
-    }
-  };
 
-  const handleGenerateAICover = async () => {
+    }
+  }
+  const handleGenerateAIImage = async () => {
     if (!aiPrompt.trim()) {
       showPopup('error', 'Error', 'Please enter a prompt to generate an image');
       return;
     }
 
-    if (imageCredits < 1) {
-      showPopup('error', 'Insufficient Credits', 'You don\'t have enough credits to generate images. Please top up your credits.');
+
+
+    if (!websiteSettings?.ai?.avatarSystem?.enabled) {
+      showPopup('error', 'Error', 'AI Avatar system is disabled by admin');
       return;
     }
 
-    setGeneratingCover(true);
+    setGeneratingImage(true);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -1197,25 +1211,34 @@ const UserProfile: React.FC = () => {
         },
         body: JSON.stringify({
           prompt: aiPrompt,
-          type: 'cover'
+          type: aiImageType
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        
-        // Upload the generated image as cover photo
-        if (data.imageUrl) {
-          // Convert image URL to blob and upload
-          const imageResponse = await fetch(data.imageUrl);
-          const blob = await imageResponse.blob();
-          const file = new File([blob], 'ai-generated-cover.jpg', { type: 'image/jpeg' });
-          
-          // Upload as cover photo
-          const formData = new FormData();
-          formData.append('cover', file);
 
-          const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/userimages/cover`, {
+        // Upload the generated image
+        const imageUrl = data.imageUrl || data.data?.imageUrl;
+
+        // Upload the generated image
+        if (imageUrl) {
+          // Convert image URL to blob and upload
+          const imageResponse = await fetch(imageUrl);
+          const blob = await imageResponse.blob();
+
+          const filename = aiImageType === 'cover' ? 'ai-generated-cover.jpg' : 'ai-generated-avatar.jpg';
+          const file = new File([blob], filename, { type: 'image/jpeg' });
+
+          const formData = new FormData();
+          const fieldName = aiImageType === 'cover' ? 'cover' : 'avatar';
+          formData.append(fieldName, file);
+
+          const endpoint = aiImageType === 'cover'
+            ? `${process.env.NEXT_PUBLIC_API_URL}/api/userimages/cover`
+            : `${process.env.NEXT_PUBLIC_API_URL}/api/userimages/avatar`;
+
+          const uploadResponse = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -1227,26 +1250,38 @@ const UserProfile: React.FC = () => {
             const uploadData = await uploadResponse.json();
             setUserImages(prev => ({
               ...prev,
-              cover: uploadData.cover
+              [fieldName]: uploadData[fieldName]
             }));
-            setShowAICoverModal(false);
+
+            // Also update main user object for avatar
+            if (aiImageType === 'avatar' && user) {
+              setUser(prev => prev ? { ...prev, avatar: uploadData.avatar } : null);
+            }
+
+            setShowAIModal(false);
             setAiPrompt('');
-            showPopup('success', 'Cover Generated!', 'Your AI-generated cover photo has been set successfully!');
+            const successMsg = aiImageType === 'cover'
+              ? 'Your AI-generated cover photo has been set successfully!'
+              : 'Your AI-generated profile picture has been set successfully!';
+            showPopup('success', 'Image Generated!', successMsg);
+
             fetchUserImages();
-            fetchImageCredits(); // Refresh credits
+            if (aiImageType === 'avatar') fetchUserProfile();
           } else {
             showPopup('error', 'Upload Failed', 'Failed to upload generated image');
           }
+        } else {
+          showPopup('error', 'Generation Error', 'Image generated but URL missing from response.');
         }
       } else {
         const errorData = await response.json();
         showPopup('error', 'Generation Failed', errorData.error || 'Failed to generate image. Please try again.');
       }
     } catch (error) {
-      console.error('Error generating AI cover:', error);
+      console.error('Error generating AI image:', error);
       showPopup('error', 'Generation Failed', 'Failed to generate image. Please try again.');
     } finally {
-      setGeneratingCover(false);
+      setGeneratingImage(false);
     }
   };
 
@@ -1494,13 +1529,13 @@ const UserProfile: React.FC = () => {
             ...jobPreferences
           }
         } : null);
-        
+
         // Update openToOptions state
         setOpenToOptions(prev => ({ ...prev, findingJob: true }));
-        
+
         setShowJobPreferencesModal(false);
         showPopup('success', 'Success', 'Job preferences saved successfully');
-        
+
         // Refresh user profile to get updated data
         fetchUserProfile();
       } else {
@@ -1566,13 +1601,13 @@ const UserProfile: React.FC = () => {
             ...servicesPreferences
           }
         } : null);
-        
+
         // Update openToOptions state
         setOpenToOptions(prev => ({ ...prev, providingServices: true }));
-        
+
         setShowServicesModal(false);
         showPopup('success', 'Success', 'Services preferences saved successfully');
-        
+
         // Refresh user profile to get updated data
         fetchUserProfile();
       } else {
@@ -1700,7 +1735,7 @@ const UserProfile: React.FC = () => {
         setShowCreateJobModal(false);
         setOpenToOptions(prev => ({ ...prev, hiring: true }));
         showPopup('success', 'Success', 'Job created successfully');
-        
+
         // Reset form
         setJobFormData({
           title: '',
@@ -1768,18 +1803,7 @@ const UserProfile: React.FC = () => {
     }
   };
 
-  const showPopup = (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => {
-    setPopup({
-      isOpen: true,
-      type,
-      title,
-      message
-    });
-  };
 
-  const closePopup = () => {
-    setPopup(prev => ({ ...prev, isOpen: false }));
-  };
 
   // Toggle post dropdown
   const togglePostDropdown = (postId: string) => {
@@ -1909,19 +1933,19 @@ const UserProfile: React.FC = () => {
                 className="hidden"
               />
             </label>
-            <button
-              onClick={() => {
-                fetchImageCredits();
-                setShowAICoverModal(true);
-              }}
-              className="px-2 py-1 sm:px-3 sm:py-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all flex items-center gap-1 text-xs sm:text-sm"
-            >
-              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">AI</span>
-            </button>
-            <button className="p-1 sm:p-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all">
-              <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-            </button>
+            {websiteSettings?.ai?.avatarSystem?.enabled && (
+              <button
+                onClick={() => {
+                  setAiImageType('cover');
+                  setShowAIModal(true);
+                }}
+                className="px-2 py-1 sm:px-3 sm:py-2 bg-black bg-opacity-20 text-white rounded-lg backdrop-blur-sm hover:bg-opacity-30 transition-all flex items-center gap-1 text-xs sm:text-sm"
+              >
+                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">AI Cover</span>
+              </button>
+            )}
+
           </div>
         )}
       </div>
@@ -1943,20 +1967,34 @@ const UserProfile: React.FC = () => {
                 }}
               />
               {isCurrentUser && (
-                <label className="absolute bottom-1 right-1 w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors shadow-lg">
-                  {uploadingAvatar ? (
-                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ) : (
-                    <span className="text-sm">📷</span>
+                <>
+                  <label className="absolute bottom-1 right-1 w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors shadow-lg z-10">
+                    {uploadingAvatar ? (
+                      <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <CameraIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                      disabled={uploadingAvatar}
+                    />
+                  </label>
+                  {websiteSettings?.ai?.avatarSystem?.enabled && (
+                    <button
+                      onClick={() => {
+                        setAiImageType('avatar');
+                        setShowAIModal(true);
+                      }}
+                      className="absolute bottom-1 right-10 w-6 h-6 sm:w-8 sm:h-8 bg-purple-600 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-purple-700 transition-colors shadow-lg z-10"
+                      title="Generate AI Avatar"
+                    >
+                      <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
+                    </button>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    className="hidden"
-                    disabled={uploadingAvatar}
-                  />
-                </label>
+                </>
               )}
               {user.isOnline && (
                 <div className="absolute bottom-3 right-3 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
@@ -1966,7 +2004,7 @@ const UserProfile: React.FC = () => {
             {/* User Info */}
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 flex-wrap">
-              <h1 className={`text-xl sm:text-2xl font-bold mb-1 break-words transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name}</h1>
+                <h1 className={`text-xl sm:text-2xl font-bold mb-1 break-words transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name}</h1>
                 <div className="flex items-center gap-1.5">
                   {user.isVerified && (
                     <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
@@ -1992,10 +2030,10 @@ const UserProfile: React.FC = () => {
                   <button
                     onClick={handleFollow}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isFollowing
-                        ? isDarkMode
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                      ? isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
                       }`}
                   >
                     {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
@@ -2011,10 +2049,10 @@ const UserProfile: React.FC = () => {
                   <button
                     onClick={handleBlock}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isBlocked
-                        ? 'bg-red-200 text-red-700 hover:bg-red-300'
-                        : isDarkMode
-                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-red-200 text-red-700 hover:bg-red-300'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
                     <span>{isBlocked ? 'Unblock' : 'Block'}</span>
@@ -2023,15 +2061,15 @@ const UserProfile: React.FC = () => {
               )}
               {isCurrentUser && (
                 <>
-                 
+
                   <button
                     onClick={() => {
                       fetchAnalyticsData();
                       setShowAnalyticsModal(true);
                     }}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isDarkMode
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                       }`}
                   >
                     <BarChart3 className="w-4 h-4" />
@@ -2046,8 +2084,8 @@ const UserProfile: React.FC = () => {
                   <button
                     onClick={() => setActiveTab('activities')}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isDarkMode
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       }`}
                   >
                     <Eye className="w-4 h-4" />
@@ -2083,13 +2121,12 @@ const UserProfile: React.FC = () => {
                       setShowJobPreferencesModal(true);
                       setOpenToOptions(prev => ({ ...prev, findingJob: true }));
                     }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
-                      openToOptions.findingJob
-                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                        : isDarkMode
-                          ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${openToOptions.findingJob
+                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                        : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                      }`}
                   >
                     <Briefcase className="w-3.5 h-3.5" />
                     <span>Finding a new job</span>
@@ -2099,13 +2136,12 @@ const UserProfile: React.FC = () => {
                 {!user.servicesPreferences?.providingServices && (
                   <button
                     onClick={() => setShowServicesModal(true)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
-                      openToOptions.providingServices
-                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                        : isDarkMode
-                          ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                          : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                    }`}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${openToOptions.providingServices
+                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                      : isDarkMode
+                        ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                        : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                      }`}
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
                     <span>Providing services</span>
@@ -2113,13 +2149,12 @@ const UserProfile: React.FC = () => {
                 )}
                 <button
                   onClick={() => setShowCreateJobModal(true)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
-                    openToOptions.hiring
-                      ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                      : isDarkMode
-                        ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                        : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-medium transition-all duration-200 ${openToOptions.hiring
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : isDarkMode
+                      ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                    }`}
                 >
                   <Users className="w-3.5 h-3.5" />
                   <span>Hiring</span>
@@ -2128,7 +2163,7 @@ const UserProfile: React.FC = () => {
             </div>
           )}
 
-        
+
         </div>
       </div>
 
@@ -2141,17 +2176,17 @@ const UserProfile: React.FC = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 py-3 px-4 border-b-2 transition-colors whitespace-nowrap min-w-fit ${activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600 font-medium'
-                    : isDarkMode
-                      ? 'border-transparent text-gray-300 hover:text-white hover:border-gray-500'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600 font-medium'
+                  : isDarkMode
+                    ? 'border-transparent text-gray-300 hover:text-white hover:border-gray-500'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
               >
                 <span className="text-sm font-medium">{tab.label}</span>
                 {tab.count !== undefined && (
                   <span className={`px-2 py-0.5 rounded-full text-xs transition-colors duration-200 ${isDarkMode
-                      ? 'bg-gray-700 text-gray-300'
-                      : 'bg-gray-200 text-gray-600'
+                    ? 'bg-gray-700 text-gray-300'
+                    : 'bg-gray-200 text-gray-600'
                     }`}>
                     {tab.count}
                   </span>
@@ -2180,8 +2215,8 @@ const UserProfile: React.FC = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className={`w-full pl-10 pr-4 py-2 border-0 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${isDarkMode
-                          ? 'bg-gray-700 text-white placeholder-gray-400'
-                          : 'bg-gray-100 text-gray-900 placeholder-gray-500'
+                        ? 'bg-gray-700 text-white placeholder-gray-400'
+                        : 'bg-gray-100 text-gray-900 placeholder-gray-500'
                         }`}
                     />
                   </div>
@@ -2228,7 +2263,7 @@ const UserProfile: React.FC = () => {
                         Profile Completion
                       </h3>
                     </div>
-                    
+
                     {/* Profile Items List */}
                     <div className="space-y-2">
                       {profileCompletion.items.map((item) => (
@@ -2238,24 +2273,22 @@ const UserProfile: React.FC = () => {
                             // Navigate to profile edit page for all items
                             router.push('/dashboard/settings/profile');
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
-                            item.completed
-                              ? isDarkMode
-                                ? 'bg-green-900/20 border border-green-700'
-                                : 'bg-green-50 border border-green-200'
-                              : isDarkMode
-                                ? 'bg-gray-700 border border-gray-600 hover:bg-gray-600'
-                                : 'bg-white border border-gray-300 hover:bg-gray-50'
-                          }`}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-200 ${item.completed
+                            ? isDarkMode
+                              ? 'bg-green-900/20 border border-green-700'
+                              : 'bg-green-50 border border-green-200'
+                            : isDarkMode
+                              ? 'bg-gray-700 border border-gray-600 hover:bg-gray-600'
+                              : 'bg-white border border-gray-300 hover:bg-gray-50'
+                            }`}
                         >
                           {/* Icon */}
-                          <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full ${
-                            item.completed
-                              ? 'bg-green-500 text-white'
-                              : isDarkMode
-                                ? 'bg-gray-600 text-gray-400'
-                                : 'bg-gray-200 text-gray-500'
-                          }`}>
+                          <div className={`flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full ${item.completed
+                            ? 'bg-green-500 text-white'
+                            : isDarkMode
+                              ? 'bg-gray-600 text-gray-400'
+                              : 'bg-gray-200 text-gray-500'
+                            }`}>
                             {item.completed ? (
                               <Check className="w-3 h-3" />
                             ) : (
@@ -2263,15 +2296,14 @@ const UserProfile: React.FC = () => {
                             )}
                           </div>
                           {/* Label */}
-                          <span className={`text-sm font-medium transition-colors duration-200 ${
-                            item.completed
-                              ? isDarkMode
-                                ? 'text-green-300'
-                                : 'text-green-700'
-                              : isDarkMode
-                                ? 'text-gray-300'
-                                : 'text-gray-700'
-                          }`}>
+                          <span className={`text-sm font-medium transition-colors duration-200 ${item.completed
+                            ? isDarkMode
+                              ? 'text-green-300'
+                              : 'text-green-700'
+                            : isDarkMode
+                              ? 'text-gray-300'
+                              : 'text-gray-700'
+                            }`}>
                             {item.label}
                           </span>
                         </button>
@@ -2307,8 +2339,8 @@ const UserProfile: React.FC = () => {
                         value={followById}
                         onChange={(e) => setFollowById(e.target.value)}
                         className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${isDarkMode
-                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
-                            : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500'
                           }`}
                       />
                     </div>
@@ -2317,10 +2349,10 @@ const UserProfile: React.FC = () => {
                       onClick={handleFollowById}
                       disabled={isFollowingById || !followById.trim()}
                       className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${isFollowingById || !followById.trim()
-                          ? isDarkMode
-                            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg'
+                        ? isDarkMode
+                          ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg'
                         }`}
                     >
                       {isFollowingById ? (
@@ -2357,8 +2389,8 @@ const UserProfile: React.FC = () => {
                       <h4 className={`text-sm font-semibold transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Connections</h4>
                     </div>
                     <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isDarkMode
-                        ? 'bg-blue-900/20 border-blue-700 hover:bg-blue-900/30'
-                        : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                      ? 'bg-blue-900/20 border-blue-700 hover:bg-blue-900/30'
+                      : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
                       }`}>
                       <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
                         }`}>
@@ -2370,8 +2402,8 @@ const UserProfile: React.FC = () => {
                       </div>
                     </div>
                     <div className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isDarkMode
-                        ? 'bg-green-900/20 border-green-700 hover:bg-green-900/30'
-                        : 'bg-green-50 border-green-200 hover:bg-green-100'
+                      ? 'bg-green-900/20 border-green-700 hover:bg-green-900/30'
+                      : 'bg-green-50 border-green-200 hover:bg-green-100'
                       }`}>
                       <div className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-green-300' : 'text-green-700'
                         }`}>
@@ -2670,11 +2702,10 @@ const UserProfile: React.FC = () => {
                       {user.skills.map((skill: string, index: number) => (
                         <span
                           key={index}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
-                            isDarkMode
-                              ? 'bg-gray-700 text-gray-300'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${isDarkMode
+                            ? 'bg-gray-700 text-gray-300'
+                            : 'bg-gray-100 text-gray-700'
+                            }`}
                         >
                           {skill}
                         </span>
@@ -2693,11 +2724,10 @@ const UserProfile: React.FC = () => {
                       {user.languages.map((language: string, index: number) => (
                         <span
                           key={index}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
-                            isDarkMode
-                              ? 'bg-gray-700 text-gray-300'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${isDarkMode
+                            ? 'bg-gray-700 text-gray-300'
+                            : 'bg-gray-100 text-gray-700'
+                            }`}
                         >
                           {language}
                         </span>
@@ -2706,7 +2736,7 @@ const UserProfile: React.FC = () => {
                   </div>
                 )}
 
-          
+
 
                 {/* Content Filter Buttons */}
                 <div className={`rounded-xl shadow-sm p-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
@@ -2715,10 +2745,10 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => setActiveFilter('all')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'all'
-                            ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode
-                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          ? 'bg-red-100 text-red-600 border border-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         <FileText className="w-4 h-4" />
@@ -2728,10 +2758,10 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => setActiveFilter('text')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'text'
-                            ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode
-                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          ? 'bg-red-100 text-red-600 border border-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         <div className="w-4 h-4 flex items-center justify-center">
@@ -2745,10 +2775,10 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => setActiveFilter('photos')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'photos'
-                            ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode
-                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          ? 'bg-red-100 text-red-600 border border-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         <Camera className="w-4 h-4" />
@@ -2758,10 +2788,10 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => setActiveFilter('videos')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'videos'
-                            ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode
-                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          ? 'bg-red-100 text-red-600 border border-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         <Video className="w-4 h-4" />
@@ -2771,10 +2801,10 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => setActiveFilter('sounds')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'sounds'
-                            ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode
-                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          ? 'bg-red-100 text-red-600 border border-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         <Music className="w-4 h-4" />
@@ -2784,10 +2814,10 @@ const UserProfile: React.FC = () => {
                       <button
                         onClick={() => setActiveFilter('files')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeFilter === 'files'
-                            ? 'bg-red-100 text-red-600 border border-red-200'
-                            : isDarkMode
-                              ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                          ? 'bg-red-100 text-red-600 border border-red-200'
+                          : isDarkMode
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                           }`}
                       >
                         <FileText className="w-4 h-4" />
@@ -2887,9 +2917,9 @@ const UserProfile: React.FC = () => {
                         const timeAgo = new Date(item.createdAt);
                         const now = new Date();
                         const diffInMinutes = Math.floor((now.getTime() - timeAgo.getTime()) / (1000 * 60));
-                        const timeDisplay = diffInMinutes < 60 
-                          ? `${diffInMinutes}m` 
-                          : diffInMinutes < 1440 
+                        const timeDisplay = diffInMinutes < 60
+                          ? `${diffInMinutes}m`
+                          : diffInMinutes < 1440
                             ? `${Math.floor(diffInMinutes / 60)}h`
                             : `${Math.floor(diffInMinutes / 1440)}d`;
 
@@ -2951,11 +2981,10 @@ const UserProfile: React.FC = () => {
                               </div>
 
                               {/* View Interested Candidates Button */}
-                              <button className={`w-full py-2 px-4 rounded-lg mb-4 transition-colors duration-200 ${
-                                isDarkMode
-                                  ? 'bg-pink-600 hover:bg-pink-700 text-white'
-                                  : 'bg-pink-100 hover:bg-pink-200 text-pink-700'
-                              }`}>
+                              <button className={`w-full py-2 px-4 rounded-lg mb-4 transition-colors duration-200 ${isDarkMode
+                                ? 'bg-pink-600 hover:bg-pink-700 text-white'
+                                : 'bg-pink-100 hover:bg-pink-200 text-pink-700'
+                                }`}>
                                 View Interested Candidates ({item.interestedCandidates?.length || 0})
                               </button>
 
@@ -3052,8 +3081,8 @@ const UserProfile: React.FC = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {albums.map((album) => (
                       <div key={album._id} className={`rounded-lg p-4 border transition-colors duration-200 ${isDarkMode
-                          ? 'bg-gray-700 border-gray-600'
-                          : 'bg-gray-50 border-gray-200'
+                        ? 'bg-gray-700 border-gray-600'
+                        : 'bg-gray-50 border-gray-200'
                         }`}>
                         <h4 className={`font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{album.name}</h4>
                         <div className="grid grid-cols-3 gap-1 mb-2">
@@ -3202,22 +3231,22 @@ const UserProfile: React.FC = () => {
                   <div className="space-y-4">
                     {activities.map((activity) => (
                       <div key={activity.id} className={`rounded-lg p-4 border transition-colors duration-200 ${isDarkMode
-                          ? 'bg-gray-800 border-gray-700'
-                          : 'bg-white border-gray-200'
+                        ? 'bg-gray-800 border-gray-700'
+                        : 'bg-white border-gray-200'
                         }`}>
                         <div className="flex items-start gap-3">
                           {/* Activity Icon */}
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${activity.type === 'follow'
-                              ? 'bg-blue-100 text-blue-600'
-                              : activity.type === 'like'
-                                ? 'bg-red-100 text-red-600'
-                                : activity.type === 'comment'
-                                  ? 'bg-green-100 text-green-600'
-                                  : activity.type === 'share'
-                                    ? 'bg-purple-100 text-purple-600'
-                                    : activity.type === 'post'
-                                      ? 'bg-indigo-100 text-indigo-600'
-                                      : 'bg-gray-100 text-gray-600'
+                            ? 'bg-blue-100 text-blue-600'
+                            : activity.type === 'like'
+                              ? 'bg-red-100 text-red-600'
+                              : activity.type === 'comment'
+                                ? 'bg-green-100 text-green-600'
+                                : activity.type === 'share'
+                                  ? 'bg-purple-100 text-purple-600'
+                                  : activity.type === 'post'
+                                    ? 'bg-indigo-100 text-indigo-600'
+                                    : 'bg-gray-100 text-gray-600'
                             }`}>
                             {activity.type === 'follow' ? (
                               <Users className="w-5 h-5" />
@@ -3324,8 +3353,8 @@ const UserProfile: React.FC = () => {
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               className={`w-full h-24 sm:h-32 p-2 sm:p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm sm:text-base transition-colors duration-200 ${isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                 }`}
               placeholder="What's on your mind?"
             />
@@ -3337,8 +3366,8 @@ const UserProfile: React.FC = () => {
                   setEditContent('');
                 }}
                 className={`flex-1 px-3 sm:px-4 py-2 border rounded-lg transition-colors text-sm sm:text-base ${isDarkMode
-                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                   }`}
               >
                 Cancel
@@ -3382,8 +3411,8 @@ const UserProfile: React.FC = () => {
                 <button
                   onClick={() => setShowAnalyticsModal(false)}
                   className={`p-3 rounded-full transition-all duration-200 ${isDarkMode
-                      ? 'text-gray-400 hover:text-white hover:bg-gray-800'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                     }`}
                 >
                   <X className="w-6 h-6" />
@@ -3446,8 +3475,8 @@ const UserProfile: React.FC = () => {
                         </p>
                       </div>
                       <button className={`px-2 py-1 rounded-lg font-medium transition-all duration-200 shadow-lg ${isDarkMode
-                          ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
-                          : 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
+                        ? 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
+                        : 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
                         }`}>
                         <div className="flex items-center gap-1">
                           <Gift className="w-3 h-3" />
@@ -3632,7 +3661,7 @@ const UserProfile: React.FC = () => {
 
       {/* Job Preferences Modal */}
       {showJobPreferencesModal && (
-        <div 
+        <div
           className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -3640,9 +3669,9 @@ const UserProfile: React.FC = () => {
             }
           }}
         >
-          <div 
+          <div
             className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-md w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
-            }`}
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -3667,11 +3696,10 @@ const UserProfile: React.FC = () => {
                   placeholder="Job titles"
                   value={jobPreferences.jobTitles}
                   onChange={(e) => setJobPreferences(prev => ({ ...prev, jobTitles: e.target.value }))}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                 />
               </div>
 
@@ -3682,11 +3710,10 @@ const UserProfile: React.FC = () => {
                   placeholder="Job location"
                   value={jobPreferences.jobLocation}
                   onChange={(e) => setJobPreferences(prev => ({ ...prev, jobLocation: e.target.value }))}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                 />
               </div>
 
@@ -3829,11 +3856,10 @@ const UserProfile: React.FC = () => {
                   setShowJobPreferencesModal(false);
                   // Reset form if needed
                 }}
-                className={`w-full px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
-                  isDarkMode
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
-                }`}
+                className={`w-full px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${isDarkMode
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                  }`}
               >
                 Cancel
               </button>
@@ -3844,7 +3870,7 @@ const UserProfile: React.FC = () => {
 
       {/* Services Preferences Modal */}
       {showServicesModal && (
-        <div 
+        <div
           className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -3852,9 +3878,9 @@ const UserProfile: React.FC = () => {
             }
           }}
         >
-          <div 
+          <div
             className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-md w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
-            }`}
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -3885,19 +3911,17 @@ const UserProfile: React.FC = () => {
                         handleAddService();
                       }
                     }}
-                    className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                   />
                   <button
                     onClick={handleAddService}
-                    className={`px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
+                    className={`px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 ${isDarkMode
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
                   >
                     Add
                   </button>
@@ -3908,18 +3932,16 @@ const UserProfile: React.FC = () => {
                     {servicesPreferences.services.map((service, index) => (
                       <div
                         key={index}
-                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm transition-colors duration-200 ${
-                          isDarkMode
-                            ? 'bg-gray-700 text-gray-300'
-                            : 'bg-gray-200 text-gray-700'
-                        }`}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm transition-colors duration-200 ${isDarkMode
+                          ? 'bg-gray-700 text-gray-300'
+                          : 'bg-gray-200 text-gray-700'
+                          }`}
                       >
                         <span>{service}</span>
                         <button
                           onClick={() => handleRemoveService(service)}
-                          className={`ml-1 hover:opacity-70 transition-opacity ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}
+                          className={`ml-1 hover:opacity-70 transition-opacity ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -3939,11 +3961,10 @@ const UserProfile: React.FC = () => {
                   placeholder="Location"
                   value={servicesPreferences.location}
                   onChange={(e) => setServicesPreferences(prev => ({ ...prev, location: e.target.value }))}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                 />
               </div>
 
@@ -3957,11 +3978,10 @@ const UserProfile: React.FC = () => {
                   value={servicesPreferences.description}
                   onChange={(e) => setServicesPreferences(prev => ({ ...prev, description: e.target.value }))}
                   rows={4}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                 />
               </div>
             </div>
@@ -3974,11 +3994,10 @@ const UserProfile: React.FC = () => {
                   setShowServicesModal(false);
                   // Reset form if needed
                 }}
-                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
-                  isDarkMode
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
-                }`}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${isDarkMode
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                  }`}
               >
                 Cancel
               </button>
@@ -3995,7 +4014,7 @@ const UserProfile: React.FC = () => {
 
       {/* Create Job Modal */}
       {showCreateJobModal && (
-        <div 
+        <div
           className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -4003,9 +4022,9 @@ const UserProfile: React.FC = () => {
             }
           }}
         >
-          <div 
+          <div
             className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-2xl w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
-            }`}
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -4030,11 +4049,10 @@ const UserProfile: React.FC = () => {
                     placeholder="Job titles"
                     value={jobFormData.title}
                     onChange={(e) => setJobFormData(prev => ({ ...prev, title: e.target.value }))}
-                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                   />
                 </div>
                 <div>
@@ -4046,11 +4064,10 @@ const UserProfile: React.FC = () => {
                     placeholder="Location"
                     value={jobFormData.location}
                     onChange={(e) => setJobFormData(prev => ({ ...prev, location: e.target.value }))}
-                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                   />
                 </div>
               </div>
@@ -4065,11 +4082,10 @@ const UserProfile: React.FC = () => {
                   value={jobFormData.description}
                   onChange={(e) => setJobFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={4}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                 />
               </div>
 
@@ -4091,11 +4107,10 @@ const UserProfile: React.FC = () => {
                         ...prev,
                         salaryRange: { ...prev.salaryRange, minimum: e.target.value }
                       }))}
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                          : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                     />
                   </div>
                   <div>
@@ -4110,11 +4125,10 @@ const UserProfile: React.FC = () => {
                         ...prev,
                         salaryRange: { ...prev.salaryRange, maximum: e.target.value }
                       }))}
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                          : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                     />
                   </div>
                   <div>
@@ -4127,11 +4141,10 @@ const UserProfile: React.FC = () => {
                         ...prev,
                         salaryRange: { ...prev.salaryRange, currency: e.target.value }
                       }))}
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
-                          : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                     >
                       <option value="USD">USD ($)</option>
                       <option value="INR">INR (₹)</option>
@@ -4147,11 +4160,10 @@ const UserProfile: React.FC = () => {
                         ...prev,
                         salaryRange: { ...prev.salaryRange, type: e.target.value }
                       }))}
-                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
-                          : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
-                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                      className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                        } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                     >
                       <option value="Per Hour">Per Hour</option>
                       <option value="Per Day">Per Day</option>
@@ -4172,11 +4184,10 @@ const UserProfile: React.FC = () => {
                   <select
                     value={jobFormData.jobType}
                     onChange={(e) => setJobFormData(prev => ({ ...prev, jobType: e.target.value }))}
-                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                   >
                     <option value="Full time">Full time</option>
                     <option value="Part time">Part time</option>
@@ -4193,11 +4204,10 @@ const UserProfile: React.FC = () => {
                   <select
                     value={jobFormData.category}
                     onChange={(e) => setJobFormData(prev => ({ ...prev, category: e.target.value }))}
-                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                   >
                     <option value="Technology">Technology</option>
                     <option value="Healthcare">Healthcare</option>
@@ -4231,23 +4241,21 @@ const UserProfile: React.FC = () => {
                         handleAddQuestion();
                       }
                     }}
-                    className={`w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                    className={`w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                      : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                      } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                   />
                   <button
                     onClick={handleAddQuestion}
                     type="button"
-                    className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${
-                      isDarkMode
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
+                    className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 flex items-center justify-center gap-2 ${isDarkMode
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
                   >
                     <Plus className="w-4 h-4" />
-                    Add 
+                    Add
                   </button>
                 </div>
                 {jobFormData.questions.length > 0 && (
@@ -4255,19 +4263,17 @@ const UserProfile: React.FC = () => {
                     {jobFormData.questions.map((question, index) => (
                       <div
                         key={index}
-                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm transition-colors duration-200 ${
-                          isDarkMode
-                            ? 'bg-gray-700 text-gray-300'
-                            : 'bg-gray-200 text-gray-700'
-                        }`}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs sm:text-sm transition-colors duration-200 ${isDarkMode
+                          ? 'bg-gray-700 text-gray-300'
+                          : 'bg-gray-200 text-gray-700'
+                          }`}
                       >
                         <span>{question}</span>
                         <button
                           onClick={() => handleRemoveQuestion(question)}
                           type="button"
-                          className={`ml-1 hover:opacity-70 transition-opacity ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}
+                          className={`ml-1 hover:opacity-70 transition-opacity ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}
                         >
                           <X className="w-3 h-3" />
                         </button>
@@ -4282,9 +4288,8 @@ const UserProfile: React.FC = () => {
                 <label className={`block text-xs sm:text-sm font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Add an image to help applicants see what it's like to work at this location.
                 </label>
-                <div className={`relative w-full h-48 sm:h-64 rounded-lg border-2 border-dashed overflow-hidden ${
-                  isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'
-                }`}>
+                <div className={`relative w-full h-48 sm:h-64 rounded-lg border-2 border-dashed overflow-hidden ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'
+                  }`}>
                   {jobImagePreview ? (
                     <img
                       src={jobImagePreview}
@@ -4297,11 +4302,10 @@ const UserProfile: React.FC = () => {
                     </div>
                   )}
                   <div className="absolute bottom-2 left-2 right-2 flex flex-col sm:flex-row gap-2">
-                    <label className={`w-full sm:flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-center cursor-pointer transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'bg-gray-700 text-white hover:bg-gray-600'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}>
+                    <label className={`w-full sm:flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium text-center cursor-pointer transition-colors duration-200 ${isDarkMode
+                      ? 'bg-gray-700 text-white hover:bg-gray-600'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }`}>
                       Browse To Upload
                       <input
                         type="file"
@@ -4313,11 +4317,10 @@ const UserProfile: React.FC = () => {
                     <button
                       onClick={handleUseCoverPhoto}
                       type="button"
-                      className={`w-full sm:w-auto px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${
-                        isDarkMode
-                          ? 'bg-gray-700 text-white hover:bg-gray-600'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
-                      }`}
+                      className={`w-full sm:w-auto px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors duration-200 ${isDarkMode
+                        ? 'bg-gray-700 text-white hover:bg-gray-600'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                        }`}
                     >
                       Use Cover Photo
                     </button>
@@ -4334,11 +4337,10 @@ const UserProfile: React.FC = () => {
                   setShowCreateJobModal(false);
                   // Reset form if needed
                 }}
-                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
-                  isDarkMode
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
-                }`}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${isDarkMode
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                  }`}
               >
                 Cancel
               </button>
@@ -4354,19 +4356,19 @@ const UserProfile: React.FC = () => {
         </div>
       )}
 
-      {/* AI Cover Generation Modal */}
-      {showAICoverModal && (
-        <div 
+      {/* AI Image Generation Modal */}
+      {showAIModal && (
+        <div
           className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-60 backdrop-blur-sm overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setShowAICoverModal(false);
+              setShowAIModal(false);
             }
           }}
         >
-          <div 
+          <div
             className={`rounded-lg sm:rounded-2xl shadow-2xl max-w-md w-full my-auto transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'
-            }`}
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -4374,53 +4376,13 @@ const UserProfile: React.FC = () => {
               }`}>
               <h2 className={`text-lg sm:text-xl font-bold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                Enhance your cover picture
+                Enhance your {aiImageType} picture
               </h2>
             </div>
 
             {/* Modal Content */}
             <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-              {/* Credit Balance Card */}
-              <div className={`rounded-lg p-4 transition-colors duration-200 ${isDarkMode ? 'bg-blue-900/20 border border-blue-700' : 'bg-blue-50 border border-blue-200'
-                }`}>
-                <div className="text-center">
-                  <p className={`text-xs sm:text-sm font-medium mb-1 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
-                    }`}>
-                    Available balance
-                  </p>
-                  <p className={`text-3xl sm:text-4xl font-bold mb-1 transition-colors duration-200 ${isDarkMode ? 'text-blue-200' : 'text-blue-600'
-                    }`}>
-                    {imageCredits}
-                  </p>
-                  <p className={`text-xs sm:text-sm font-medium mb-4 transition-colors duration-200 ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
-                    }`}>
-                    Images
-                  </p>
-                  <button
-                    onClick={() => {
-                      // Navigate to credits purchase page or open credits modal
-                      router.push('/dashboard/settings/billing');
-                    }}
-                    className={`w-full px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${isDarkMode
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
-                      }`}
-                  >
-                    Buy Credits
-                  </button>
-                </div>
-              </div>
 
-              {/* Error Message - Show if insufficient credits */}
-              {imageCredits < 1 && (
-                <div className={`rounded-lg p-3 sm:p-4 transition-colors duration-200 ${isDarkMode ? 'bg-red-900/20 border border-red-700' : 'bg-red-50 border border-red-200'
-                  }`}>
-                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-red-300' : 'text-red-700'
-                    }`}>
-                    You don't have enough credits to generate images, please top up your credits.
-                  </p>
-                </div>
-              )}
 
               {/* Prompt Input */}
               <div>
@@ -4432,11 +4394,10 @@ const UserProfile: React.FC = () => {
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   rows={4}
-                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
+                  className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg border transition-colors duration-200 resize-none ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500'
+                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20`}
                 />
               </div>
             </div>
@@ -4446,23 +4407,22 @@ const UserProfile: React.FC = () => {
               }`}>
               <button
                 onClick={() => {
-                  setShowAICoverModal(false);
+                  setShowAIModal(false);
                   setAiPrompt('');
                 }}
-                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${
-                  isDarkMode
-                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
-                }`}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-3 rounded-lg text-sm sm:text-base font-medium transition-colors duration-200 touch-manipulation ${isDarkMode
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 active:bg-gray-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                  }`}
               >
                 Cancel
               </button>
               <button
-                onClick={handleGenerateAICover}
-                disabled={generatingCover || imageCredits < 1 || !aiPrompt.trim()}
+                onClick={handleGenerateAIImage}
+                disabled={generatingImage || !aiPrompt.trim()}
                 className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-red-600 text-white rounded-lg text-sm sm:text-base font-medium hover:bg-red-700 active:bg-red-800 transition-colors duration-200 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {generatingCover ? 'Generating...' : 'Generate'}
+                {generatingImage ? 'Generating...' : 'Generate'}
               </button>
             </div>
           </div>

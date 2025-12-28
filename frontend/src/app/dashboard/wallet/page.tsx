@@ -894,10 +894,10 @@ export default function WalletPage() {
                             </p>
                         </div>
 
-                        <div className="flex gap-4 w-full sm:w-auto">
+                        <div className="flex gap-4 w-full sm:w-auto !overflow-x-auto pb-4 [webkit-overflow-scrolling:touch] scrollbar-hide">
                             <button
                                 onClick={() => setShowAddFunds(true)}
-                                className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-green-50 transition-colors group"
+                                className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-green-50 transition-colors group flex-shrink-0 min-w-[100px]"
                             >
                                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-2xl group-hover:scale-110 transition-transform">
                                     💰
@@ -907,7 +907,7 @@ export default function WalletPage() {
                                 </span>
                             </button>
 
-                            <button className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-blue-50 transition-colors group">
+                            <button className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-blue-50 transition-colors group flex-shrink-0 min-w-[100px]">
                                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl group-hover:scale-110 transition-transform">
                                     💸
                                 </div>
@@ -916,7 +916,7 @@ export default function WalletPage() {
                                 </span>
                             </button>
 
-                            <button className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-red-50 transition-colors group">
+                            <button className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-red-50 transition-colors group flex-shrink-0 min-w-[100px]">
                                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 text-2xl group-hover:scale-110 transition-transform">
                                     💵
                                 </div>
