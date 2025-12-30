@@ -104,7 +104,11 @@ const allowedOrigins = [
   'http://localhost:3001',
   'https://jaifriend.hgdjlive.com',
   'http://192.168.43.120:3000',
-  'https://jaifriend-backend.hgdjlive.com'
+  'https://jaifriend-backend.hgdjlive.com',
+  'https://jaifriend.com',
+  'https://backend.jaifriend.com/',
+  'https://Frontend.jaifriend.com',
+  'https://api.jaifriend.com'
 ];
 
 // Add any additional origins from environment variables

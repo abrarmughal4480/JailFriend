@@ -21,7 +21,11 @@ class SocketService {
           'http://localhost:3000',
           'http://localhost:3001',
           'https://jaifriend.hgdjlive.com',
-          'https://jaifriend-backend.hgdjlive.com'
+          'https://jaifriend-backend.hgdjlive.com',
+          'https://jaifriend.com',
+          'https://backend.jaifriend.com/',
+          'https://Frontend.jaifriend.com',
+          'https://api.jaifriend.com'
         ],
         methods: ['GET', 'POST'],
         credentials: true
