@@ -32,6 +32,7 @@ const AiSettingsPage = () => {
   const [imagePrice, setImagePrice] = useState("10");
   const [textCreditEnabled, setTextCreditEnabled] = useState(true);
   const [textPrice, setTextPrice] = useState("1");
+  const [initialUserCredits, setInitialUserCredits] = useState("0");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -110,6 +111,7 @@ const AiSettingsPage = () => {
               setTextCreditEnabled(aiSettings.creditSystem.text.enabled);
               setTextPrice(aiSettings.creditSystem.text.price?.toString() || '1');
             }
+            setInitialUserCredits(aiSettings.creditSystem.initialUserCredits?.toString() || '0');
           }
         }
       }
@@ -172,6 +174,7 @@ const AiSettingsPage = () => {
               api: avatarApi
             },
             creditSystem: {
+              initialUserCredits: Number(initialUserCredits),
               creditPrice: Number(creditPrice),
               image: {
                 enabled: imageCreditEnabled,
@@ -489,7 +492,19 @@ const AiSettingsPage = () => {
                 className={inputStyles}
               />
               <p className={`${textSecondary} text-xs`}>
-                Credit Price Example: $1 = 10 credits
+                Credit Price (Cost of 1 credit in wallet currency)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label className={`text-sm font-medium ${textPrimary}`}>Initial User Credits</label>
+              <input
+                type="number"
+                value={initialUserCredits}
+                onChange={(e) => setInitialUserCredits(e.target.value)}
+                className={inputStyles}
+              />
+              <p className={`${textSecondary} text-xs`}>
+                Credits assigned to new users upon signup.
               </p>
             </div>
           </div>

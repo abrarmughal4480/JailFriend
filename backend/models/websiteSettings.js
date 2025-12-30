@@ -866,6 +866,7 @@ const websiteSettingsSchema = new mongoose.Schema({
       api: { type: String, default: 'Replicate' }
     },
     creditSystem: {
+      initialUserCredits: { type: Number, default: 0 },
       creditPrice: { type: Number, default: 100 },
       image: {
         enabled: { type: Boolean, default: true },

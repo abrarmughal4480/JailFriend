@@ -80,6 +80,8 @@ exports.getUserById = async (req, res) => {
       phone: user.phone,
       dateOfBirth: user.dateOfBirth,
       balance: `₹${(user.balance || 0).toFixed(2)}`,
+      balanceValue: user.balance || 0,
+      credits: user.credits || 0,
       following: user.following?.length || 0,
       followers: user.followers?.length || 0,
       posts: postsCount,
@@ -982,6 +984,8 @@ exports.getMyProfile = async (req, res) => {
       dateOfBirth: user.dateOfBirth,
       phone: user.phone,
       balance: `₹${(user.balance || 0).toFixed(2)}`,
+      balanceValue: user.balance || 0,
+      credits: user.credits || 0,
       following: user.following?.length || 0,
       followers: user.followers?.length || 0,
       posts: postsCount,
@@ -1172,13 +1176,13 @@ exports.updateJobPreferences = async (req, res) => {
     if (findingJob !== undefined) user.jobPreferences.findingJob = findingJob;
     if (jobTitles !== undefined) user.jobPreferences.jobTitles = jobTitles;
     if (jobLocation !== undefined) user.jobPreferences.jobLocation = jobLocation;
-    
+
     if (workplaces) {
       if (workplaces.onSite !== undefined) user.jobPreferences.workplaces.onSite = workplaces.onSite;
       if (workplaces.hybrid !== undefined) user.jobPreferences.workplaces.hybrid = workplaces.hybrid;
       if (workplaces.remote !== undefined) user.jobPreferences.workplaces.remote = workplaces.remote;
     }
-    
+
     if (jobTypes) {
       if (jobTypes.fullTime !== undefined) user.jobPreferences.jobTypes.fullTime = jobTypes.fullTime;
       if (jobTypes.contract !== undefined) user.jobPreferences.jobTypes.contract = jobTypes.contract;

@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema({
   isPrivate: { type: Boolean, default: false },
   isBlocked: { type: Boolean, default: false },
   balance: { type: Number, default: 0, min: 0 },
+  credits: { type: Number, default: 0, min: 0 },
   plan: { type: String, default: 'Free' },
   planExpiresAt: { type: Date, default: null },
   savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],

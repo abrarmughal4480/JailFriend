@@ -15,6 +15,7 @@ import StoryViewer from '@/components/StoryViewer';
 import PeopleYouMayKnow from '@/components/PeopleYouMayKnow';
 import LocationDetector from '@/components/LocationDetector';
 import LocationDisplay from '@/components/LocationDisplay';
+import AICreditConfirmation from '@/components/AICreditConfirmation';
 
 import { isAuthenticated, clearAuth, getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
@@ -190,6 +191,29 @@ export default function Dashboard() {
   // AI Generation State
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [showAIOptions, setShowAIOptions] = useState(false);
+  const [showCreditConfirm, setShowCreditConfirm] = useState(false);
+  const [pendingAIAction, setPendingAIAction] = useState<'text' | 'image' | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Fetch User Profile including credits and balance
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/users/profile/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUserProfile(data);
+      }
+    } catch (e) {
+      console.error('Error fetching user profile:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
 
   const generateAIText = async () => {
     if (!newPost.trim()) {
@@ -201,6 +225,13 @@ export default function Dashboard() {
       showPopup('error', 'Error', 'AI Post system is disabled by admin');
       return;
     }
+
+    if (!showCreditConfirm) {
+      setPendingAIAction('text');
+      setShowCreditConfirm(true);
+      return;
+    }
+
     setIsGeneratingAI(true);
     try {
       const token = localStorage.getItem('token');
@@ -222,6 +253,9 @@ export default function Dashboard() {
       setIsGeneratingAI(false);
       setShowModalAIOptions(false);
       setShowAIOptions(false);
+      setShowCreditConfirm(false);
+      setPendingAIAction(null);
+      fetchUserProfile();
     }
   };
 
@@ -235,6 +269,13 @@ export default function Dashboard() {
       showPopup('error', 'Error', 'AI Image system is disabled by admin');
       return;
     }
+
+    if (!showCreditConfirm) {
+      setPendingAIAction('image');
+      setShowCreditConfirm(true);
+      return;
+    }
+
     setIsGeneratingAI(true);
     try {
       const token = localStorage.getItem('token');
@@ -2152,6 +2193,24 @@ export default function Dashboard() {
       }`}>
       <Popup popup={popup} onClose={closePopup} />
 
+      <AICreditConfirmation
+        isOpen={showCreditConfirm}
+        onClose={() => {
+          setShowCreditConfirm(false);
+          setPendingAIAction(null);
+        }}
+        onConfirm={() => {
+          if (pendingAIAction === 'text') generateAIText();
+          if (pendingAIAction === 'image') generateAIImage();
+        }}
+        actionType={pendingAIAction || 'text'}
+        currentCredits={userProfile?.credits || 0}
+        actionCost={pendingAIAction === 'text' ? (websiteSettings?.ai?.creditSystem?.text?.price || 1) : (websiteSettings?.ai?.creditSystem?.image?.price || 10)}
+        creditPrice={websiteSettings?.ai?.creditSystem?.creditPrice || 100}
+        userBalance={userProfile?.balanceValue || 0}
+        isGenerating={isGeneratingAI}
+      />
+
       <SharePopup
         isOpen={showSharePopup}
         onClose={() => {
@@ -2369,29 +2428,38 @@ export default function Dashboard() {
                 {/* Content Creation Area */}
                 <div className="relative mb-4">
                   <div className="flex items-start gap-2 xs:gap-3">
-                    <div className="w-8 h-8 xs:w-10 xs:h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {(() => {
-                        const avatarUrl = getUserAvatar();
-                        return avatarUrl && avatarUrl !== '/default-avatar.svg' ? (
-                          <img
-                            src={avatarUrl}
-                            alt="Your avatar"
-                            onClick={handleMyProfile}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/default-avatar.svg';
-                            }}
-                          />
-                        ) : (
-                          <div className={`w-full h-full flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                            }`}>
-                            <svg className={`w-6 h-6 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          </div>
-                        );
-                      })()}
+                    <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                      <div className="w-8 h-8 xs:w-10 xs:h-10 rounded-full flex items-center justify-center overflow-hidden">
+                        {(() => {
+                          const avatarUrl = getUserAvatar();
+                          return avatarUrl && avatarUrl !== '/default-avatar.svg' ? (
+                            <img
+                              src={avatarUrl}
+                              alt="Your avatar"
+                              onClick={handleMyProfile}
+                              className="w-full h-full object-cover cursor-pointer"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-avatar.svg';
+                              }}
+                            />
+                          ) : (
+                            <div className={`w-full h-full flex items-center justify-center transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                              }`}>
+                              <svg className={`w-6 h-6 transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      {userProfile && (
+                        <div className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 shadow-sm ${isDarkMode ? 'bg-blue-900/40 text-blue-400 border border-blue-800' : 'bg-blue-50 text-blue-600 border border-blue-100'
+                          }`}>
+                          <Sparkles className="w-2.5 h-2.5" />
+                          {userProfile.credits}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 relative">
                       {/* Content Textarea */}

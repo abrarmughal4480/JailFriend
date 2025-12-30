@@ -6,6 +6,7 @@ import { Edit, Trash2, MoreVertical, Search, Filter, Camera, Video, Music, FileT
 import PostDisplay from '@/components/PostDisplay';
 import Popup, { PopupState } from '@/components/Popup';
 import FeedPost from '@/components/FeedPost';
+import AICreditConfirmation from '@/components/AICreditConfirmation';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface Post {
@@ -85,6 +86,9 @@ interface User {
   skills?: string[];
   languages?: string[];
   isVerified?: boolean;
+  credits?: number;
+  balance?: string;
+  balanceValue?: number;
 }
 
 interface UserImages {
@@ -230,6 +234,7 @@ const UserProfile: React.FC = () => {
   const [aiImageType, setAiImageType] = useState<'cover' | 'avatar'>('cover');
   const [aiPrompt, setAiPrompt] = useState('');
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [showCreditConfirm, setShowCreditConfirm] = useState(false);
 
   // Website settings state
   const [websiteSettings, setWebsiteSettings] = useState<any>(null);
@@ -1194,6 +1199,11 @@ const UserProfile: React.FC = () => {
       return;
     }
 
+    if (!showCreditConfirm) {
+      setShowCreditConfirm(true);
+      return;
+    }
+
     setGeneratingImage(true);
     try {
       const token = localStorage.getItem('token');
@@ -1266,7 +1276,7 @@ const UserProfile: React.FC = () => {
             showPopup('success', 'Image Generated!', successMsg);
 
             fetchUserImages();
-            if (aiImageType === 'avatar') fetchUserProfile();
+            fetchUserProfile();
           } else {
             showPopup('error', 'Upload Failed', 'Failed to upload generated image');
           }
@@ -1282,6 +1292,8 @@ const UserProfile: React.FC = () => {
       showPopup('error', 'Generation Failed', 'Failed to generate image. Please try again.');
     } finally {
       setGeneratingImage(false);
+      setShowCreditConfirm(false);
+      if (aiImageType === 'avatar') fetchUserProfile(); // Refresh credits
     }
   };
 
@@ -4431,6 +4443,18 @@ const UserProfile: React.FC = () => {
 
       {/* Popup */}
       <Popup popup={popup} onClose={closePopup} />
+
+      <AICreditConfirmation
+        isOpen={showCreditConfirm}
+        onClose={() => setShowCreditConfirm(false)}
+        onConfirm={handleGenerateAIImage}
+        actionType="image"
+        currentCredits={user?.credits || 0}
+        actionCost={websiteSettings?.ai?.creditSystem?.image?.price || 10}
+        creditPrice={websiteSettings?.ai?.creditSystem?.creditPrice || 100}
+        userBalance={user?.balanceValue || 0}
+        isGenerating={generatingImage}
+      />
     </div>
   );
 };

@@ -1,5 +1,39 @@
 const WebsiteSettings = require('../models/websiteSettings');
+const User = require('../models/user');
 const axios = require('axios');
+
+// Helper to check and deduct credits/balance
+const checkAndDeductCredits = async (userId, type) => {
+    const settings = await WebsiteSettings.getSettings();
+    const user = await User.findById(userId);
+
+    if (!user) throw new Error('User not found');
+
+    const creditSystem = settings.ai?.creditSystem;
+    if (!creditSystem) return { success: true }; // No credit system configured
+
+    const actionCost = type === 'text' ? creditSystem.text?.price : creditSystem.image?.price;
+    if (actionCost === undefined) return { success: true };
+
+    if (user.credits >= actionCost) {
+        user.credits -= actionCost;
+        await user.save();
+        return { success: true, remainingCredits: user.credits };
+    } else {
+        // Calculate missing credits and cost
+        const missingCredits = actionCost - user.credits;
+        const totalCost = missingCredits * creditSystem.creditPrice;
+
+        if (user.balance >= totalCost) {
+            user.balance -= totalCost;
+            user.credits = 0; // All current credits consumed
+            await user.save();
+            return { success: true, remainingCredits: 0, balanceDeducted: totalCost };
+        } else {
+            throw new Error(`Insufficient credits and wallet balance. Need ${totalCost} units but only have ${user.balance}.`);
+        }
+    }
+};
 
 // Helper to get OpenAI API key
 const getOpenAIKey = async () => {
@@ -17,6 +51,9 @@ const generateText = async (req, res) => {
         if (!prompt) {
             return res.status(400).json({ success: false, message: 'Prompt is required' });
         }
+
+        // Check and deduct credits
+        const creditResult = await checkAndDeductCredits(req.userId, 'text');
 
         const apiKey = await getOpenAIKey();
 
@@ -39,7 +76,10 @@ const generateText = async (req, res) => {
 
         res.json({
             success: true,
-            data: { text: generatedText }
+            data: {
+                text: generatedText,
+                credits: creditResult.remainingCredits
+            }
         });
 
     } catch (error) {
@@ -64,6 +104,9 @@ const generateImage = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Prompt is required' });
         }
 
+        // Check and deduct credits
+        const creditResult = await checkAndDeductCredits(req.userId, 'image');
+
         const apiKey = await getOpenAIKey();
 
         let imageSize = "1024x1024";
@@ -71,7 +114,6 @@ const generateImage = async (req, res) => {
 
         // Adjust settings based on image type
         if (type === 'cover') {
-            // OpenAI API Spec for DALL-E 3: "1024x1024", "1024x1792", "1792x1024"
             imageSize = "1792x1024";
         } else if (type === 'avatar') {
             imageSize = "1024x1024";
@@ -95,12 +137,14 @@ const generateImage = async (req, res) => {
         );
 
         const imageBase64 = response.data.data[0].b64_json;
-        // Construct data URL
         const dataUrl = `data:image/png;base64,${imageBase64}`;
 
         res.json({
             success: true,
-            data: { imageUrl: dataUrl } // Keeping key as imageUrl for minimal frontend change, but it is valid for <img src>
+            data: {
+                imageUrl: dataUrl,
+                credits: creditResult.remainingCredits
+            }
         });
 
     } catch (error) {

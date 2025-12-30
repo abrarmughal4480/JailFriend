@@ -9,40 +9,45 @@ exports.registerUser = async (req, res) => {
   if (!username || !email || !password) {
     return res.status(400).json({ message: 'Username, email, and password are required' });
   }
-  
+
   // Check if database is connected
   if (mongoose.connection.readyState !== 1) {
     console.log('Database connection state:', mongoose.connection.readyState);
     console.log('Attempting to reconnect...');
-    
+
     try {
       await mongoose.connect(process.env.MONGO_URI);
       console.log('Reconnected to database successfully');
     } catch (reconnectError) {
       console.error('Reconnection failed:', reconnectError.message);
-      return res.status(503).json({ 
+      return res.status(503).json({
         message: 'Database not connected. Please check your MongoDB connection.',
         error: 'Database connection required'
       });
     }
   }
-  
+
   try {
     let user = await User.findOne({ $or: [{ email }, { username }] });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     // Ensure name is provided to satisfy validation
     const userName = name || username; // Use username as fallback if name is not provided
-    
-    user = new User({ 
-      name: userName, 
-      email, 
-      password: hashedPassword, 
+
+    const WebsiteSettings = require('../models/websiteSettings');
+    const settings = await WebsiteSettings.getSettings();
+    const initialCredits = settings?.ai?.creditSystem?.initialUserCredits || 0;
+
+    user = new User({
+      name: userName,
+      email,
+      password: hashedPassword,
       username,
       gender: gender || 'Prefer not to say',
-      userType: userType || 'normal'
+      userType: userType || 'normal',
+      credits: initialCredits
     });
     await user.save();
 
@@ -63,25 +68,25 @@ exports.registerUser = async (req, res) => {
       stack: err.stack,
       code: err.code
     });
-    
+
     // Provide more specific error messages
     if (err.name === 'ValidationError') {
-      return res.status(400).json({ 
-        message: 'Validation error', 
+      return res.status(400).json({
+        message: 'Validation error',
         error: err.message,
         details: Object.values(err.errors).map(e => e.message)
       });
     }
-    
+
     if (err.code === 11000) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'User already exists with this email or username',
         error: 'Duplicate key error'
       });
     }
-    
-    res.status(500).json({ 
-      message: 'Server error', 
+
+    res.status(500).json({
+      message: 'Server error',
       error: err.message,
       details: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
@@ -93,12 +98,12 @@ exports.login = async (req, res) => {
   if (!password) {
     return res.status(400).json({ message: 'Password is required' });
   }
-  
+
   // Check if either username or email is provided
   if (!username && !email) {
     return res.status(400).json({ message: 'Username or email is required' });
   }
-  
+
   try {
     // Try to find user by username or email
     let user;
@@ -107,7 +112,7 @@ exports.login = async (req, res) => {
     } else if (email) {
       user = await User.findOne({ email });
     }
-    
+
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -133,10 +138,10 @@ exports.login = async (req, res) => {
 };
 
 exports.setupProfile = async (req, res) => {
-  const { 
-    avatar, 
-    fullName, 
-    bio, 
+  const {
+    avatar,
+    fullName,
+    bio,
     location,
     workExperience,
     currentOrganisation,
@@ -152,9 +157,9 @@ exports.setupProfile = async (req, res) => {
     availableFromTime,
     availableToTime,
     stepNumber,
-    skipped 
+    skipped
   } = req.body;
-  
+
   try {
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -163,17 +168,17 @@ exports.setupProfile = async (req, res) => {
     if (stepNumber === 1 && avatar !== undefined && avatar) {
       const oldAvatar = user.avatar;
       const newAvatar = avatar;
-      
+
       // Only delete old avatar if it's different from new one and not a default avatar
-      if (oldAvatar && oldAvatar !== newAvatar && 
-          !oldAvatar.includes('/avatars/') && 
-          oldAvatar !== '/avatars/1.png.png' &&
-          oldAvatar !== '/default-avatar.svg') {
+      if (oldAvatar && oldAvatar !== newAvatar &&
+        !oldAvatar.includes('/avatars/') &&
+        oldAvatar !== '/avatars/1.png.png' &&
+        oldAvatar !== '/default-avatar.svg') {
         try {
           const { deleteFromCloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
           const fs = require('fs');
           const path = require('path');
-          
+
           // Check if it's a Cloudinary URL
           if (isCloudinaryConfigured && oldAvatar.includes('cloudinary.com')) {
             // Extract public ID from Cloudinary URL
@@ -206,7 +211,7 @@ exports.setupProfile = async (req, res) => {
           // Continue even if deletion fails
         }
       }
-      
+
       // Update avatar
       user.avatar = newAvatar;
     }
@@ -225,17 +230,17 @@ exports.setupProfile = async (req, res) => {
     if (stepNumber >= 9) {
       user.isSetupDone = true;
     }
-    
+
     await user.save();
 
     // Also update UserImage model to keep it synchronized
     const UserImage = require('../models/userImage');
     let userImage = await UserImage.findOne({ userId: req.userId });
-    
+
     if (!userImage) {
       userImage = new UserImage({ userId: req.userId });
     }
-    
+
     if (avatar !== undefined) {
       userImage.avatar = avatar || userImage.avatar;
     }
@@ -280,7 +285,7 @@ exports.setupProfile = async (req, res) => {
     }
 
     console.log(`✅ Step ${stepNumber} ${skipped ? 'skipped' : 'completed'} for user ${req.userId}`);
-    res.json({ 
+    res.json({
       message: `Step ${stepNumber} ${skipped ? 'skipped' : 'completed'} successfully`,
       stepNumber,
       skipped: skipped || false
@@ -293,8 +298,8 @@ exports.setupProfile = async (req, res) => {
 
 // Helper function to create/update P2P Profile from setup form data
 async function createOrUpdateP2PProfileFromSetup(userId, data) {
-  const { 
-    stepNumber, 
+  const {
+    stepNumber,
     skipped,
     workExperience,
     currentOrganisation,
@@ -339,7 +344,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         isActive: true
       });
     }
-    
+
     if (skipped) {
       p2pProfile.workExperience = null;
       p2pProfile.currentOrganisation = null;
@@ -382,7 +387,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         isActive: true
       });
     }
-    
+
     if (skipped) {
       p2pProfile.areasOfExpertise = [];
       p2pProfile.skills = [];
@@ -415,9 +420,9 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
           experience: description || workExperience || 'Professional',
           currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
           availability: 'Available',
-          workingHours: { 
-            start: availableFromTime || '09:00', 
-            end: availableToTime || '17:00' 
+          workingHours: {
+            start: availableFromTime || '09:00',
+            end: availableToTime || '17:00'
           },
           timezone: 'UTC',
           languages: [],
@@ -436,7 +441,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
       if (audioCallPrice !== undefined) p2pProfile.audioCallPrice = audioCallPrice || null;
       if (videoCallPrice !== undefined) p2pProfile.videoCallPrice = videoCallPrice || null;
       if (chatPrice !== undefined) p2pProfile.chatPrice = chatPrice || null;
-      
+
       // Parse and store call rates as Numbers (multipliers)
       if (audioCallPrice !== undefined && audioCallPrice) {
         const parsed = parseFloat(audioCallPrice.toString().replace(/[₹$,\s]/g, ''));
@@ -450,7 +455,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         const parsed = parseFloat(chatPrice.toString().replace(/[₹$,\s]/g, ''));
         p2pProfile.chatRate = isNaN(parsed) ? null : parsed;
       }
-      
+
       // Update currency if provided
       if (currency && (currency === 'USD' || currency === 'INR')) {
         p2pProfile.currency = currency;
@@ -461,7 +466,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
       if (data.hourlyRate !== undefined && data.hourlyRate) {
         hourlyRate = parseFloat(data.hourlyRate.toString().replace(/[₹$,\s]/g, '')) || 0;
       }
-      
+
       // If hourly rate is 0 or invalid, set a default
       if (hourlyRate <= 0) {
         hourlyRate = 100; // Default rate
@@ -493,7 +498,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         isActive: true
       });
     }
-    
+
     if (skipped) {
       p2pProfile.availableFromTime = null;
       p2pProfile.availableToTime = null;
@@ -530,9 +535,9 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         experience: description || workExperience || 'Professional',
         currency: (currency && (currency === 'USD' || currency === 'INR')) ? currency : 'USD',
         availability: 'Available',
-        workingHours: { 
-          start: availableFromTime || '09:00', 
-          end: availableToTime || '17:00' 
+        workingHours: {
+          start: availableFromTime || '09:00',
+          end: availableToTime || '17:00'
         },
         timezone: 'UTC',
         languages: [],
@@ -546,7 +551,7 @@ async function createOrUpdateP2PProfileFromSetup(userId, data) {
         isActive: true
       });
     }
-    
+
     if (skipped) {
       p2pProfile.socialLinks.linkedInLink = null;
       p2pProfile.socialLinks.instagramLink = null;
@@ -579,7 +584,7 @@ exports.getUserProfile = async (req, res) => {
     // P2P Profile fields are now in P2PProfile model, not User model
     // Get P2P profile if exists
     const p2pProfile = await P2PProfile.findOne({ userId: req.userId });
-    
+
     // Return P2P profile fields if available
     const p2pFields = p2pProfile ? {
       workExperience: p2pProfile.workExperience || null,
