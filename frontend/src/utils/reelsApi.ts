@@ -154,14 +154,14 @@ export const getReels = async (params?: {
   userId?: string;
 }): Promise<ReelsResponse> => {
   const searchParams = new URLSearchParams();
-  
+
   if (params?.page) searchParams.append('page', params.page.toString());
   if (params?.limit) searchParams.append('limit', params.limit.toString());
   if (params?.category) searchParams.append('category', params.category);
   if (params?.hashtag) searchParams.append('hashtag', params.hashtag);
   if (params?.trending) searchParams.append('trending', params.trending.toString());
   if (params?.userId) searchParams.append('userId', params.userId);
-  
+
   const response = await axios.get(`${API_URL}/api/reels?${searchParams.toString()}`, { headers: getAuthHeaders() });
   return response.data;
 };
@@ -182,7 +182,7 @@ export const getReelsByHashtag = async (
   const searchParams = new URLSearchParams();
   if (page) searchParams.append('page', page.toString());
   if (limit) searchParams.append('limit', limit.toString());
-  
+
   const response = await axios.get(`${API_URL}/api/reels/hashtag/${hashtag}?${searchParams.toString()}`, { headers: getAuthHeaders() });
   return response.data;
 };
@@ -196,7 +196,7 @@ export const getUserReels = async (
   const searchParams = new URLSearchParams();
   if (page) searchParams.append('page', page.toString());
   if (limit) searchParams.append('limit', limit.toString());
-  
+
   const response = await axios.get(`${API_URL}/api/reels/user/${userId}?${searchParams.toString()}`, { headers: getAuthHeaders() });
   return response.data;
 };
@@ -213,14 +213,14 @@ export const createReel = async (
   videoFile: File
 ): Promise<Reel> => {
   console.log('🎬 createReel called with:', { reelData, videoFile });
-  
+
   try {
     const formData = new FormData();
-    
+
     // Add video file
     formData.append('video', videoFile);
     console.log('📁 Video file added to FormData:', videoFile.name, videoFile.type, videoFile.size);
-    
+
     // Add other data
     Object.entries(reelData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -234,12 +234,12 @@ export const createReel = async (
         console.log(`📋 Added ${key}:`, value);
       }
     });
-    
+
     const apiUrl = `${API_URL}/api/reels`;
     console.log('🔗 Making POST request to:', apiUrl);
     console.log('🔐 Auth headers:', getAuthHeaders());
     console.log('🌐 API_URL from config:', API_URL);
-    
+
     // Test if the API URL is reachable
     try {
       const testResponse = await axios.get(`${API_URL}/api/reels/health`, {
@@ -251,7 +251,7 @@ export const createReel = async (
       console.error('❌ API health check failed:', healthError.message);
       throw new Error(`Cannot reach API server at ${API_URL}. Please check if the server is running.`);
     }
-    
+
     const response = await axiosInstance.post(apiUrl, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -264,12 +264,12 @@ export const createReel = async (
         }
       },
     });
-    
+
     console.log('✅ API response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('❌ Error in createReel:', error);
-    
+
     if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
       throw new Error(`Network error: Cannot connect to server at ${API_URL}. Please check your internet connection and try again.`);
     } else if (error.response) {
@@ -342,6 +342,16 @@ export const addComment = async (
   return response.data;
 };
 
+// Add or update reaction to reel
+export const addReaction = async (id: string, reactionType: string): Promise<{
+  reactions: any[];
+  likesCount: number;
+  trendingScore: number;
+}> => {
+  const response = await axios.post(`${API_URL}/api/reels/${id}/reaction`, { reactionType }, { headers: getAuthHeaders() });
+  return response.data;
+};
+
 // Delete comment from reel
 export const deleteComment = async (
   reelId: string,
@@ -357,17 +367,29 @@ export const deleteComment = async (
 
 // Check if user has liked a reel
 export const hasUserLiked = (reel: Reel, userId?: string): boolean => {
-  return userId ? reel.likes.includes(userId) : false;
+  if (!userId || !reel.likes) return false;
+  return reel.likes.some(like => {
+    const id = typeof like === 'object' ? (like as any)._id || (like as any).id : like;
+    return id === userId;
+  });
 };
 
 // Check if user has saved a reel
 export const hasUserSaved = (reel: Reel, userId?: string): boolean => {
-  return userId ? reel.savedBy.includes(userId) : false;
+  if (!userId || !reel.savedBy) return false;
+  return reel.savedBy.some(saved => {
+    const id = typeof saved === 'object' ? (saved as any)._id || (saved as any).id : saved;
+    return id === userId;
+  });
 };
 
 // Check if user has viewed a reel
 export const hasUserViewed = (reel: Reel, userId?: string): boolean => {
-  return userId ? reel.views.includes(userId) : false;
+  if (!userId || !reel.views) return false;
+  return reel.views.some(view => {
+    const id = typeof view === 'object' ? (view as any)._id || (view as any).id : view;
+    return id === userId;
+  });
 };
 
 // Format duration from seconds to MM:SS
@@ -408,7 +430,7 @@ export const getReelsByCategory = async (
   const searchParams = new URLSearchParams();
   if (page) searchParams.append('page', page.toString());
   if (limit) searchParams.append('limit', limit.toString());
-  
+
   const response = await axios.get(`${API_URL}/api/reels/category/${category}?${searchParams.toString()}`, {
     headers: getAuthHeaders()
   });
@@ -432,7 +454,7 @@ export const getReelsForYou = async (
   const searchParams = new URLSearchParams();
   if (page) searchParams.append('page', page.toString());
   if (limit) searchParams.append('limit', limit.toString());
-  
+
   const response = await axios.get(`${API_URL}/api/reels/for-you?${searchParams.toString()}`, {
     headers: getAuthHeaders()
   });
@@ -488,13 +510,13 @@ export const createDuet = async (
   duetData: Partial<CreateReelData>
 ): Promise<Reel> => {
   const formData = new FormData();
-  
+
   // Add video file
   formData.append('video', videoFile);
-  
+
   // Add duet data
   formData.append('originalReelId', originalReelId);
-  
+
   Object.entries(duetData).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       if (key === 'hashtags' && Array.isArray(value)) {
@@ -506,7 +528,7 @@ export const createDuet = async (
       }
     }
   });
-  
+
   const response = await axios.post(`${API_URL}/api/reels/duet`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
@@ -525,7 +547,7 @@ export const getDuets = async (
   const searchParams = new URLSearchParams();
   if (page) searchParams.append('page', page.toString());
   if (limit) searchParams.append('limit', limit.toString());
-  
+
   const response = await axios.get(`${API_URL}/api/reels/${reelId}/duets?${searchParams.toString()}`, {
     headers: getAuthHeaders()
   });
@@ -552,7 +574,7 @@ export const searchReels = async (
   if (filters?.duration) searchParams.append('duration', filters.duration);
   if (filters?.hasMusic) searchParams.append('hasMusic', filters.hasMusic.toString());
   if (filters?.hasEffects) searchParams.append('hasEffects', filters.hasEffects.toString());
-  
+
   const response = await axios.get(`${API_URL}/api/reels/search?${searchParams.toString()}`, {
     headers: getAuthHeaders()
   });
@@ -606,7 +628,7 @@ export const withErrorHandling = async <T>(
     return await apiCall();
   } catch (error: any) {
     console.error('API Error:', error);
-    
+
     if (error.response?.status === 401) {
       throw new Error('Please login to continue');
     } else if (error.response?.status === 403) {
@@ -632,22 +654,22 @@ export const withRetry = async <T>(
   delay: number = 1000
 ): Promise<T> => {
   let lastError: Error;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await apiCall();
     } catch (error: any) {
       lastError = error;
-      
+
       if (attempt === maxRetries) {
         throw lastError;
       }
-      
+
       // Wait before retrying
       await new Promise(resolve => setTimeout(resolve, delay * attempt));
     }
   }
-  
+
   throw lastError!;
 };
 
@@ -662,7 +684,7 @@ export const batchLikeReels = async (reelIds: string[]): Promise<{
     failed: [] as string[],
     errors: {} as { [reelId: string]: string }
   };
-  
+
   const promises = reelIds.map(async (reelId) => {
     try {
       await toggleLike(reelId);
@@ -672,7 +694,7 @@ export const batchLikeReels = async (reelIds: string[]): Promise<{
       results.errors[reelId] = error.message;
     }
   });
-  
+
   await Promise.all(promises);
   return results;
 };
@@ -687,7 +709,7 @@ export const batchSaveReels = async (reelIds: string[]): Promise<{
     failed: [] as string[],
     errors: {} as { [reelId: string]: string }
   };
-  
+
   const promises = reelIds.map(async (reelId) => {
     try {
       await toggleSave(reelId);
@@ -697,7 +719,7 @@ export const batchSaveReels = async (reelIds: string[]): Promise<{
       results.errors[reelId] = error.message;
     }
   });
-  
+
   await Promise.all(promises);
   return results;
 };
@@ -732,11 +754,11 @@ export const getReelsWithCache = async (params?: {
 }): Promise<ReelsResponse> => {
   const cacheKey = `reels:${JSON.stringify(params)}`;
   const cached = getCachedReel(cacheKey);
-  
+
   if (cached) {
     return cached;
   }
-  
+
   const data = await getReels(params);
   setCachedReel(cacheKey, data);
   return data;

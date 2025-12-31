@@ -11,6 +11,7 @@ import { getCurrentUserId } from '@/utils/auth';
 import LocationDisplay from './LocationDisplay';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import ProBadge from './ProBadge';
+import LinkPreview from './LinkPreview';
 
 interface FeedPostProps {
   post: any;
@@ -798,15 +799,17 @@ const FeedPost: React.FC<FeedPostProps> = ({
     const urls = content.match(urlRegex) || [];
 
     return urls.filter(url => {
-
-      if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) return true;
+      // YouTube formats: watch, be, live, shorts
+      if (
+        url.includes('youtube.com/watch') ||
+        url.includes('youtu.be/') ||
+        url.includes('youtube.com/live/') ||
+        url.includes('youtube.com/shorts/')
+      ) return true;
 
       if (url.includes('vimeo.com/')) return true;
-
       if (url.includes('facebook.com/') && url.includes('video')) return true;
-
       if (url.includes('instagram.com/') && url.includes('reel')) return true;
-
       if (url.includes('tiktok.com/')) return true;
       return false;
     });
@@ -821,6 +824,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
     }
     if (url.includes('youtu.be/')) {
       const videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+    if (url.includes('youtube.com/live/')) {
+      const videoId = url.split('youtube.com/live/')[1]?.split('?')[0];
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+    if (url.includes('youtube.com/shorts/')) {
+      const videoId = url.split('youtube.com/shorts/')[1]?.split('?')[0];
       return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
     }
     // Vimeo
@@ -844,56 +855,55 @@ const FeedPost: React.FC<FeedPostProps> = ({
   };
 
   const renderContentWithVideos = (content: string) => {
-    if (content.includes('<pre')) {
+    let rawText = content;
+    const isPre = content.includes('<pre');
+
+    if (isPre) {
       const preMatch = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (preMatch) {
-        const preContent = preMatch[1];
-        return (
-          <div className="whitespace-pre-wrap break-words font-sans">
-            {renderLinkifiedSegments(preContent)}
-          </div>
-        );
+        rawText = preMatch[1];
       }
     }
 
-    const videoLinks = extractVideoLinks(content);
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = rawText.split(urlRegex);
+    const videoUrls: string[] = [];
+    const otherUrls: string[] = [];
 
-    if (videoLinks.length === 0) {
-      return renderContentWithLinks(content);
-    }
-
-    let parts = [content];
-    videoLinks.forEach(url => {
-      parts = parts.flatMap(part => {
-        if (typeof part === 'string') {
-          return part.split(url);
+    // First pass to identify links
+    parts.forEach(part => {
+      if (part.match(/^https?:\/\//i)) {
+        if (getVideoEmbedUrl(part)) {
+          videoUrls.push(part);
+        } else {
+          otherUrls.push(part);
         }
-        return [part];
-      });
+      }
     });
 
     return (
-      <div>
+      <div className={isPre ? "whitespace-pre-wrap break-words font-sans" : ""}>
         {parts.map((part, index) => {
-          if (videoLinks.includes(part)) {
+          if (part.match(/^https?:\/\//i)) {
             const embedUrl = getVideoEmbedUrl(part);
             if (embedUrl) {
               return (
-                <div key={index} className="my-3">
-                  <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-lg p-3 mb-2`}>
-                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
-                      🎥 Video Link: {part}
+                <div key={`video-${index}`} className="my-3">
+                  <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} rounded-lg p-3 mb-2 shadow-sm`}>
+                    <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} mb-2 flex items-center gap-2`}>
+                      <span className="flex-shrink-0">🎥</span>
+                      <span className="truncate">Video: {part}</span>
                     </div>
                     {embedUrl.includes('youtube.com/embed') || embedUrl.includes('vimeo.com') ? (
-                      <iframe
-                        src={embedUrl}
-                        width="100%"
-                        height="200"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="rounded-lg"
-                      />
+                      <div className="relative pt-[56.25%] w-full rounded-lg overflow-hidden bg-black shadow-inner">
+                        <iframe
+                          src={embedUrl}
+                          className="absolute top-0 left-0 w-full h-full"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
                     ) : (
                       <div className={`${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-lg p-4 text-center`}>
                         <div className="text-lg mb-2">🎬</div>
@@ -901,7 +911,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                           href={part}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm"
+                          className="text-blue-600 hover:underline text-sm font-medium"
                         >
                           Click to view video
                         </a>
@@ -912,8 +922,18 @@ const FeedPost: React.FC<FeedPostProps> = ({
               );
             }
           }
-          return renderContentWithLinks(part);
+          // If it's a link but not a video, or just text, let renderLinkifiedSegments handle it
+          return (
+            <React.Fragment key={index}>
+              {renderLinkifiedSegments(part)}
+            </React.Fragment>
+          );
         })}
+
+        {/* Render generic link previews for the first 2 non-video links */}
+        {otherUrls.slice(0, 2).map((url, index) => (
+          <LinkPreview key={`preview-${index}`} url={url} />
+        ))}
       </div>
     );
   };
@@ -1039,9 +1059,9 @@ const FeedPost: React.FC<FeedPostProps> = ({
               </div>
 
               {/* Engagement Count */}
-              <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              {/* <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span className="font-medium">{totalEngagement}</span> {totalEngagement === 1 ? 'engagement' : 'engagements'}
-              </div>
+              </div> */}
             </div>
           </div>
         );
@@ -1287,7 +1307,6 @@ const FeedPost: React.FC<FeedPostProps> = ({
                       </>
                     )}
                   </span>
-                  <span className="text-xs text-gray-400 ml-2">({wordCount} words)</span>
                 </div>
               );
             } else {
@@ -1666,7 +1685,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
                     <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 border-b-2 border-red-500"></div>
                   ) : (
                     <span className="text-lg sm:text-xl md:text-2xl">
-                      👍
+                      {getCurrentReaction() ? getReactionEmoji(getCurrentReaction()!) : '👍'}
                     </span>
                   )}
                 </div>

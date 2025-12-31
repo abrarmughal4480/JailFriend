@@ -57,6 +57,17 @@ const reelSchema = new mongoose.Schema({
     }
   ],
   shares: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  reactions: [
+    {
+      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      type: {
+        type: String,
+        enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry'],
+        default: 'like'
+      },
+      createdAt: { type: Date, default: Date.now }
+    }
+  ],
   savedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   isTrending: { type: Boolean, default: false },
@@ -72,7 +83,7 @@ const reelSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-reelSchema.pre('save', function(next) {
+reelSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });

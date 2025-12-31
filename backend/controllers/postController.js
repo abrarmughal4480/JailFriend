@@ -2,6 +2,7 @@ const Post = require('../models/post');
 const User = require('../models/user');
 const Notification = require('../models/notification');
 const mongoose = require('mongoose');
+const { fetchMetadata } = require('../utils/linkPreview');
 
 // Helper function to construct full URLs with proper slash handling
 const constructFullUrl = (baseUrl, path) => {
@@ -2112,6 +2113,26 @@ exports.getPostsWithGifs = async (req, res) => {
   } catch (err) {
     console.error('Error getting posts with GIFs:', err);
     res.status(500).json({ message: 'Error getting posts with GIFs', error: err.message });
+  }
+};
+
+// Get link preview metadata
+exports.getLinkPreview = async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) {
+      return res.status(400).json({ message: 'URL is required' });
+    }
+
+    const metadata = await fetchMetadata(url);
+    if (!metadata) {
+      return res.status(404).json({ message: 'Could not fetch metadata' });
+    }
+
+    res.json(metadata);
+  } catch (error) {
+    console.error('Error in getLinkPreview controller:', error);
+    res.status(500).json({ message: 'Error fetching link preview', error: error.message });
   }
 };
 

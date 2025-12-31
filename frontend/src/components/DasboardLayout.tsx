@@ -18,6 +18,7 @@ interface SwitchAccountModal {
 }
 
 interface Profile {
+  id?: string;
   name: string;
   avatar: string;
   balance: string;
@@ -68,6 +69,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Navbar States
   const [profile, setProfile] = useState<Profile>({
+    id: '',
     name: 'Waleed',
     avatar: '/avatars/1.png.png',
     balance: '$0.00',
@@ -448,6 +450,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             console.log('💰 Full data object:', JSON.stringify(data, null, 2));
 
             const newProfile = {
+              id: data.id || data._id,
               name: data.name || 'User',
               avatar: data.avatar || '/avatars/1.png.png',
               balance: data.balance || '₹0.00',
@@ -770,32 +773,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
     }
   };
 
-  const handleMyProfile = async (): Promise<void> => {
+  const handleMyProfile = (): void => {
     setOpenDropdown(null);
+    setProfileSidebarOpen(false);
 
-    try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        // Get current user's profile to get their ID
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          // Open profile in new tab instead of redirecting
-          window.open(`/dashboard/profile/${userData.id}`, '_blank');
-          return;
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
+    if (profile.id) {
+      router.push(`/dashboard/profile/${profile.id}`);
+    } else {
+      // Fallback if ID is not yet loaded
+      router.push('/dashboard/profile');
     }
-
-    // Fallback to general profile page in new tab
-    window.open('/dashboard/profile', '_blank');
   };
 
   const handleSwitchAccount = (): void => {
@@ -1140,7 +1127,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   // Main component return
   return (
     <div className={`${isReelsPage ? 'h-screen overflow-hidden' : 'min-h-screen'} overflow-x-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-      }`} style={{ 
+      }`} style={{
         padding: '0',
         ...(isReelsPage && { overflowY: 'hidden', height: '100vh' })
       }}>
@@ -1698,7 +1685,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Mobile Sidebar Overlay */}
         {isMobile && (sidebarOpen || profileSidebarOpen) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-[55]" onClick={() => {
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-[45]" onClick={() => {
             setSidebarOpen(false);
             setProfileSidebarOpen(false);
           }} />
@@ -1707,9 +1694,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {/* Mobile Profile Sidebar */}
         {isMobile && profileSidebarOpen && (
           <aside
-            className={`fixed inset-0 z-[60] w-full h-full transform transition-all duration-300 ${isDarkMode
-                ? 'bg-gray-900 border-l border-gray-700'
-                : 'bg-white border-l border-gray-200'
+            className={`fixed inset-0 z-[50] w-full h-full transform transition-all duration-300 ${isDarkMode
+              ? 'bg-gray-900 border-l border-gray-700'
+              : 'bg-white border-l border-gray-200'
               }`}
           >
             <div className={`px-3 py-2 border-b flex items-center justify-between ${isDarkMode
@@ -2040,7 +2027,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         {!isMessagesPage && !isVideoCallPage && (isMobile ? (
           <>
             {/* Main Sidebar */}
-            <aside className={`fixed left-0 top-0 w-full h-screen flex flex-col z-[60] transform transition-transform duration-300 ${isMobile
+            <aside className={`fixed left-0 top-0 w-full h-screen flex flex-col z-[50] transform transition-transform duration-300 ${isMobile
               ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
               : 'translate-x-0'
               } ${mobileSidebarThemeClasses}`} style={{
@@ -2820,8 +2807,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         `} style={{
             paddingLeft: '0',
             paddingRight: '0',
-            ...(isReelsPage && { 
-              overflowY: 'hidden', 
+            ...(isReelsPage && {
+              overflowY: 'hidden',
               overflowX: 'hidden',
               height: '100vh',
               width: '100vw',
@@ -2843,7 +2830,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && !isMessagesPage && !isVideoCallPage && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-[65] overflow-x-hidden transition-colors duration-200">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-40 overflow-x-hidden transition-colors duration-200">
           <div className="flex justify-around items-center py-3 w-full max-w-full">
             <Link
               href="/dashboard"
@@ -2920,8 +2907,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </Link>
 
             <Link
-              href="/dashboard/profile"
-              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${pathname === '/dashboard/profile'
+              href={profile.id ? `/dashboard/profile/${profile.id}` : "/dashboard/profile"}
+              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${pathname === '/dashboard/profile' || (profile.id && pathname === `/dashboard/profile/${profile.id}`)
                 ? 'text-blue-600 dark:text-blue-400'
                 : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
                 }`}

@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 interface CustomTooltipProps {
   children: React.ReactElement;
   content: React.ReactNode;
-  placement?: 'top' | 'bottom' | 'left' | 'right' | 'top-start';
+  placement?: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end';
   trigger?: 'click' | 'hover';
   interactive?: boolean;
   onClickOutside?: () => void;
@@ -85,6 +85,13 @@ export default function CustomTooltip({
           ...baseStyles,
           bottom: '100%',
           left: '0',
+          marginBottom: '10px',
+        };
+      case 'top-end':
+        return {
+          ...baseStyles,
+          bottom: '100%',
+          right: '0',
           marginBottom: '10px',
         };
       case 'bottom':

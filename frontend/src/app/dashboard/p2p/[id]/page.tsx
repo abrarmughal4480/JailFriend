@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import { config } from '@/utils/config';
@@ -336,6 +336,18 @@ export default function ExpertDetailPage() {
       setLoading(false);
     }
   };
+
+  const searchParams = useSearchParams();
+  const modeParam = searchParams.get('mode') as 'audio' | 'video' | null;
+
+  useEffect(() => {
+    if (!loading && profile && modeParam) {
+      handleBookService(modeParam);
+      // Clean up the URL to prevent reopening on refresh
+      const newUrl = window.location.pathname;
+      window.history.replaceState({ ...window.history.state }, '', newUrl);
+    }
+  }, [loading, profile, modeParam]);
 
   const fetchCategories = async () => {
     try {

@@ -43,6 +43,7 @@ router.get('/audio', postController.getPostsWithAudio);
 router.get('/voice', postController.getPostsWithVoice);
 router.get('/files', postController.getPostsWithFiles);
 router.get('/gifs', postController.getPostsWithGifs);
+router.get('/link-preview', postController.getLinkPreview);
 
 router.post('/', auth, upload.array('media', 10), postController.createPost); // Support multiple files
 router.post('/single', auth, upload.single('media'), postController.createPost); // Backward compatibility

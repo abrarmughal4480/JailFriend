@@ -25,6 +25,7 @@ router.post('/:id/like', auth, reelController.toggleLike);
 router.post('/:id/share', auth, reelController.shareReel);
 router.post('/:id/save', auth, reelController.toggleSave);
 router.post('/:id/comment', auth, reelController.addComment);
+router.post('/:id/reaction', auth, reelController.addReaction);
 router.delete('/:id/comment/:commentId', auth, reelController.deleteComment);
 
 module.exports = router;

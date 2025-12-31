@@ -26,7 +26,11 @@ import {
   FaBehance,
   FaGlobe,
   FaYoutube,
-  FaFacebook
+  FaFacebook,
+  FaPlus,
+  FaBuilding,
+  FaMapMarkerAlt,
+  FaCheckCircle
 } from 'react-icons/fa';
 import { HiDotsVertical } from 'react-icons/hi';
 
@@ -203,17 +207,6 @@ export default function P2PPage() {
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [categories, setCategories] = useState<P2PCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
-  const categoryCards = useMemo(() => {
-    if (!categories.length) {
-      return CATEGORY_PLACEHOLDERS;
-    }
-    return categories.map(category => ({
-      id: category._id,
-      title: category.title,
-      description: category.description || 'Discover trusted experts in this category',
-      image: category.image || FALLBACK_CATEGORY_IMAGE
-    }));
-  }, [categories]);
   const worthExploringItems = useMemo(() => {
     if (categories.length) {
       return categories.slice(0, 18).map(category => ({
@@ -558,7 +551,7 @@ export default function P2PPage() {
   };
 
   const handleCategorySelect = (categoryId: string) => {
-    if (!categoryId || !categories.length) return;
+    if (!categoryId) return;
     setSelectedCategoryId(categoryId);
     router.push(`/dashboard/p2p/category/${categoryId}`);
   };
@@ -795,170 +788,184 @@ export default function P2PPage() {
     }
   };
 
-  const handleViewProfile = (profile: P2PProfile) => {
+  const handleViewProfile = (profile: P2PProfile, mode?: 'audio' | 'video') => {
     setSelectedProfileDetail(profile);
-    router.push(`/dashboard/p2p/${profile._id}`);
+    const url = `/dashboard/p2p/${profile._id}${mode ? `?mode=${mode}` : ''}`;
+    router.push(url);
   };
 
   const ProfileCard = ({ profile }: { profile: P2PProfile }) => {
     const handlers = {
-      view: () => handleViewProfile(profile)
+      view: () => handleViewProfile(profile),
+      contact: (e: React.MouseEvent) => {
+        e.stopPropagation();
+        handleContact(profile);
+      },
+      call: (e: React.MouseEvent, mode: 'audio' | 'video') => {
+        e.stopPropagation();
+        handleViewProfile(profile, mode);
+      }
     };
 
+    const allTags = [
+      ...(profile.areasOfExpertise || []),
+      ...(profile.skills || []),
+      ...(profile.tags || [])
+    ];
+    const uniqueTags = Array.from(new Set(allTags));
+
     return (
-      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-md p-3 sm:p-4 lg:p-6 border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-lg transition-shadow duration-200`}>
-        {/* Mobile Layout */}
-        <div className="sm:hidden">
-          <div className="flex items-start space-x-3 mb-3">
-            <img
-              src={profile.userId.avatar || '/default-avatar.svg'}
-              alt={profile.userId.name}
-              className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-1">
-                <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} truncate`}>
-                  {profile.userId.name}
-                </h3>
-                {profile.isVerified && (
-                  <span className="text-blue-500 text-xs">✓</span>
-                )}
-                {profile.featured && (
-                  <span className="bg-yellow-100 text-yellow-800 text-xs px-1 py-0.5 rounded-full">
-                    Featured
+      <div
+        onClick={handlers.view}
+        className={`relative w-full overflow-hidden rounded-[20px] p-5 transition-all cursor-pointer border ${isDarkMode
+          ? 'bg-[#121818] border-white/5 hover:border-teal-500/20 shadow-2xl'
+          : 'bg-white border-gray-100 hover:border-teal-500/20 shadow-xl'
+          } group`}
+      >
+        <div className="flex gap-4 sm:gap-6">
+          {/* Left Part: Content (Now organized in rows) */}
+          <div className="flex-1 flex flex-col gap-4">
+
+            {/* ROW 1: Avatar + Title/Bio */}
+            <div className="flex gap-4">
+              <div className="flex flex-col items-center shrink-0">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-[2px] border-teal-500/80 shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+                    <Image
+                      src={getAvatarUrl(profile.userId.avatar)}
+                      alt={profile.userId.fullName || profile.userId.name}
+                      width={64}
+                      height={64}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <div className="flex items-center gap-2 mb-0.5 mt-0.5">
+                  <h3 className={`text-base sm:text-lg font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {profile.userId.fullName || profile.userId.name}
+                  </h3>
+                  <div className="w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center shrink-0">
+                    <FaPlus className="text-white text-[8px]" />
+                  </div>
+                </div>
+
+                <p className={`text-[10px] sm:text-[11px] font-medium mb-1 ${isDarkMode ? 'text-gray-400/80' : 'text-gray-500'}`}>
+                  {profile.occupation || profile.currentOrganisation || 'Professional'}
+                </p>
+
+                <p className={`text-[10px] leading-relaxed break-all line-clamp-2 text-gray-500`}>
+                  {profile.description || profile.experience || 'Expert professional guidance and support.'}
+                </p>
+              </div>
+            </div>
+
+            {/* ROW 2: Rating (under avatar) + Company/Location */}
+            <div className="flex gap-4 items-center">
+              <div className="w-16 flex justify-center shrink-0">
+                <div className="flex items-center gap-1">
+                  <FaStar className="w-2.5 h-2.5 text-orange-400 fill-orange-400" />
+                  <span className={`text-[11px] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    {profile.rating?.average?.toFixed(0) || '0'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0 shrink">
+                  <FaBuilding className={`w-3 h-3 shrink-0 text-gray-400/60`} />
+                  <span className={`text-[10px] font-medium truncate text-gray-400/80`}>
+                    {profile.currentOrganisation || 'N/A'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 min-w-0 shrink">
+                  <FaMapMarkerAlt className={`w-3 h-3 shrink-0 text-gray-400/60`} />
+                  <span className={`text-[10px] font-medium truncate text-gray-400/80`}>
+                    {profile.aboutMeLocation || 'Remote'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ROW 3: I can help with */}
+            <div className={`pt-3 border-t ${isDarkMode ? 'border-white/5' : 'border-gray-50'} flex flex-col gap-2`}>
+              <span className={`text-[10px] font-medium text-gray-500`}>
+                I can help with:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {uniqueTags.slice(0, 3).map((tag: string, idx: number) => (
+                  <span
+                    key={idx}
+                    className={`px-3 py-1 rounded-md text-[9px] font-medium transition-colors ${isDarkMode
+                      ? 'bg-[#1C2424] text-gray-300 border border-white/5'
+                      : 'bg-gray-100 text-gray-600'
+                      }`}
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {uniqueTags.length > 3 && (
+                  <span className={`px-2 py-1 rounded-md text-[9px] font-semibold ${isDarkMode ? 'text-teal-400 bg-[#1C2424]' : 'text-teal-600 bg-gray-100'}`}>
+                    +{uniqueTags.length - 3} more
                   </span>
                 )}
               </div>
-              <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-xs truncate`}>
-                @{profile.userId.username}
-              </p>
             </div>
           </div>
 
-          <p className={`${isDarkMode ? 'text-gray-200' : 'text-gray-700'} font-medium text-sm mb-2`}>
-            {profile.occupation}
-          </p>
-
-          <div className="flex items-center justify-between mb-2">
-            <span className={`${isDarkMode ? 'text-green-400' : 'text-green-600'} font-bold text-sm`}>
-              ${profile.hourlyRate}/{profile.currency}
-            </span>
-            <span className={`px-2 py-1 rounded-full text-xs ${profile.availability === 'Available'
-              ? 'bg-green-100 text-green-800'
-              : profile.availability === 'Busy'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-yellow-100 text-yellow-800'
-              }`}>
-              {profile.availability}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-1 mb-2">
-            {profile.skills.slice(0, 2).map((skill, index) => (
-              <span
-                key={index}
-                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+          {/* Right Part: Actions */}
+          <div className="flex flex-col gap-4 shrink-0 justify-center w-[70px] sm:w-[80px]  ">
+            {/* Audio Call */}
+            <div className="flex flex-col items-start gap-1">
+              <button
+                onClick={(e) => handlers.call(e, 'audio')}
+                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${isDarkMode
+                  ? 'border-teal-400/40 bg-[#1C2424] text-white hover:bg-teal-500/20'
+                  : 'border-teal-200 bg-teal-50 text-teal-600 hover:bg-teal-100'
+                  }`}
               >
-                {skill}
+                <FaPhone className="w-3.5 h-3.5" />
+              </button>
+              <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                ₹{profile.audioCallPrice || profile.hourlyRate}
               </span>
-            ))}
-            {profile.skills.length > 2 && (
-              <span className="text-gray-500 text-xs">
-                +{profile.skills.length - 2} more
-              </span>
-            )}
-          </div>
-
-          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-xs mb-3 line-clamp-2`}>
-            {profile.experience}
-          </p>
-
-          <button
-            onClick={handlers.view}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors"
-          >
-            View Profile
-          </button>
-        </div>
-
-        {/* Desktop Layout */}
-        <div className="hidden sm:block">
-          <div className="text-center mb-4">
-            <img
-              src={profile.userId.avatar || '/default-avatar.svg'}
-              alt={profile.userId.name}
-              className="w-16 h-16 lg:w-20 lg:h-20 rounded-full object-cover mx-auto mb-3"
-            />
-            <div className="flex items-center justify-center space-x-2 mb-1">
-              <h3 className={`text-base lg:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {profile.userId.name}
-              </h3>
-              {profile.isVerified && (
-                <span className="text-blue-500 text-sm">✓</span>
-              )}
             </div>
-            <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-sm mb-1`}>
-              @{profile.userId.username}
-            </p>
-            {profile.featured && (
-              <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
-                Featured
-              </span>
-            )}
-          </div>
 
-          <div className="text-center mb-3">
-            <p className={`${isDarkMode ? 'text-gray-200' : 'text-gray-700'} font-medium text-sm lg:text-base mb-2`}>
-              {profile.occupation}
-            </p>
-            <span className={`${isDarkMode ? 'text-green-400' : 'text-green-600'} font-bold text-sm lg:text-base`}>
-              ${profile.hourlyRate}/{profile.currency}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-center mb-3">
-            <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-xs lg:text-sm`}>
-              ⭐ {profile.rating.average.toFixed(1)} ({profile.rating.count} reviews)
-            </span>
-          </div>
-
-          <div className="flex justify-center mb-3">
-            <span className={`px-2 py-1 rounded-full text-xs ${profile.availability === 'Available'
-              ? 'bg-green-100 text-green-800'
-              : profile.availability === 'Busy'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-yellow-100 text-yellow-800'
-              }`}>
-              {profile.availability}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-1 lg:gap-2 mb-3">
-            {profile.skills.slice(0, 3).map((skill, index) => (
-              <span
-                key={index}
-                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+            {/* Video Call */}
+            <div className="flex flex-col items-start gap-1">
+              <button
+                onClick={(e) => handlers.call(e, 'video')}
+                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${isDarkMode
+                  ? 'border-teal-400/40 bg-[#1C2424] text-white hover:bg-teal-500/20'
+                  : 'border-teal-200 bg-teal-50 text-teal-600 hover:bg-teal-100'
+                  }`}
               >
-                {skill}
+                <FaVideo className="w-3.5 h-3.5" />
+              </button>
+              <span className={`text-[10px]  font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                ₹{profile.videoCallPrice || profile.hourlyRate}
               </span>
-            ))}
-            {profile.skills.length > 3 && (
-              <span className="text-gray-500 text-xs">
-                +{profile.skills.length - 3} more
+            </div>
+
+            {/* Chat */}
+            <div className="flex flex-col items-start gap-1">
+              <button
+                onClick={handlers.contact}
+                className={`w-9 h-9 rounded-full flex items-center justify-center border transition-all ${isDarkMode
+                  ? 'border-orange-400/40 bg-[#1C2424] text-white hover:bg-orange-500/20'
+                  : 'border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100'
+                  }`}
+              >
+                <FaComments className="w-3.5 h-3.5" />
+              </button>
+              <span className={`text-[10px] font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                ₹{profile.chatPrice || (profile.hourlyRate / 10).toFixed(0)}
               </span>
-            )}
+            </div>
           </div>
-
-          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} text-xs lg:text-sm text-center mb-4 line-clamp-2`}>
-            {profile.experience}
-          </p>
-
-          <button
-            onClick={handlers.view}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-xs lg:text-sm font-medium transition-colors"
-          >
-            View Profile
-          </button>
         </div>
       </div>
     );
@@ -1475,82 +1482,90 @@ export default function P2PPage() {
               )}
 
               {SHOW_FIND_BY_CATEGORY && (
-                <div className={`pt-10 pb-5 transition-colors ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-                  <h3 className={`text-[28px] font-semibold text-center mb-5 ${isDarkMode ? 'text-white' : 'text-gray-900'} relative inline-block w-full`}>
-                    Find experts by category
-                    <span className="absolute left-1/2 bottom-[-10px] w-[60px] h-1 bg-gradient-to-r from-[#FF7F7F] to-[#FF4D4D] transform -translate-x-1/2 rounded"></span>
-                  </h3>
-                  <div className="w-full mx-auto pt-5 pb-10 px-5 relative">
-                    {categories.length > 0 && (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-                        <p className="text-sm text-gray-400">
-                          Tap any category to open a dedicated page with every expert in that niche.
-                        </p>
-                      </div>
-                    )}
-                    <Swiper
-                      modules={[Navigation, Pagination, Autoplay]}
-                      spaceBetween={20}
-                      slidesPerView={5}
-                      navigation={{
-                        nextEl: '.swiper-button-next',
-                        prevEl: '.swiper-button-prev',
-                      }}
-                      pagination={{
-                        clickable: true,
-                        el: '.swiper-pagination',
-                      }}
-                      autoplay={{
-                        delay: 3000,
-                        disableOnInteraction: false,
-                      }}
-                      breakpoints={{
-                        320: { slidesPerView: 2, spaceBetween: 10 },
-                        640: { slidesPerView: 3, spaceBetween: 15 },
-                        1024: { slidesPerView: 4, spaceBetween: 20 },
-                        1280: { slidesPerView: 5, spaceBetween: 20 },
-                      }}
-                      className="h-[250px]"
-                    >
-                      {categoryCards.map((category) => {
-                        const isSelectable = categories.length > 0;
-                        const isSelected = selectedCategoryId === category.id;
-                        return (
-                          <SwiperSlide key={category.id}>
+                <div className={`pt-4 pb-4 transition-colors ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+                  <div className="flex items-center justify-start gap-2 mb-4 px-2 sm:px-4">
+                    <h3 className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Connect with
+                    </h3>
+                    <span className={`text-xl sm:text-2xl font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Counsellors
+                    </span>
+                  </div>
+
+                  <div className="w-full mx-auto px-2 sm:px-4 pb-4">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                      {(() => {
+                        const displayCategories = categories.length > 0 ? categories : CATEGORY_PLACEHOLDERS;
+                        const gradients = [
+                          'linear-gradient(180deg, #D685FF 0%, #A45EE5 100%)', // Purple
+                          'linear-gradient(180deg, #783546 0%, #582233 100%)', // Dark Red
+                          'linear-gradient(180deg, #F08080 0%, #E57373 100%)', // Salmon
+                          'linear-gradient(180deg, #9CA3AF 0%, #6B7280 100%)', // Grey
+                          'linear-gradient(180deg, #60A5FA 0%, #3B82F6 100%)', // Blue
+                        ];
+
+                        const items = displayCategories.slice(0, 5).map((category: any, index: number) => {
+                          const isMentalHealth = category.title?.toLowerCase().includes('mental') || category.id === 'mental-health';
+                          const gradient = gradients[index % gradients.length];
+
+                          return (
                             <div
-                              className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[15px] p-5 h-[200px] flex flex-col justify-between items-center border shadow-md transition-all ${isSelectable ? 'cursor-pointer hover:-translate-y-2.5 hover:shadow-lg' : 'cursor-default'
-                                } ${isSelected ? 'border-blue-500 ring-2 ring-blue-200' : isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
-                              role={isSelectable ? 'button' : undefined}
-                              aria-pressed={isSelected}
-                              onClick={() => isSelectable && handleCategorySelect(category.id)}
+                              key={category._id || category.id}
+                              onClick={() => handleCategorySelect(category._id || category.id)}
+                              className="relative h-[120px] sm:h-[150px] rounded-[15px] p-2 sm:p-4 flex flex-col items-center justify-center gap-1 sm:gap-2 text-center cursor-pointer hover:scale-[1.02] transition-transform overflow-hidden shadow-lg"
+                              style={{ background: gradient }}
                             >
-                              <h5 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2.5 text-center leading-tight`}>
-                                {category.title}
-                              </h5>
-                              <img src={category.image} alt={category.title} className="w-[100px] h-[62px] object-cover drop-shadow-md rounded-md" />
-                              <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-center leading-snug`}>
-                                {category.description}
-                              </p>
-                              {isSelected && (
-                                <span className="text-[11px] font-semibold text-blue-600 mt-2">Selected</span>
+                              {isMentalHealth && (
+                                <div className="absolute top-0 left-0 w-full h-full pointer-events-none flex flex-col items-center justify-start pt-8 sm:pt-10 z-10">
+                                  <div className="bg-[#00BFA5] text-white text-[8px] sm:text-[10px] font-black px-2 py-0.5 rounded-full rotate-[-5deg] shadow-lg border-2 border-white mb-1">
+                                    1st Session Free
+                                  </div>
+                                  <div className="bg-white/40 backdrop-blur-sm text-white text-[6px] sm:text-[8px] font-bold px-1.5 py-0.5 rounded">
+                                    User Code: UN1K0N
+                                  </div>
+                                </div>
                               )}
+
+                              <h3 className="text-xs sm:text-base font-bold text-white leading-tight line-clamp-2 min-h-[1.5em] z-20">
+                                {category.title}
+                              </h3>
+
+                              <div className="flex-1 flex flex-col items-center justify-center w-full z-0 opacity-80">
+                                <img
+                                  src={category.image || FALLBACK_CATEGORY_IMAGE}
+                                  alt={category.title}
+                                  className="w-full h-full object-contain drop-shadow-md"
+                                />
+                              </div>
+
+                              <p className="text-white/90 text-[9px] sm:text-xs font-medium line-clamp-2 leading-tight z-20">
+                                {category.description || 'Discover experts'}
+                              </p>
                             </div>
-                          </SwiperSlide>
+                          );
+                        });
+
+                        // Add View More card
+                        items.push(
+                          <div
+                            key="view-more"
+                            onClick={() => {
+                              const element = document.getElementById('all-categories');
+                              if (element) element.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="relative h-[120px] sm:h-[150px] rounded-[15px] p-2 sm:p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:scale-[1.02] transition-transform overflow-hidden bg-black shadow-lg"
+                          >
+                            <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#00BFA5] flex items-center justify-center mb-2 shadow-lg">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                              </svg>
+                            </div>
+                            <h3 className="text-xs sm:text-sm font-medium text-white">View More</h3>
+                          </div>
                         );
-                      })}
-                    </Swiper>
-                    <div className="flex justify-center mt-6">
-                      <div className="swiper-pagination swiper-pagination-bullets swiper-pagination-horizontal !static !w-auto"></div>
-                    </div>
-                    <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute left-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-prev hover:bg-gray-400 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
-                        <path d="m15 18-6-6 6-6"></path>
-                      </svg>
-                    </div>
-                    <div className="bg-[#D9D9D9] rounded-full h-10 w-10 flex justify-center items-center absolute right-[-50px] top-1/2 -translate-y-1/2 z-20 cursor-pointer swiper-button-next hover:bg-gray-400 transition-all">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-[#333]">
-                        <path d="m9 18 6-6-6-6"></path>
-                      </svg>
+
+                        return items;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1563,235 +1578,18 @@ export default function P2PPage() {
                     <h3 className={`text-2xl sm:text-[35px] font-semibold leading-tight sm:leading-[40px] ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'} mb-2 sm:mb-3`}>
                       Top experts for you
                     </h3>
-                    <p className={`text-sm sm:text-base font-light leading-5 sm:leading-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-2 sm:mt-3`}>
-                      Connect with trusted and verified professionals across various fields of expertise
-                    </p>
+
                   </div>
 
-                  {/* Right side - Filter buttons */}
-                  <div className="flex flex-wrap gap-2 sm:gap-3 lg:justify-end">
-                    <button className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5 whitespace-nowrap`}>
-                      Instantly available
-                    </button>
-                    <button className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5 whitespace-nowrap`}>
-                      Verified profiles
-                    </button>
-                    <button className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5 whitespace-nowrap`}>
-                      Top rated
-                    </button>
-                    <button className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border ${isDarkMode ? 'border-gray-600' : 'border-[#E0E0E0]'} rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-[#F5F5F5]'} transition-all hover:-translate-y-0.5 whitespace-nowrap`}>
-                      Sort by
-                    </button>
-                  </div>
+
                 </div>
               </div>
 
-              <div className="flex flex-col gap-5 w-full mx-auto mb-5 px-5">
-                <div className="grid w-full gap-6 sm:grid-cols-2 xl:grid-cols-3 justify-items-center">{getTopExpertsProfiles().slice(0, 6).map((profile) => (
-                  <div
-                    key={profile._id}
-                    className={`w-full max-w-[360px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[20px] p-5 shadow-lg text-center border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} hover:shadow-xl transition-all`}
-                  >
-                    <div
-                      onClick={() => handleViewProfile(profile)}
-                      className="cursor-pointer"
-                    >
-                      <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
-                        <Image
-                          src={getAvatarUrl(profile.userId.avatar)}
-                          alt={profile.userId.fullName || profile.userId.name}
-                          width={100}
-                          height={100}
-                          className={`w-full h-full rounded-full border-4 ${isDarkMode ? 'border-gray-600' : 'border-[#f0f0f0]'} object-cover`}
-                          unoptimized
-                        />
-                        <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
-                          <FaStar
-                            className="w-3.5 h-3.5 text-white"
-                          />
-                          <span className="text-xs font-semibold text-white">
-                            {profile.rating?.average?.toFixed(1) || '5.0'}
-                          </span>
-                        </div>
-                      </div>
-                      {profile.category?.title && (
-                        <div className="mb-3">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600">
-                            {profile.category.title}
-                          </span>
-                        </div>
-                      )}
-                      <div className="mb-4">
-                        <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-                          {profile.userId.fullName || profile.userId.name}
-                        </h1>
-                        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {(() => {
-                            const parts = [];
-                            if (profile.currentOrganisation) parts.push(profile.currentOrganisation);
-                            if (profile.occupation && profile.occupation !== profile.currentOrganisation) {
-                              parts.push(profile.occupation);
-                            }
-                            return parts.length > 0 ? parts.join(' | ') : profile.occupation || 'Professional';
-                          })()}
-                        </p>
-                      </div>
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} leading-relaxed mb-4 line-clamp-3 overflow-hidden text-ellipsis break-words`}>
-                        {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
-                      </p>
-                      <div className="flex flex-wrap gap-2 justify-center mb-6">
-                        {(() => {
-                          const allTags = [
-                            ...(profile.areasOfExpertise || []),
-                            ...(profile.skills || []),
-                            ...(profile.tags || [])
-                          ];
-                          const uniqueTags = Array.from(new Set(allTags));
-                          return uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
-                            <div
-                              key={idx}
-                              className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all`}
-                            >
-                              {tag}
-                            </div>
-                          ));
-                        })()}
-                        {(() => {
-                          const allTags = [
-                            ...(profile.areasOfExpertise || []),
-                            ...(profile.skills || []),
-                            ...(profile.tags || [])
-                          ];
-                          const uniqueTags = Array.from(new Set(allTags));
-                          return uniqueTags.length > 5 ? (
-                            <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px]`}>
-                              +{uniqueTags.length - 5} more
-                            </div>
-                          ) : null;
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Pricing & Services Section */}
-                    <div className={`mt-6 pt-6 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <h3 className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4 text-center`}>
-                        Available Services & Pricing
-                      </h3>
-
-                      {/* Services Grid */}
-                      <div className="flex gap-2.5 mb-3">
-                        {/* Audio Call Service */}
-                        {(profile.audioCallPrice || profile.hourlyRate) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                            className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
-                          >
-                            <div className=" items-center gap-1.5">
-                              <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
-                                <FaPhone className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                              </div>
-                              <div className="text-left">
-                                <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Audio Call</p>
-                                <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  ₹{profile.audioCallPrice || profile.hourlyRate}
-                                </p>
-                                <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                  {profile.audioCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
-                                </p>
-                              </div>
-                            </div>
-
-                          </button>
-                        )}
-
-                        {/* Video Call Service */}
-                        {(profile.videoCallPrice || profile.hourlyRate) && (
-                          <button
-
-                            className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
-                          >
-                            <div className=" items-center gap-1.5">
-                              <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
-                                <FaVideo className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                              </div>
-                              <div className="text-left">
-                                <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Video Call</p>
-                                <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  ₹{profile.videoCallPrice || profile.hourlyRate}
-                                </p>
-                                <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                  {profile.videoCallPrice ? 'per call' : `/${profile.currency || 'hour'}`}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        )}
-
-                        {/* Chat Service */}
-                        {profile.chatPrice && (
-                          <button
-
-                            className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
-                          >
-                            <div className=" items-start gap-1.5">
-                              <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
-                                <FaComments className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                              </div>
-                              <div className="text-left">
-                                <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Chat</p>
-                                <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  ₹{profile.chatPrice}
-                                </p>
-                                <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>per message</p>
-                              </div>
-                            </div>
-                          </button>
-                        )}
-
-                        {/* Hourly Rate (if no specific prices) */}
-                        {!profile.audioCallPrice && !profile.videoCallPrice && !profile.chatPrice && profile.hourlyRate > 0 && (
-                          <button
-                            // onClick={(e) => {
-                            //   e.stopPropagation();
-                            //   handleBookService(profile, 'consultation');
-                            // }}
-                            className={`flex items-center justify-between p-2.5 ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'} rounded-lg border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'} ${isDarkMode ? 'hover:bg-blue-900/20' : 'hover:bg-blue-50'} ${isDarkMode ? 'hover:border-blue-700' : 'hover:border-blue-300'} transition-all cursor-pointer text-sm`}
-                          >
-                            <div className=" items-center gap-1.5">
-                              <div className={`w-8 h-8 ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
-                                <FaStar className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                              </div>
-                              <div className="text-left">
-                                <p className={`text-xs font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Hourly Rate</p>
-                                <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Consultation services</p>
-                                <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                  ₹{profile.hourlyRate}
-                                </p>
-                                <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>/{profile.currency || 'hour'}</p>
-                              </div>
-                            </div>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Book Now Button - Opens modal to select service */}
-                      {/* <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleBookService(profile, 'consultation');
-                      }}
-                      className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                    >
-                      <span>Book Consultation</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="m9 18 6-6-6-6"></path>
-                      </svg>
-                    </button> */}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex flex-col gap-6 w-full mx-auto mb-10 px-2 sm:px-5">
+                <div className="grid w-full gap-6 lg:grid-cols-2 justify-items-center">
+                  {getTopExpertsProfiles().slice(0, 6).map((profile) => (
+                    <ProfileCard key={profile._id} profile={profile} />
+                  ))}
                 </div>
               </div>
 
@@ -1872,7 +1670,7 @@ export default function P2PPage() {
                 </div>
               )}
 
-              <div className={`relative py-10 px-5 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'} mb-5`}>
+              <div id="all-categories" className={`relative py-10 px-5 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'} mb-5`}>
                 {SHOW_WORTH_EXPLORING && (
                   <>
                     <div className="absolute top-[60%] right-[10%] transform -translate-y-1/2 w-[525px] h-[425px] z-[-1] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(17,214,190,0.15)_23%,rgba(10,7,11,0.15)_100%)] blur-[40px]"></div>
@@ -2005,129 +1803,11 @@ export default function P2PPage() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-5 w-full mx-auto mb-5 px-5">
-                <div className="flex justify-around items-center w-full flex-wrap gap-5">{getTopRatedProfiles().slice(0, 6).map((profile) => (
-                  <div
-                    key={profile._id}
-                    onClick={() => handleViewProfile(profile)}
-                    className={`w-full max-w-[400px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-[20px] p-6 shadow-lg text-center border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} cursor-pointer hover:shadow-xl transition-all`}
-                  >
-                    <div className="relative mx-auto mb-4 w-[100px] h-[100px]">
-                      <Image
-                        src={getAvatarUrl(profile.userId.avatar)}
-                        alt={profile.userId.fullName || profile.userId.name}
-                        width={100}
-                        height={100}
-                        className={`w-full h-full rounded-full border-4 ${isDarkMode ? 'border-gray-600' : 'border-[#f0f0f0]'} object-cover`}
-                        unoptimized
-                      />
-                      <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 bg-blue-500 px-3 py-1.5 rounded-[20px] flex items-center gap-1.5 shadow-lg">
-                        <FaStar
-                          className="w-3.5 h-3.5 text-white"
-                        />
-                        <span className="text-xs font-semibold text-white">
-                          {profile.rating?.average?.toFixed(1) || '5.0'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mb-4">
-                      <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-                        {profile.userId.fullName || profile.userId.name}
-                      </h1>
-                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {(() => {
-                          const parts = [];
-                          if (profile.currentOrganisation) parts.push(profile.currentOrganisation);
-                          if (profile.occupation && profile.occupation !== profile.currentOrganisation) {
-                            parts.push(profile.occupation);
-                          }
-                          return parts.length > 0 ? parts.join(' | ') : profile.occupation || 'Professional';
-                        })()}
-                      </p>
-                    </div>
-                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} leading-relaxed mb-4 line-clamp-3 overflow-hidden text-ellipsis break-words`}>
-                      {profile.description || profile.experience || profile.userId.bio || 'Expert professional'}
-                    </p>
-                    <div className="flex flex-wrap gap-2 justify-center mb-6">
-                      {(() => {
-                        const allTags = [
-                          ...(profile.areasOfExpertise || []),
-                          ...(profile.skills || []),
-                          ...(profile.tags || [])
-                        ];
-                        const uniqueTags = Array.from(new Set(allTags));
-                        return uniqueTags.slice(0, 5).map((tag: string, idx: number) => (
-                          <div
-                            key={idx}
-                            className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px] hover:bg-blue-500 hover:text-white transition-all`}
-                          >
-                            {tag}
-                          </div>
-                        ));
-                      })()}
-                      {(() => {
-                        const allTags = [
-                          ...(profile.areasOfExpertise || []),
-                          ...(profile.skills || []),
-                          ...(profile.tags || [])
-                        ];
-                        const uniqueTags = Array.from(new Set(allTags));
-                        return uniqueTags.length > 5 ? (
-                          <div className={`${isDarkMode ? 'bg-gray-700' : 'bg-[#f0f0f0]'} ${isDarkMode ? 'text-gray-200' : 'text-gray-900'} text-xs px-3 py-1.5 rounded-[20px]`}>
-                            +{uniqueTags.length - 5} more
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-                    <div className="flex justify-center gap-4">
-                      {profile.audioCallPrice && (
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewProfile(profile);
-                          }}
-                          className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
-                        >
-                          <FaPhone
-                            className="w-6 h-6 text-white"
-                          />
-                          <span className="text-xs font-medium">₹{profile.audioCallPrice}</span>
-                        </a>
-                      )}
-                      {profile.videoCallPrice && (
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewProfile(profile);
-                          }}
-                          className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
-                        >
-                          <FaVideo
-                            className="w-6 h-6 text-white"
-                          />
-                          <span className="text-xs font-medium">₹{profile.videoCallPrice}</span>
-                        </a>
-                      )}
-                      {profile.chatPrice && (
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleContact(profile);
-                          }}
-                          className="flex flex-col items-center gap-2 px-4 py-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white no-underline transition-all hover:-translate-y-1 hover:shadow-lg shadow-md"
-                        >
-                          <FaComments
-                            className="w-6 h-6 text-white"
-                          />
-                          <span className="text-xs font-medium">₹{profile.chatPrice}</span>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="flex flex-col gap-6 w-full mx-auto mb-10 px-2 sm:px-5">
+                <div className="grid w-full gap-6 lg:grid-cols-2 justify-items-center">
+                  {getTopRatedProfiles().slice(0, 6).map((profile) => (
+                    <ProfileCard key={profile._id} profile={profile} />
+                  ))}
                 </div>
               </div>
             </div>

@@ -219,25 +219,32 @@ const createBooking = async (req, res) => {
       baseAmount = 0; // Fallback
     }
 
+    // Get website settings for translation rate and coupons
+    const WebsiteSettings = require('../models/websiteSettings');
+    const settings = await WebsiteSettings.getSettings();
+    const aiSettings = settings.ai || {};
+
     // Calculate translation amount
     let translationAmount = 0;
-    const TRANSLATION_RATE_PER_MIN = 4; // Match frontend TRANSLATE_RATE_PER_MINUTE
+    const TRANSLATION_RATE_PER_MIN = aiSettings.creditSystem?.translation?.price || 4;
     if (hasRealtimeTranslation) {
       translationAmount = parsedDuration * TRANSLATION_RATE_PER_MIN;
     }
 
     // Calculate discount amount
     let discountAmount = 0;
-    if (discountCode) {
-      // Simple mock discount logic matching frontend COUPONS
-      if (discountCode === 'SAVE10') {
-        discountAmount = baseAmount * 0.1;
-      } else if (discountCode === 'FLAT500') {
-        discountAmount = 500;
+    if (discountCode && aiSettings.coupons) {
+      const coupon = aiSettings.coupons.find(c => c.code === discountCode);
+      if (coupon) {
+        if (coupon.type === 'percentage') {
+          discountAmount = (baseAmount + translationAmount) * (coupon.value / 100);
+        } else if (coupon.type === 'fixed') {
+          discountAmount = coupon.value;
+        }
       }
     }
 
-    const totalAmount = baseAmount + translationAmount - discountAmount;
+    const totalAmount = Math.max(baseAmount + translationAmount - discountAmount, 0);
 
     // Check client wallet balance
     const client = await User.findById(clientId).session(session);

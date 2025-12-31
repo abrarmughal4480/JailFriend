@@ -6,23 +6,23 @@ exports.getReels = async (req, res) => {
   try {
     console.log('🎬 getReels called with query:', req.query);
     console.log('🔐 Auth headers:', req.headers.authorization ? 'Present' : 'Missing');
-    
+
     const { page = 1, limit = 10, category, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
-    
+
     const query = {};
     if (category) query.category = category;
-    
+
     console.log('🔍 Database query:', query);
-    
+
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-    
+
     console.log('📊 Sort options:', sortOptions);
-    
+
     // Check total count first
     const total = await Reel.countDocuments(query);
     console.log('📈 Total reels in database:', total);
-    
+
     // If no reels, return empty response with proper structure
     if (total === 0) {
       console.log('📭 No reels found, returning empty response');
@@ -39,17 +39,17 @@ exports.getReels = async (req, res) => {
       console.log('📤 Sending empty response:', response);
       return res.json(response);
     }
-    
+
     const reels = await Reel.find(query)
       .populate('user', 'name username avatar verified isPro')
       .sort(sortOptions)
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .exec();
-    
+
     console.log('📋 Found reels:', reels.length);
     console.log('📄 Page info:', { page, limit, totalPages: Math.ceil(total / limit) });
-    
+
     const response = {
       reels,
       pagination: {
@@ -60,7 +60,7 @@ exports.getReels = async (req, res) => {
         hasPrevPage: parseInt(page) > 1
       }
     };
-    
+
     console.log('📤 Sending response:', response);
     res.json(response);
   } catch (error) {
@@ -73,13 +73,13 @@ exports.getReels = async (req, res) => {
 exports.getTrendingReels = async (req, res) => {
   try {
     const { limit = 10 } = req.query;
-    
+
     const reels = await Reel.find({ isTrending: true })
       .populate('user', 'name username avatar verified isPro')
       .sort({ trendingScore: -1, createdAt: -1 })
       .limit(parseInt(limit))
       .exec();
-    
+
     res.json({ reels });
   } catch (error) {
     console.error('Error getting trending reels:', error);
@@ -92,16 +92,16 @@ exports.getReelsByHashtag = async (req, res) => {
   try {
     const { hashtag } = req.params;
     const { page = 1, limit = 10 } = req.query;
-    
+
     const reels = await Reel.find({ hashtags: { $regex: hashtag, $options: 'i' } })
       .populate('user', 'name username avatar verified isPro')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .exec();
-    
+
     const total = await Reel.countDocuments({ hashtags: { $regex: hashtag, $options: 'i' } });
-    
+
     res.json({
       reels,
       totalPages: Math.ceil(total / limit),
@@ -119,19 +119,19 @@ exports.getUserReels = async (req, res) => {
   try {
     const { userId } = req.params;
     const { page = 1, limit = 10 } = req.query;
-    
+
     const reels = await Reel.find({ 'user.userId': userId })
       .populate('user', 'name username avatar verified isPro')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .exec();
-    
+
     const total = await Reel.countDocuments({ 'user.userId': userId });
-    
+
     res.json({
       reels,
-        totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit),
       currentPage: page,
       total
     });
@@ -145,15 +145,15 @@ exports.getUserReels = async (req, res) => {
 exports.getReelById = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const reel = await Reel.findById(id)
       .populate('user', 'name username avatar verified isPro')
       .exec();
-    
+
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
+
     res.json({ reel });
   } catch (error) {
     console.error('Error getting reel by ID:', error);
@@ -168,29 +168,29 @@ exports.createReel = async (req, res) => {
     console.log('👤 User ID:', req.user.id);
     console.log('📁 File:', req.file);
     console.log('📋 Body:', req.body);
-    
+
     const userId = req.user.id;
     const user = await User.findById(userId);
-    
+
     if (!user) {
       console.log('❌ User not found:', userId);
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     console.log('✅ User found:', user.username);
-    
-    const { 
-      title, 
-      description, 
+
+    const {
+      title,
+      description,
       hashtags = [],
-      duration, 
+      duration,
       aspectRatio = '9:16',
       music,
       effects = [],
       privacy = 'everyone',
       category = 'general'
     } = req.body;
-    
+
     // Handle video upload
     let videoUrl = '';
     if (req.file) {
@@ -199,7 +199,7 @@ exports.createReel = async (req, res) => {
     } else {
       console.log('❌ No video file received');
     }
-    
+
     const reelData = {
       user: {
         name: user.name || user.username,
@@ -214,10 +214,10 @@ exports.createReel = async (req, res) => {
       hashtags: Array.isArray(hashtags) ? hashtags : hashtags.split(',').map(tag => tag.trim()),
       videoUrl,
       duration: parseFloat(duration) || 0,
-      aspectRatio, 
-      music, 
-      effects, 
-      privacy, 
+      aspectRatio,
+      music,
+      effects,
+      privacy,
       category,
       likes: [],
       views: [],
@@ -229,17 +229,17 @@ exports.createReel = async (req, res) => {
       trendingScore: 0,
       isSponsored: false
     };
-    
+
     console.log('📊 Reel data prepared:', reelData);
-    
+
     const reel = new Reel(reelData);
     await reel.save();
-    
+
     console.log('✅ Reel saved successfully:', reel._id);
-    
-    res.status(201).json({ 
+
+    res.status(201).json({
       message: 'Reel created successfully',
-      reel 
+      reel
     });
   } catch (error) {
     console.error('❌ Error creating reel:', error);
@@ -252,29 +252,29 @@ exports.updateReel = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
+
     // Check if user owns the reel
     if (reel.user.userId.toString() !== userId) {
       return res.status(403).json({ error: 'Not authorized to update this reel' });
     }
-    
+
     const updateData = req.body;
     delete updateData.user; // Prevent updating user info
-    
+
     const updatedReel = await Reel.findByIdAndUpdate(
       id,
       updateData,
       { new: true, runValidators: true }
     ).populate('user', 'name username avatar verified isPro');
-    
-    res.json({ 
+
+    res.json({
       message: 'Reel updated successfully',
-      reel: updatedReel 
+      reel: updatedReel
     });
   } catch (error) {
     console.error('Error updating reel:', error);
@@ -287,19 +287,19 @@ exports.deleteReel = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
+
     // Check if user owns the reel
     if (reel.user.userId.toString() !== userId) {
       return res.status(403).json({ error: 'Not authorized to delete this reel' });
     }
-    
+
     await Reel.findByIdAndDelete(id);
-    
+
     res.json({ message: 'Reel deleted successfully' });
   } catch (error) {
     console.error('Error deleting reel:', error);
@@ -312,25 +312,26 @@ exports.toggleLike = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
-    const likeIndex = reel.likes.indexOf(userId);
+
+    const likeIndex = reel.likes.findIndex(id => id.toString() === userId);
     if (likeIndex > -1) {
       reel.likes.splice(likeIndex, 1);
     } else {
       reel.likes.push(userId);
     }
-    
+
     await reel.save();
-    
-    res.json({ 
+
+    res.json({
       message: 'Like toggled successfully',
-      isLiked: reel.likes.includes(userId),
-      likesCount: reel.likes.length
+      isLiked: reel.likes.some(id => id.toString() === userId),
+      likesCount: reel.likes.length,
+      likes: reel.likes
     });
   } catch (error) {
     console.error('Error toggling like:', error);
@@ -343,19 +344,19 @@ exports.shareReel = async (req, res) => {
   try {
     console.log('🔄 Share reel request received:', req.params);
     console.log('👤 User ID:', req.user.id);
-    
+
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       console.log('❌ Reel not found:', id);
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
+
     console.log('📹 Reel found:', reel._id);
     console.log('📊 Current shares:', reel.shares);
-    
+
     if (!reel.shares.includes(userId)) {
       reel.shares.push(userId);
       await reel.save();
@@ -363,13 +364,13 @@ exports.shareReel = async (req, res) => {
     } else {
       console.log('ℹ️ User already in shares');
     }
-    
-    const response = { 
+
+    const response = {
       message: 'Reel shared successfully',
       shares: reel.shares,
       trendingScore: reel.trendingScore || 0
     };
-    
+
     console.log('📤 Sending response:', response);
     res.json(response);
   } catch (error) {
@@ -383,25 +384,26 @@ exports.toggleSave = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
-    const saveIndex = reel.savedBy.indexOf(userId);
+
+    const saveIndex = reel.savedBy.findIndex(id => id.toString() === userId);
     if (saveIndex > -1) {
       reel.savedBy.splice(saveIndex, 1);
     } else {
       reel.savedBy.push(userId);
     }
-    
+
     await reel.save();
-    
-    res.json({ 
+
+    res.json({
       message: 'Save toggled successfully',
-      isSaved: reel.savedBy.includes(userId),
-      savesCount: reel.savedBy.length
+      isSaved: reel.savedBy.some(id => id.toString() === userId),
+      savesCount: reel.savedBy.length,
+      saved: reel.savedBy
     });
   } catch (error) {
     console.error('Error toggling save:', error);
@@ -415,21 +417,21 @@ exports.addComment = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
     const { text } = req.body;
-    
+
     if (!text || text.trim().length === 0) {
       return res.status(400).json({ error: 'Comment text is required' });
     }
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
+
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     const comment = {
       user: {
         name: user.name || user.username,
@@ -439,11 +441,11 @@ exports.addComment = async (req, res) => {
       text: text.trim(),
       createdAt: new Date()
     };
-    
+
     reel.comments.push(comment);
     await reel.save();
-    
-    res.json({ 
+
+    res.json({
       message: 'Comment added successfully',
       comment,
       commentsCount: reel.comments.length
@@ -454,31 +456,91 @@ exports.addComment = async (req, res) => {
   }
 };
 
+// Add or update reaction to reel
+exports.addReaction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { reactionType } = req.body;
+
+    if (!reactionType) {
+      return res.status(400).json({ error: 'Reaction type is required' });
+    }
+
+    const reel = await Reel.findById(id);
+    if (!reel) {
+      return res.status(404).json({ error: 'Reel not found' });
+    }
+
+    // Filter out all existing reactions from this user to prevent duplicates
+    const otherReactions = (reel.reactions || []).filter(
+      (r) => r.user.toString() !== userId
+    );
+
+    // Add the new reaction
+    const newReaction = {
+      user: userId,
+      type: reactionType,
+      createdAt: new Date()
+    };
+
+    // Update the reactions array
+    reel.reactions = [...otherReactions, newReaction];
+
+    // Handle legacy likes array for 'like' type reaction
+    if (reactionType === 'like') {
+      if (!reel.likes.some(id => id.toString() === userId)) {
+        reel.likes.push(userId);
+      }
+    } else {
+      // Remove from likes if it's not a 'like' reaction
+      const likeIndex = reel.likes.findIndex(id => id.toString() === userId);
+      if (likeIndex > -1) {
+        reel.likes.splice(likeIndex, 1);
+      }
+    }
+
+    // Force Mongoose to recognize the array change
+    reel.markModified('reactions');
+    await reel.save();
+
+    res.json({
+      message: 'Reaction updated successfully',
+      reactions: reel.reactions,
+      likesCount: reel.likes.length,
+      trendingScore: reel.trendingScore
+    });
+  } catch (error) {
+    console.error('Error adding reaction:', error);
+    res.status(500).json({ error: 'Failed to add reaction' });
+  }
+};
+
 // Delete comment from reel
 exports.deleteComment = async (req, res) => {
   try {
     const { id, commentId } = req.params;
     const userId = req.user.id;
-    
+
     const reel = await Reel.findById(id);
     if (!reel) {
       return res.status(404).json({ error: 'Reel not found' });
     }
-    
+
     const comment = reel.comments.id(commentId);
     if (!comment) {
       return res.status(404).json({ error: 'Comment not found' });
     }
-    
+
     // Check if user owns the comment or the reel
     if (comment.user.userId.toString() !== userId && reel.user.userId.toString() !== userId) {
       return res.status(403).json({ error: 'Not authorized to delete this comment' });
     }
-    
+
     comment.remove();
     await reel.save();
-    
-    res.json({ 
+
+    res.json({
       message: 'Comment deleted successfully',
       commentsCount: reel.comments.length
     });

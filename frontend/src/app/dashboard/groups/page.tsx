@@ -722,10 +722,10 @@ const GroupsPage: React.FC = () => {
           />
           <div className="absolute top-2 left-2 flex gap-2">
             <span className={`px-2 py-1 text-xs rounded-full ${group?.privacy === 'public'
-                ? 'bg-green-100 text-green-700'
-                : group?.privacy === 'private'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'bg-red-100 text-red-700'
+              ? 'bg-green-100 text-green-700'
+              : group?.privacy === 'private'
+                ? 'bg-orange-100 text-orange-700'
+                : 'bg-red-100 text-red-700'
               }`}>
               {(group?.privacy || 'public').charAt(0).toUpperCase() + (group?.privacy || 'public').slice(1)}
             </span>
@@ -743,8 +743,8 @@ const GroupsPage: React.FC = () => {
                 <div className="relative">
                   <button
                     className={`p-1.5 rounded-lg transition-all duration-200 ${isDarkMode
-                        ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
-                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                       } ${openDropdownId === group._id ? (isDarkMode ? 'bg-gray-700' : 'bg-gray-100') : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -766,8 +766,8 @@ const GroupsPage: React.FC = () => {
                       />
                       <div
                         className={`absolute right-0 top-full mt-2 w-40 rounded-lg shadow-lg border z-20 ${isDarkMode
-                            ? 'bg-gray-800 border-gray-700'
-                            : 'bg-white border-gray-200'
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-white border-gray-200'
                           }`}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -783,8 +783,8 @@ const GroupsPage: React.FC = () => {
                             }
                           }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-t-lg transition-colors duration-200 ${isDarkMode
-                              ? 'hover:bg-gray-700 text-gray-300'
-                              : 'hover:bg-gray-50 text-gray-700'
+                            ? 'hover:bg-gray-700 text-gray-300'
+                            : 'hover:bg-gray-50 text-gray-700'
                             }`}
                         >
                           <Edit3 className="w-4 h-4" />
@@ -799,8 +799,8 @@ const GroupsPage: React.FC = () => {
                             }
                           }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-b-lg transition-colors duration-200 ${isDarkMode
-                              ? 'hover:bg-gray-700 text-red-400'
-                              : 'hover:bg-gray-50 text-red-600'
+                            ? 'hover:bg-gray-700 text-red-400'
+                            : 'hover:bg-gray-50 text-red-600'
                             }`}
                         >
                           <Trash2 className="w-4 h-4" />
@@ -941,16 +941,16 @@ const GroupsPage: React.FC = () => {
             onChange={handleInputChange}
             placeholder="Enter group name"
             className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${formData.name.length > 0
-                ? formData.name.length >= 3
-                  ? isDarkMode
-                    ? 'border-green-500 bg-green-900/20 text-white'
-                    : 'border-green-300 bg-green-50'
-                  : isDarkMode
-                    ? 'border-red-500 bg-red-900/20 text-white'
-                    : 'border-red-300 bg-red-50'
+              ? formData.name.length >= 3
+                ? isDarkMode
+                  ? 'border-green-500 bg-green-900/20 text-white'
+                  : 'border-green-300 bg-green-50'
                 : isDarkMode
-                  ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
-                  : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-red-500 bg-red-900/20 text-white'
+                  : 'border-red-300 bg-red-50'
+              : isDarkMode
+                ? 'border-gray-600 bg-gray-700 text-white hover:border-gray-500'
+                : 'border-gray-200 hover:border-gray-300'
               }`}
           />
         </div>
@@ -968,8 +968,8 @@ const GroupsPage: React.FC = () => {
             rows={4}
             placeholder="Describe what your group is about..."
             className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-base transition-all duration-200 ${isDarkMode
-                ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
-                : 'border-gray-200 hover:border-gray-300'
+              ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
+              : 'border-gray-200 hover:border-gray-300'
               }`}
           />
         </div>
@@ -984,8 +984,8 @@ const GroupsPage: React.FC = () => {
               value={formData.privacy}
               onChange={handleInputChange}
               className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-white border-gray-200 text-gray-900'
+                ? 'bg-gray-700 border-gray-600 text-white'
+                : 'bg-white border-gray-200 text-gray-900'
                 }`}
             >
               <option value="public">Public</option>
@@ -1002,8 +1002,8 @@ const GroupsPage: React.FC = () => {
               value={formData.category}
               onChange={handleInputChange}
               className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-white border-gray-200 text-gray-900'
+                ? 'bg-gray-700 border-gray-600 text-white'
+                : 'bg-white border-gray-200 text-gray-900'
                 }`}
             >
               {groupCategories.length === 0 ? (
@@ -1034,8 +1034,8 @@ const GroupsPage: React.FC = () => {
               onChange={handleInputChange}
               placeholder="https://example.com"
               className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                  ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             />
           </div>
@@ -1051,8 +1051,8 @@ const GroupsPage: React.FC = () => {
                 onChange={handleInputChange}
                 placeholder="group@example.com"
                 className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
-                    : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
+                  : 'border-gray-200 hover:border-gray-300'
                   }`}
               />
             </div>
@@ -1067,8 +1067,8 @@ const GroupsPage: React.FC = () => {
                 onChange={handleInputChange}
                 placeholder="+1234567890"
                 className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                    ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
-                    : 'border-gray-200 hover:border-gray-300'
+                  ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
+                  : 'border-gray-200 hover:border-gray-300'
                   }`}
               />
             </div>
@@ -1084,8 +1084,8 @@ const GroupsPage: React.FC = () => {
               onChange={handleInputChange}
               placeholder="City, Country"
               className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                  ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             />
           </div>
@@ -1100,8 +1100,8 @@ const GroupsPage: React.FC = () => {
               onChange={handleInputChange}
               placeholder="tag1, tag2, tag3"
               className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base transition-all duration-200 ${isDarkMode
-                  ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
-                  : 'border-gray-200 hover:border-gray-300'
+                ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 hover:border-gray-500'
+                : 'border-gray-200 hover:border-gray-300'
                 }`}
             />
           </div>
@@ -1113,8 +1113,8 @@ const GroupsPage: React.FC = () => {
             onClick={handleGoBack}
             disabled={updating}
             className={`hidden sm:flex items-center gap-2 px-6 py-3 rounded-xl transition-colors disabled:opacity-50 ${isDarkMode
-                ? 'text-gray-300 hover:text-white hover:bg-gray-700'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
           >
             <ArrowLeft className="w-5 h-5" />
@@ -1147,8 +1147,8 @@ const GroupsPage: React.FC = () => {
   const CreateGroupModal: React.FC = () => (
     <div className="fixed inset-0 modal-glassmorphism-bg flex items-center justify-center z-50 p-2 sm:p-4">
       <div className={`rounded-2xl shadow-2xl max-w-[90vw] sm:max-w-lg lg:max-w-xl w-full max-h-[85vh] sm:max-h-[85vh] overflow-y-auto scrollbar-hide transition-all duration-300 transform border ${isDarkMode
-          ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl'
-          : 'bg-white/80 border-gray-300/50 backdrop-blur-xl'
+        ? 'bg-gray-800/80 border-gray-700/50 backdrop-blur-xl'
+        : 'bg-white/80 border-gray-300/50 backdrop-blur-xl'
         }`}
         style={{
           boxShadow: isDarkMode
@@ -1163,8 +1163,8 @@ const GroupsPage: React.FC = () => {
               <button
                 onClick={handleCancel}
                 className={`p-2 rounded-full transition-colors duration-200 ${isDarkMode
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
               >
                 <X className="w-5 h-5" />
@@ -1185,8 +1185,8 @@ const GroupsPage: React.FC = () => {
                 onChange={handleInputChange}
                 placeholder="Group name"
                 className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                   }`}
               />
             </div>
@@ -1202,8 +1202,8 @@ const GroupsPage: React.FC = () => {
                 value={formData.name ? formData.name.toLowerCase().replace(/\s+/g, '') : ''}
                 placeholder="Group URL"
                 className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-colors duration-200 ${isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                    : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                   }`}
                 readOnly
               />
@@ -1221,8 +1221,8 @@ const GroupsPage: React.FC = () => {
                   value={formData.privacy}
                   onChange={handleInputChange}
                   className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
                     }`}
                 >
                   <option value="public">Public</option>
@@ -1238,8 +1238,8 @@ const GroupsPage: React.FC = () => {
                   value={formData.category}
                   onChange={handleInputChange}
                   className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-colors duration-200 ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
                     }`}
                 >
                   {groupCategories.length === 0 ? (
@@ -1264,8 +1264,8 @@ const GroupsPage: React.FC = () => {
                 onClick={handleCancel}
                 disabled={creating}
                 className={`px-4 sm:px-6 py-2.5 sm:py-2 rounded-lg transition-colors font-medium text-sm sm:text-base disabled:opacity-50 w-full sm:w-auto ${isDarkMode
-                    ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600'
-                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                  ? 'text-gray-300 bg-gray-700 border border-gray-600 hover:bg-gray-600'
+                  : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
                   }`}
               >
                 Cancel
@@ -1305,8 +1305,8 @@ const GroupsPage: React.FC = () => {
                 onClick={() => fetchGroups(true)}
                 disabled={refreshing}
                 className={`p-2 transition-colors ${refreshing ? 'opacity-50' : ''} ${isDarkMode
-                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
                 title="Refresh groups"
               >
@@ -1325,14 +1325,14 @@ const GroupsPage: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`pl-10 pr-4 py-2 w-64 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${isDarkMode
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                    : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
                     }`}
                 />
               </div>
               <button className={`p-2 transition-colors duration-200 ${isDarkMode
-                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                 }`}>
                 <Users className="w-5 h-5" />
               </button>
@@ -1341,8 +1341,8 @@ const GroupsPage: React.FC = () => {
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className={`sm:hidden p-2 transition-colors duration-200 ${isDarkMode
-                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                  ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }`}
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
@@ -1357,10 +1357,10 @@ const GroupsPage: React.FC = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${activeTab === tab
-                    ? 'bg-blue-100 text-blue-700'
-                    : isDarkMode
-                      ? 'text-gray-300 hover:text-white hover:bg-gray-700'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-blue-100 text-blue-700'
+                  : isDarkMode
+                    ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }`}
               >
                 {tab}
@@ -1386,8 +1386,8 @@ const GroupsPage: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200 ${isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                    : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                  : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
                   }`}
               />
             </div>
@@ -1415,10 +1415,10 @@ const GroupsPage: React.FC = () => {
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full text-left px-4 py-3 text-sm transition-colors duration-200 ${activeTab === tab
-                      ? 'text-blue-600 bg-blue-50'
-                      : isDarkMode
-                        ? 'text-gray-300 hover:bg-gray-700'
-                        : 'text-gray-700 hover:bg-gray-50'
+                    ? 'text-blue-600 bg-blue-50'
+                    : isDarkMode
+                      ? 'text-gray-300 hover:bg-gray-700'
+                      : 'text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   {tab}

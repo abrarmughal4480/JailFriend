@@ -26,19 +26,12 @@ export default function ReactionPopup({
   currentReaction,
   isDarkMode = false
 }: ReactionPopupProps) {
-  const [isVisible, setIsVisible] = useState(false);
-
   const handleReaction = (reactionType: ReactionType, e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+    // We don't stop propagation here anymore, so the click bubbles up to CustomTooltip
+    // and toggles isVisible to false, closing the popup.
 
-    // Call the onReaction callback first
+    // Call the onReaction callback
     onReaction(reactionType);
-
-    // Hide the popup after a small delay to ensure the reaction is processed
-    setTimeout(() => {
-      setIsVisible(false);
-    }, 100);
   };
 
   return (
@@ -46,16 +39,17 @@ export default function ReactionPopup({
       content={
         <div
           className="flex items-center gap-2 p-2 bg-slate-700 dark:bg-slate-700 rounded-full shadow-lg"
-          onClick={(e) => e.stopPropagation()}
         >
           {reactions.map((reaction) => {
             const isCurrentReaction = currentReaction === reaction.type;
             return (
               <button
                 key={reaction.type}
-                onClick={(e) => handleReaction(reaction.type, e)}
-                onTouchEnd={(e) => handleReaction(reaction.type, e)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${reaction.color
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleReaction(reaction.type, e);
+                }}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white text-base sm:text-lg hover:scale-110 transition-all duration-200 touch-manipulation ${reaction.color
                   } ${isCurrentReaction
                     ? `ring-2 ring-blue-300 ring-offset-1`
                     : 'hover:shadow-md'
@@ -71,8 +65,7 @@ export default function ReactionPopup({
       }
       interactive={true}
       trigger="click"
-      placement="top-start"
-      onClickOutside={() => setIsVisible(false)}
+      placement="top-end"
     >
       {children}
     </CustomTooltip>

@@ -875,6 +875,10 @@ const websiteSettingsSchema = new mongoose.Schema({
       text: {
         enabled: { type: Boolean, default: true },
         price: { type: Number, default: 1 }
+      },
+      translation: {
+        enabled: { type: Boolean, default: true },
+        price: { type: Number, default: 4 }
       }
     },
     replicate: {
@@ -883,7 +887,13 @@ const websiteSettingsSchema = new mongoose.Schema({
       inferenceSteps: { type: String, default: '1' },
       guidanceScale: { type: String, default: '1' },
       seed: { type: String, default: '' }
-    }
+    },
+    coupons: [{
+      code: { type: String, required: true },
+      type: { type: String, enum: ['percentage', 'fixed'], default: 'percentage' },
+      value: { type: Number, required: true },
+      description: { type: String, default: '' }
+    }]
   },
 
   // Legal Documents

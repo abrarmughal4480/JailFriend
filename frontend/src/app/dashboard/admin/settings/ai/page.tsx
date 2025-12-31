@@ -33,6 +33,10 @@ const AiSettingsPage = () => {
   const [textCreditEnabled, setTextCreditEnabled] = useState(true);
   const [textPrice, setTextPrice] = useState("1");
   const [initialUserCredits, setInitialUserCredits] = useState("0");
+  const [translationPrice, setTranslationPrice] = useState("4");
+  const [translationEnabled, setTranslationEnabled] = useState(true);
+  const [coupons, setCoupons] = useState<{ code: string; type: string; value: number; description: string }[]>([]);
+  const [newCoupon, setNewCoupon] = useState({ code: '', type: 'percentage', value: 0, description: '' });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -112,6 +116,13 @@ const AiSettingsPage = () => {
               setTextPrice(aiSettings.creditSystem.text.price?.toString() || '1');
             }
             setInitialUserCredits(aiSettings.creditSystem.initialUserCredits?.toString() || '0');
+            if (aiSettings.creditSystem.translation) {
+              setTranslationEnabled(aiSettings.creditSystem.translation.enabled);
+              setTranslationPrice(aiSettings.creditSystem.translation.price?.toString() || '4');
+            }
+          }
+          if (aiSettings.coupons) {
+            setCoupons(aiSettings.coupons);
           }
         }
       }
@@ -183,8 +194,13 @@ const AiSettingsPage = () => {
               text: {
                 enabled: textCreditEnabled,
                 price: Number(textPrice)
+              },
+              translation: {
+                enabled: translationEnabled,
+                price: Number(translationPrice)
               }
-            }
+            },
+            coupons: coupons
           }
         })
       });
@@ -428,6 +444,113 @@ const AiSettingsPage = () => {
                 placeholder="Soniox API Key"
                 className={inputStyles}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Translation Settings */}
+        <div className={`${cardBase} rounded-2xl border p-6`}>
+          <h2 className={`text-2xl font-semibold ${textPrimary} mb-6`}>
+            Real-Time Call Translation Settings
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm font-medium ${textPrimary}`}>Enable Call Translation</p>
+                <p className={`${textSecondary} text-xs`}>Allow users to use real-time translation during calls.</p>
+              </div>
+              <Toggle enabled={translationEnabled} onToggle={() => setTranslationEnabled(!translationEnabled)} />
+            </div>
+            <div className="space-y-2">
+              <label className={`text-sm font-medium ${textPrimary}`}>Translation Price (per minute)</label>
+              <input
+                type="number"
+                value={translationPrice}
+                onChange={(e) => setTranslationPrice(e.target.value)}
+                placeholder="4"
+                className={inputStyles}
+              />
+              <p className={`${textSecondary} text-xs`}>Cost in credits per minute for real-time translation.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Coupon Management */}
+        <div className={`${cardBase} rounded-2xl border p-6`}>
+          <h2 className={`text-2xl font-semibold ${textPrimary} mb-6`}>
+            Coupon Management
+          </h2>
+          <div className="space-y-6">
+            <div className="space-y-4 p-4 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+              <h3 className={`text-sm font-bold ${textPrimary}`}>Add New Coupon</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <input
+                  type="text"
+                  placeholder="CODE (e.g. SAVE10)"
+                  className={inputStyles}
+                  value={newCoupon.code}
+                  onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                />
+                <select
+                  className={inputStyles}
+                  value={newCoupon.type}
+                  onChange={(e) => setNewCoupon({ ...newCoupon, type: e.target.value })}
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="Value"
+                  className={inputStyles}
+                  value={newCoupon.value}
+                  onChange={(e) => setNewCoupon({ ...newCoupon, value: Number(e.target.value) })}
+                />
+                <input
+                  type="text"
+                  placeholder="Description"
+                  className={inputStyles}
+                  value={newCoupon.description}
+                  onChange={(e) => setNewCoupon({ ...newCoupon, description: e.target.value })}
+                />
+              </div>
+              <button
+                onClick={() => {
+                  if (newCoupon.code && newCoupon.value > 0) {
+                    setCoupons([...coupons, newCoupon]);
+                    setNewCoupon({ code: '', type: 'percentage', value: 0, description: '' });
+                  }
+                }}
+                className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-bold"
+              >
+                Add Coupon
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className={`text-sm font-bold ${textPrimary}`}>Active Coupons</h3>
+              {coupons.length === 0 ? (
+                <p className={`${textSecondary} text-xs italic`}>No active coupons.</p>
+              ) : (
+                <div className="space-y-2">
+                  {coupons.map((coupon, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+                      <div>
+                        <p className={`font-bold text-sm ${textPrimary}`}>{coupon.code}</p>
+                        <p className={`${textSecondary} text-xs`}>
+                          {coupon.type === 'percentage' ? `${coupon.value}% Off` : `Fixed ${coupon.value} Off`} • {coupon.description || 'No description'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setCoupons(coupons.filter((_, i) => i !== idx))}
+                        className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      >
+                        <AlertCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

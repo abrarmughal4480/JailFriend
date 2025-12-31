@@ -80,20 +80,7 @@ const postMediaDir = path.join(uploadsDir, 'post-media');
 
 const app = express();
 
-//Force HTTPS in production - Commented out for Railway deployment
-//Railway handles HTTPS automatically, so we don't need this redirect
-if (process.env.NODE_ENV === 'production') {
-  app.use((req, res, next) => {
-    // Skip HTTPS redirect for preflight OPTIONS requests to avoid CORS issues
-    if (req.method === 'OPTIONS') {
-      return next();
-    }
-    if (req.headers['x-forwarded-proto'] !== 'https') {
-      return res.redirect(`https://${req.headers.host}${req.url}`);
-    }
-    next();
-  });
-}
+
 
 // CORS configuration - must come before other middleware
 const cors = require('cors');

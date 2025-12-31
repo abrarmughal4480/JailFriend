@@ -2317,19 +2317,18 @@ export default function Dashboard() {
                   <div className={`relative ${storySizeClasses} ${storyRoundedClasses} overflow-hidden shadow-lg sm:shadow-xl border-2 transition-all duration-300 ${isDarkMode ? 'border-gray-700' : 'border-white'}`}>
                     {/* Media Content - Lazy Loading */}
                     {groupedStory.latestStory.mediaType === 'video' ? (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <div className="text-2xl mb-1">🎥</div>
-                          <div className="text-xs font-medium">Video Story</div>
-                        </div>
-                      </div>
+                      <video
+                        src={groupedStory.latestStory.media?.startsWith('http') ? groupedStory.latestStory.media : `${API_URL}/${groupedStory.latestStory.media?.startsWith('/') ? groupedStory.latestStory.media.substring(1) : groupedStory.latestStory.media}`}
+                        className="w-full h-full object-cover"
+                        muted
+                        preload="metadata"
+                      />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-pink-400 to-orange-500 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <div className="text-2xl mb-1">📸</div>
-                          <div className="text-xs font-medium">Photo Story</div>
-                        </div>
-                      </div>
+                      <img
+                        src={groupedStory.latestStory.media?.startsWith('http') ? groupedStory.latestStory.media : `${API_URL}/${groupedStory.latestStory.media?.startsWith('/') ? groupedStory.latestStory.media.substring(1) : groupedStory.latestStory.media}`}
+                        className="w-full h-full object-cover"
+                        alt="Story"
+                      />
                     )}
 
                     {/* Gradient Overlay for Better Text Visibility */}
@@ -2421,7 +2420,18 @@ export default function Dashboard() {
                       <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-pink-300' : 'text-pink-700'
                         }`}>Reels Video</span>
                     </button>
+                    {/* //live button */}
+                    <button
 
+                      className={`flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors cursor-pointer ${isDarkMode
+                        ? 'bg-pink-900/20 border-pink-700 hover:bg-pink-900/30'
+                        : 'bg-pink-50 border-pink-200 hover:bg-pink-100'
+                        }`}
+                    >
+                      <span className="text-pink-500 text-lg">💎</span>
+                      <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-pink-300' : 'text-pink-700'
+                        }`}>Live Video</span>
+                    </button>
                   </div>
                 </div>
 
@@ -2453,13 +2463,7 @@ export default function Dashboard() {
                           );
                         })()}
                       </div>
-                      {userProfile && (
-                        <div className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 shadow-sm ${isDarkMode ? 'bg-blue-900/40 text-blue-400 border border-blue-800' : 'bg-blue-50 text-blue-600 border border-blue-100'
-                          }`}>
-                          <Sparkles className="w-2.5 h-2.5" />
-                          {userProfile.credits}
-                        </div>
-                      )}
+
                     </div>
                     <div className="flex-1 relative">
                       {/* Content Textarea */}
@@ -2798,12 +2802,13 @@ export default function Dashboard() {
                             );
                           } else {
                             const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                            const currentUserId = currentUser._id || currentUser.id || currentUser.userId;
 
-                            const isOwnPost = item.user && (
-                              item.user._id === currentUser._id ||
-                              item.user.id === currentUser.id ||
-                              item.user.userId === currentUser.id
-                            );
+                            const isOwnPost = Boolean(item.user && currentUserId && (
+                              (item.user._id && item.user._id === currentUserId) ||
+                              (item.user.id && item.user.id === currentUserId) ||
+                              (item.user.userId && item.user.userId === currentUserId)
+                            ));
 
                             feedItems.push(
                               <FeedPost

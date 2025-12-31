@@ -66,7 +66,6 @@ const COUPONS: Record<string, CouponDefinition> = {
 
 const FALLBACK_TIME_SLOTS = ['10:00', '12:00', '14:00', '16:00', '18:00'];
 const TIME_SLOT_STEP_MINUTES = 30;
-const TRANSLATE_RATE_PER_MINUTE = 4;
 
 const formatCurrency = (currencySymbol: string, value: number) =>
   `${currencySymbol}${value.toLocaleString('en-IN')}`;
@@ -246,6 +245,10 @@ export function BookingModal({
   const [providerBookings, setProviderBookings] = useState<ProviderBookingSlot[]>([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [isSubscriptionExpanded, setIsSubscriptionExpanded] = useState(false);
+  const [websiteCoupons, setWebsiteCoupons] = useState<Record<string, CouponDefinition>>(COUPONS);
+  const [translateRate, setTranslateRate] = useState(4);
+  const [translateRateLabel, setTranslateRateLabel] = useState('₹4');
 
   const timeOptions = useMemo(() => {
     const slots = buildTimeSlots(availability.startTime, availability.endTime);
@@ -308,6 +311,45 @@ export function BookingModal({
       isMounted = false;
     };
   }, [open, callDate, serviceProviderId]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const fetchWebsiteSettings = async () => {
+      try {
+        const response = await fetch(`${config.API_URL}/api/website-settings/mode`);
+        if (response.ok) {
+          const data = await response.json();
+          // Assuming the public endpoint or similar gives these. 
+          // If not, we might need a separate call or update the public endpoint.
+          // For now, let's try to get them from /api/website-settings if admin, 
+          // but usually these should be public or available.
+        }
+
+        // Alternative: fetch from a more appropriate public settings endpoint if it exists
+        const settingsResponse = await fetch(`${config.API_URL}/api/website-settings`);
+        const settingsData = await settingsResponse.json();
+        if (settingsResponse.ok && settingsData.data && settingsData.data.ai) {
+          const ai = settingsData.data.ai;
+          if (ai.coupons && Array.isArray(ai.coupons)) {
+            const mappedCoupons: Record<string, CouponDefinition> = {};
+            ai.coupons.forEach((c: any) => {
+              mappedCoupons[c.code] = { type: c.type, value: c.value };
+            });
+            setWebsiteCoupons(mappedCoupons);
+          }
+          if (ai.creditSystem && ai.creditSystem.translation) {
+            setTranslateRate(ai.creditSystem.translation.price || 4);
+            setTranslateRateLabel(`${currencySymbol}${ai.creditSystem.translation.price || 4}`);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch website settings', err);
+      }
+    };
+
+    fetchWebsiteSettings();
+  }, [open, currencySymbol]);
   const handlePayNow = async () => {
     if (isSubmitting) return;
 
@@ -458,6 +500,7 @@ export function BookingModal({
       setAppliedCoupon('');
       setProviderBookings([]);
       setAvailabilityError(null);
+      setIsSubscriptionExpanded(false);
     }
   }, [availability.baseDate, availability.startTime, initialMode, open, timeOptions]);
 
@@ -630,25 +673,20 @@ export function BookingModal({
 
   const translateCost = useMemo(() => {
     if (!translateActive) return 0;
-    return activeMinutes * subscriptionDays * TRANSLATE_RATE_PER_MINUTE;
-  }, [activeMinutes, subscriptionDays, translateActive]);
+    return activeMinutes * translateRate * subscriptionDays;
+  }, [translateActive, activeMinutes, translateRate, subscriptionDays]);
 
   const couponDiscount = useMemo(() => {
-    if (!appliedCoupon || !COUPONS[appliedCoupon]) return 0;
-    const definition = COUPONS[appliedCoupon];
+    if (!appliedCoupon || !websiteCoupons[appliedCoupon]) return 0;
+    const definition = websiteCoupons[appliedCoupon];
     const subtotal = basePrice + translateCost;
     if (definition.type === 'percentage') {
       return Math.round(subtotal * (definition.value / 100));
     }
     return Math.min(definition.value, subtotal);
-  }, [appliedCoupon, basePrice, translateCost]);
+  }, [appliedCoupon, basePrice, translateCost, websiteCoupons]);
 
   const totalPrice = Math.max(basePrice + translateCost - couponDiscount, 0);
-
-  const translateRateLabel = useMemo(
-    () => formatCurrency(currencySymbol, TRANSLATE_RATE_PER_MINUTE),
-    [currencySymbol]
-  );
 
   if (!open) return null;
 
@@ -676,7 +714,7 @@ export function BookingModal({
           <div className={`border-b-2 px-6 py-10 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
 
 
-            <div className="mb-8">
+            {/* <div className="mb-8">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select mode to connect</h3>
               <div className="mt-4 flex flex-wrap gap-4">
                 {(['audio', 'video'] as CallMode[]).map((mode) => (
@@ -705,7 +743,7 @@ export function BookingModal({
                   </button>
                 ))}
               </div>
-            </div>
+            </div> */}
 
             <div className="mb-10">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select date</h3>
@@ -897,82 +935,97 @@ export function BookingModal({
               </div>
             </div>
 
-            <div className={`mb-10 rounded-2xl border-2 p-6 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
+            <div className={`mb-10 rounded-2xl border-2 p-6 transition-all ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
               }`}>
-              <div className="mb-4 flex items-start gap-3">
-                <h3 className="flex-1 text-lg font-semibold text-[#148F80]">
-                  Daily Subscription Plan
-                </h3>
-                <div className="group relative flex h-8 w-8 items-center justify-center rounded-full border border-[#148F80] bg-[#148F80]/10 text-sm font-semibold text-[#148F80]">
-                  i
-                  <div className="invisible absolute left-1/2 top-full z-10 mt-3 w-72 -translate-x-1/2 rounded-xl bg-gray-900 p-4 text-xs font-medium text-white opacity-0 transition group-hover:visible group-hover:opacity-100">
-                    Arey bhai, sun na! Ye Daily Subscription Plan ekdum mast hai. Jo time aur minutes
-                    tune select kiye hain, wo har din usi time pe call ke liye milega. Matlab, agar tune
-                    15 min/day aur 10:00 AM select kiya, toh 5, 10, 15, ya 30 din tak har roz 10:00 AM ko
-                    15 minute ke liye baat kar sakta hai. Bas date aur time set kar, aur har din apne plan
-                    ke hisaab se baat kar. No tension, no confusion! Plan ke duration ke liye sab fixed hai,
-                    toh tu apne hisaab se baat kar sakta hai.
+              <div
+                className="flex cursor-pointer items-center justify-between gap-3"
+                onClick={() => setIsSubscriptionExpanded(!isSubscriptionExpanded)}
+              >
+                <div className="flex items-center gap-3">
+                  <h3 className="text-lg font-semibold text-[#148F80]">
+                    Daily Subscription Plan
+                  </h3>
+                  <div className="group relative flex h-8 w-8 items-center justify-center rounded-full border border-[#148F80] bg-[#148F80]/10 text-sm font-semibold text-[#148F80]" onClick={(e) => e.stopPropagation()}>
+                    i
+                    <div className="invisible absolute left-1/2 top-full z-10 mt-3 w-72 -translate-x-1/2 rounded-xl bg-gray-900 p-4 text-xs font-medium text-white opacity-0 transition group-hover:visible group-hover:opacity-100">
+                      Arey bhai, sun na! Ye Daily Subscription Plan ekdum mast hai. Jo time aur minutes
+                      tune select kiye hain, wo har din usi time pe call ke liye milega. Matlab, agar tune
+                      15 min/day aur 10:00 AM select kiya, toh 5, 10, 15, ya 30 din tak har roz 10:00 AM ko
+                      15 minute ke liye baat kar sakta hai. Bas date aur time set kar, aur har din apne plan
+                      ke hisaab se baat kar. No tension, no confusion! Plan ke duration ke liye sab fixed hai,
+                      toh tu apne hisaab se baat kar sakta hai.
+                    </div>
                   </div>
+                </div>
+
+                <div className={`transition-transform duration-300 ${isSubscriptionExpanded ? 'rotate-180' : ''}`}>
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M5 7.5L10 12.5L15 7.5" stroke={isDarkMode ? "#9CA3AF" : "#4B5563"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </div>
               </div>
 
-              <div className="mb-6 flex flex-wrap gap-3">
-                {SUBSCRIPTION_MINUTES.map((minutes) => {
-                  const isActive = planCategory === 'subscription' && subscriptionMinutes === minutes;
-                  const perMinute = callMode === 'audio' ? pricePerMinute.audio : pricePerMinute.video;
-                  const price = Math.round(minutes * perMinute * subscriptionDays);
-                  return (
-                    <button
-                      key={minutes}
-                      onClick={() => {
-                        setPlanCategory('subscription');
-                        setSubscriptionMinutes(minutes);
-                      }}
-                      className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${isActive
-                        ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
-                        : isDarkMode
-                          ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                          : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
-                        }`}
-                    >
-                      {minutes} Min/Day ({formatCurrency(currencySymbol, price)})
-                    </button>
-                  );
-                })}
-              </div>
+              {isSubscriptionExpanded && (
+                <div className="mt-6 animate-fadeIn">
+                  <div className="mb-6 flex flex-wrap gap-3">
+                    {SUBSCRIPTION_MINUTES.map((minutes) => {
+                      const isActive = planCategory === 'subscription' && subscriptionMinutes === minutes;
+                      const perMinute = callMode === 'audio' ? pricePerMinute.audio : pricePerMinute.video;
+                      const price = Math.round(minutes * perMinute * subscriptionDays);
+                      return (
+                        <button
+                          key={minutes}
+                          onClick={() => {
+                            setPlanCategory('subscription');
+                            setSubscriptionMinutes(minutes);
+                          }}
+                          className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${isActive
+                            ? 'border-[#148F80] bg-[#148F80]/10 text-[#148F80]'
+                            : isDarkMode
+                              ? 'border-gray-600 text-gray-300 hover:border-[#148F80] hover:bg-[#148F80]/5'
+                              : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
+                            }`}
+                        >
+                          {minutes} Min/Day ({formatCurrency(currencySymbol, price)})
+                        </button>
+                      );
+                    })}
+                  </div>
 
-              <h4 className={`mb-3 text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select Duration</h4>
-              <div className="flex flex-wrap gap-3">
-                {SUBSCRIPTION_TYPES.map((type) => {
-                  const isActive = subscriptionType === type.value;
-                  return (
-                    <label
-                      key={type.value}
-                      className={`relative flex cursor-pointer items-center gap-3 rounded-xl border-2 px-5 py-3 text-base font-medium transition ${isActive
-                        ? isDarkMode
-                          ? 'border-[#148F80] bg-gray-700 text-[#148F80] shadow-lg'
-                          : 'border-[#148F80] bg-white text-[#148F80] shadow-lg'
-                        : isDarkMode
-                          ? 'border-gray-600 bg-gray-700 text-gray-300 hover:border-[#148F80]'
-                          : 'border-gray-200 bg-white text-gray-700 hover:border-[#148F80]'
-                        }`}
-                    >
-                      <input
-                        type="radio"
-                        name="subscription-type"
-                        value={type.value}
-                        checked={isActive}
-                        onChange={() => {
-                          setPlanCategory('subscription');
-                          setSubscriptionType(type.value);
-                        }}
-                        className="absolute inset-0 cursor-pointer opacity-0"
-                      />
-                      {type.label}
-                    </label>
-                  );
-                })}
-              </div>
+                  <h4 className={`mb-3 text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Select Duration</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {SUBSCRIPTION_TYPES.map((type) => {
+                      const isActive = subscriptionType === type.value;
+                      return (
+                        <label
+                          key={type.value}
+                          className={`relative flex cursor-pointer items-center gap-3 rounded-xl border-2 px-5 py-3 text-base font-medium transition ${isActive
+                            ? isDarkMode
+                              ? 'border-[#148F80] bg-gray-700 text-[#148F80] shadow-lg'
+                              : 'border-[#148F80] bg-white text-[#148F80] shadow-lg'
+                            : isDarkMode
+                              ? 'border-gray-600 bg-gray-700 text-gray-300 hover:border-[#148F80]'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-[#148F80]'
+                            }`}
+                        >
+                          <input
+                            type="radio"
+                            name="subscription-type"
+                            value={type.value}
+                            checked={isActive}
+                            onChange={() => {
+                              setPlanCategory('subscription');
+                              setSubscriptionType(type.value);
+                            }}
+                            className="absolute inset-0 cursor-pointer opacity-0"
+                          />
+                          {type.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className={`rounded-2xl border-2 p-6 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
@@ -1061,7 +1114,7 @@ export function BookingModal({
               </div>
             </div>
 
-            <div className={`mt-8 rounded-2xl border-2 p-5 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-white'
+            <div className={`mt-8 rounded-2xl border-2 p-1 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-white'
               }`}>
               <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Apply Coupon Code</h3>
               <div className="mt-3 flex gap-2">
@@ -1083,7 +1136,7 @@ export function BookingModal({
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {Object.keys(COUPONS).map((code) => (
+                {Object.keys(websiteCoupons).map((code) => (
                   <button
                     key={code}
                     onClick={() => {
@@ -1097,7 +1150,7 @@ export function BookingModal({
                         : 'border-gray-200 text-gray-700 hover:border-[#148F80] hover:bg-[#148F80]/5'
                       }`}
                   >
-                    {code === 'SAVE10' ? 'SAVE10 (10% Off)' : 'FLAT500 (₹500 Off)'}
+                    {code} ({websiteCoupons[code].value}{websiteCoupons[code].type === 'percentage' ? '%' : ''} Off)
                   </button>
                 ))}
               </div>
