@@ -254,7 +254,6 @@ export const createReel = async (
 
     const response = await axiosInstance.post(apiUrl, formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
         ...getAuthHeaders(),
       },
       onUploadProgress: (progressEvent) => {
@@ -531,7 +530,6 @@ export const createDuet = async (
 
   const response = await axios.post(`${API_URL}/api/reels/duet`, formData, {
     headers: {
-      'Content-Type': 'multipart/form-data',
       ...getAuthHeaders(),
     },
   });

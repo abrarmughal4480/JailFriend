@@ -69,6 +69,9 @@ router.post('/:id/review', auth, postController.addReview);
 router.post('/:id/poll/vote', auth, postController.addPollVote);
 router.delete('/:id/poll/vote', auth, postController.removePollVote);
 
+// Get a single post by ID
+router.get('/:id', postController.getPostById);
+
 // Post CRUD routes
 router.delete('/:id', auth, postController.deletePost);
 router.put('/:id', auth, upload.array('media', 10), postController.editPost);

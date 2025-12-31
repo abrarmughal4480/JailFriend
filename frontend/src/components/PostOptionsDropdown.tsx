@@ -76,20 +76,7 @@ const PostOptionsDropdown: React.FC<PostOptionsDropdownProps> = ({
       subtitle: "Allow or disallow members to comment on this post.",
       onClick: onToggleComments,
       className: `${isDarkMode ? 'text-gray-200 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'}`
-    }
-  ] : [];
-  
-  const options = [
-    // Owner-only options - only show if isOwnPost is true
-    ...ownerOptions,
-    {
-      icon: <ExternalLink className={`w-4 h-4 sm:w-5 sm:h-5 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`} />,
-      title: "Open post in new tab",
-      subtitle: "View this post in a new tab.",
-      onClick: onOpenInNewTab,
-      className: `${isDarkMode ? 'text-gray-200 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'}`
     },
-
     {
       icon: <Pin className={`w-4 h-4 sm:w-5 sm:h-5 ${isPinned ? 'text-blue-400' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')}`} />,
       title: isPinned ? "Unpin Post" : "Pin Post",
@@ -107,6 +94,18 @@ const PostOptionsDropdown: React.FC<PostOptionsDropdownProps> = ({
       className: isBoosted
         ? `${isDarkMode ? 'text-yellow-300 hover:bg-yellow-900/20' : 'text-yellow-600 hover:bg-yellow-50'}`
         : `${isDarkMode ? 'text-gray-200 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'}`
+    }
+  ] : [];
+
+  const options = [
+    // Owner-only options - only show if isOwnPost is true
+    ...ownerOptions,
+    {
+      icon: <ExternalLink className={`w-4 h-4 sm:w-5 sm:h-5 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`} />,
+      title: "Open post in new tab",
+      subtitle: "View this post in a new tab.",
+      onClick: onOpenInNewTab,
+      className: `${isDarkMode ? 'text-gray-200 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'}`
     }
   ];
 

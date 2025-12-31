@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp, Smile, Paperclip, Send, MoreHorizontal, Globe, X } from 'lucide-react';
 import PostOptionsDropdown from './PostOptionsDropdown';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
 import ReactionAvatarDisplay from './ReactionAvatarDisplay';
@@ -58,6 +58,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
   const [isPinning, setIsPinning] = useState(false);
   const [isBoosting, setIsBoosting] = useState(false);
   const [expandedPosts, setExpandedPosts] = useState<{ [key: string]: boolean }>({});
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const mediaPickerRef = useRef<HTMLDivElement>(null);
@@ -1150,35 +1151,49 @@ const FeedPost: React.FC<FeedPostProps> = ({
             </div>
           </div>
 
-          {/* Options Dropdown */}
-          {isOwnPost && (
-            <div className="relative">
-              <button
-                onClick={() => setShowOptionsDropdown(prev => !prev)}
-                className={`p-2 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-full transition-colors`}
-                aria-expanded={showOptionsDropdown}
-                aria-label={showOptionsDropdown ? 'Close post options' : 'Open post options'}
-              >
-                <MoreHorizontal className={`w-5 h-5 transition-colors duration-200 ${showOptionsDropdown ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
-              </button>
+          {/* Options Dropdown - Show for everyone, but internal options are filtered by owner status */}
+          {(() => {
+            const currentUserId = getCurrentUserId();
+            // Robust check: matches prop isOwnPost OR manually checks user ID
+            const isActuallyOwnPost = isOwnPost || (
+              post.user && currentUserId && (
+                post.user === currentUserId ||
+                post.user._id === currentUserId ||
+                post.user.id === currentUserId ||
+                post.user.userId === currentUserId ||
+                (typeof post.user.userId === 'object' && post.user.userId?._id === currentUserId)
+              )
+            );
 
-              <PostOptionsDropdown
-                isOpen={showOptionsDropdown}
-                onClose={() => setShowOptionsDropdown(false)}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onToggleComments={handleToggleComments}
-                onOpenInNewTab={handleOpenInNewTab}
-                onPin={handlePin}
-                onBoost={handleBoost}
-                commentsEnabled={post.commentsEnabled !== false}
-                isPinned={post.isPinned}
-                isBoosted={post.isBoosted}
-                position="bottom"
-                isOwnPost={isOwnPost}
-              />
-            </div>
-          )}
+            return (
+              <div className="relative">
+                <button
+                  onClick={() => setShowOptionsDropdown(prev => !prev)}
+                  className={`p-2 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-full transition-colors`}
+                  aria-expanded={showOptionsDropdown}
+                  aria-label={showOptionsDropdown ? 'Close post options' : 'Open post options'}
+                >
+                  <MoreHorizontal className={`w-5 h-5 transition-colors duration-200 ${showOptionsDropdown ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
+                </button>
+
+                <PostOptionsDropdown
+                  isOpen={showOptionsDropdown}
+                  onClose={() => setShowOptionsDropdown(false)}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onToggleComments={handleToggleComments}
+                  onOpenInNewTab={handleOpenInNewTab}
+                  onPin={handlePin}
+                  onBoost={handleBoost}
+                  commentsEnabled={post.commentsEnabled !== false}
+                  isPinned={post.isPinned}
+                  isBoosted={post.isBoosted}
+                  position="bottom"
+                  isOwnPost={!!isActuallyOwnPost}
+                />
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -1447,7 +1462,11 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <img
               src={post.gif.url}
               alt="GIF"
-              className="w-full max-h-96 rounded-lg object-contain"
+              className="w-full max-h-96 rounded-lg object-contain cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(post.gif.url);
+              }}
             />
           </div>
         )}
@@ -1581,8 +1600,12 @@ const FeedPost: React.FC<FeedPostProps> = ({
                       <img
                         src={resolvedUrl}
                         alt="Post media"
-                        className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity"
+                        className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity cursor-pointer"
                         style={{ maxHeight: '80vh' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImage(resolvedUrl);
+                        }}
                         loading="lazy"
                         onError={(e) => {
                           const img = e.currentTarget;
@@ -2078,6 +2101,31 @@ const FeedPost: React.FC<FeedPostProps> = ({
           postContent={post.content}
           postMedia={post.media}
         />
+      )}
+      {/* Image Popup */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-90 p-4 transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 transition-all z-[101]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedImage(null);
+            }}
+          >
+            <X size={24} />
+          </button>
+          <div className="relative max-w-full max-h-full flex items-center justify-center">
+            <img
+              src={selectedImage}
+              alt="Full screen"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

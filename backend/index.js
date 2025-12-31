@@ -93,7 +93,7 @@ const allowedOrigins = [
   'http://192.168.43.120:3000',
   'https://jaifriend-backend.hgdjlive.com',
   'https://jaifriend.com',
-  'https://backend.jaifriend.com/',
+  'https://backend.jaifriend.com',
   'https://Frontend.jaifriend.com',
   'https://api.jaifriend.com'
 ];

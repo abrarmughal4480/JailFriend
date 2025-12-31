@@ -199,6 +199,13 @@ export const boostPostApi = async (token: string, postId: string) => {
   return res.data;
 };
 
+export const getPostByIdApi = async (token: string, postId: string) => {
+  const res = await axios.get(`${API_URL}/api/posts/${postId}`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  return res.data;
+};
+
 export const getSavedAlbumsApi = async (token: string) => {
   const res = await axios.get(`${API_URL}/api/albums/saved`, {
     headers: { Authorization: `Bearer ${token}` }

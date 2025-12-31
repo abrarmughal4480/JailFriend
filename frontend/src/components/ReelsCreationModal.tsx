@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { createReel, CreateReelData } from '@/utils/reelsApi';
+import { config } from '@/utils/config';
 
 interface ReelsCreationModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
   const [showHashtagSuggestions, setShowHashtagSuggestions] = useState(false);
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [contentType, setContentType] = useState<'reel' | 'post'>('reel');
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -100,7 +101,7 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFileSelect(e.dataTransfer.files[0]);
     }
@@ -108,20 +109,20 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
 
   const handleFileSelect = (file: File) => {
     console.log('📁 File selected:', file.name, file.type, file.size);
-    
+
     // Validate file type
     if (!file.type.startsWith('video/') && !file.type.startsWith('image/')) {
       setError('Please select a valid video or image file');
       return;
     }
-    
+
     // Validate file size (max 100MB for videos)
     const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
       setError(`File size must be less than ${maxSize / (1024 * 1024)}MB`);
       return;
     }
-    
+
     console.log('✅ File validation passed');
     setSelectedMedia(file);
     const url = URL.createObjectURL(file);
@@ -139,10 +140,10 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
 
   const handleShare = async () => {
     if (!selectedMedia || !title.trim()) return;
-    
+
     setIsUploading(true);
     setError('');
-    
+
     try {
       if (contentType === 'reel') {
         await createReelContent();
@@ -151,9 +152,9 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
       }
     } catch (error: any) {
       console.error(`❌ Error creating ${contentType}:`, error);
-      
+
       let errorMessage = `Failed to create ${contentType}. Please try again.`;
-      
+
       if (error.message) {
         errorMessage = error.message;
       } else if (error.response?.data?.message) {
@@ -161,7 +162,7 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       }
-      
+
       setError(errorMessage);
     } finally {
       setIsUploading(false);
@@ -171,21 +172,21 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
   // Create reel content
   const createReelContent = async () => {
     if (!selectedMedia) return;
-    
+
     // Extract hashtags from description text for reels
     const hashtagRegex = /#(\w+)/g;
     const extractedHashtags = description.match(hashtagRegex)?.map(tag => tag.substring(1)) || [];
-    
+
     console.log('🎬 Creating reel with data:', { title, description, category, privacy, extractedHashtags });
     console.log('📁 Selected media:', selectedMedia);
-    
+
     // Calculate video duration if it's a video file
     let duration = 0;
     if (selectedMedia.type.startsWith('video/')) {
       duration = await getVideoDuration(selectedMedia);
       console.log('⏱️ Video duration:', duration);
     }
-    
+
     const reelData: CreateReelData = {
       title,
       description,
@@ -195,19 +196,19 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
       privacy,
       aspectRatio: '9:16' // Default for reels
     };
-      
-      console.log('📊 Reel data prepared:', reelData);
-      console.log('📤 Calling createReel API...');
-      
-      const result = await createReel(reelData, selectedMedia);
-      console.log('✅ Reel created successfully:', result);
-      
-      // Dispatch event to refresh the main feed
-      window.dispatchEvent(new CustomEvent('reelCreated'));
-      
-      onSuccess?.();
-      onClose();
-    
+
+    console.log('📊 Reel data prepared:', reelData);
+    console.log('📤 Calling createReel API...');
+
+    const result = await createReel(reelData, selectedMedia);
+    console.log('✅ Reel created successfully:', result);
+
+    // Dispatch event to refresh the main feed
+    window.dispatchEvent(new CustomEvent('reelCreated'));
+
+    onSuccess?.();
+    onClose();
+
     // Redirect to reels page
     window.location.href = '/dashboard/reels';
   };
@@ -215,53 +216,53 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
   // Create post content for feed
   const createPostContent = async () => {
     if (!selectedMedia) return;
-    
+
     console.log('📝 Creating post with data:', { title, description, privacy });
     console.log('📁 Selected media:', selectedMedia);
-    
+
     const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('Authentication required');
     }
 
     const formData = new FormData();
-    
+
     // Set content to description (not title) - PRESERVE ORIGINAL TEXT EXACTLY
     // Hashtags are already included in the description text naturally
     formData.append('content', description || '');
-    
+
     // Add title as separate field if provided
     if (title.trim()) {
       formData.append('title', title.trim());
     }
-    
+
     // Add media file
     formData.append('media', selectedMedia);
-    
+
     console.log('📤 Calling createPost API...');
-    
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://jaifriend-backend.hgdjlive.com'}/api/posts`, {
+
+    const response = await fetch(`${config.API_URL}/api/posts`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`
       },
       body: formData
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to create post');
     }
-    
+
     const result = await response.json();
     console.log('✅ Post created successfully:', result);
-    
+
     // Dispatch event to refresh the main feed
     window.dispatchEvent(new CustomEvent('postCreated'));
-    
+
     onSuccess?.();
     onClose();
-    
+
     // Redirect to dashboard feed
     window.location.href = '/dashboard';
   };
@@ -371,7 +372,7 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 animate-in fade-in duration-200" style={{ top: '60px', left: '0', right: '0', bottom: '80px' }}>
       <div className="bg-white rounded-xl w-full max-w-5xl h-[calc(100vh-140px)] max-h-[600px] overflow-hidden shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-4 duration-300 flex flex-col">
-        
+
         {/* Header - Fixed with higher z-index */}
         <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 flex-shrink-0 relative z-[10000]">
           <div className="flex items-center gap-3">
@@ -397,42 +398,40 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
 
         {/* Main Content Area - Step Based */}
         <div className="flex flex-1 overflow-hidden">
-          
+
           {step === 'media-select' ? (
             /* Step 1: Media Selection - Full Width */
             <div className="w-full bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-8 relative">
-              <div 
-                className={`text-center text-white w-full max-w-lg transition-all duration-300 ${
-                  dragActive ? 'scale-105' : ''
-                }`}
+              <div
+                className={`text-center text-white w-full max-w-lg transition-all duration-300 ${dragActive ? 'scale-105' : ''
+                  }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <div className={`border-2 border-dashed rounded-xl p-16 transition-all duration-300 ${
-                  dragActive ? 'border-blue-400 bg-blue-500/10' : 'border-gray-500 hover:border-gray-400'
-                }`}>
+                <div className={`border-2 border-dashed rounded-xl p-16 transition-all duration-300 ${dragActive ? 'border-blue-400 bg-blue-500/10' : 'border-gray-500 hover:border-gray-400'
+                  }`}>
                   {/* Video/Film Icon */}
                   <div className="text-5xl mb-6">🎬</div>
-                  
+
                   <h3 className="text-xl font-semibold mb-3 text-white">Upload Your Content</h3>
                   <p className="text-gray-300 mb-8 text-sm leading-relaxed">
                     Drag and drop your video or image here, or click to browse
                   </p>
-                  
+
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl text-sm"
                   >
                     Browse Files
                   </button>
-                  
+
                   <div className="mt-6 text-xs text-gray-400">
                     <p>MP4, MOV, JPG, PNG • Max 500MB</p>
                   </div>
                 </div>
-                
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -464,13 +463,13 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                       className="w-full h-full object-contain max-h-full rounded-lg shadow-xl"
                     />
                   )}
-                  
+
                   {/* Media Info Overlay */}
                   <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
                     <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
                     Preview
                   </div>
-                  
+
                   {selectedMedia && (
                     <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full">
                       {selectedMedia.name} • {formatFileSize(selectedMedia.size)}
@@ -482,7 +481,7 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
               {/* Form Section */}
               <div className="w-72 bg-gray-50 border-l border-gray-200 flex flex-col">
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  
+
                   {/* Progress Indicator */}
                   <div className="flex items-center gap-2 text-xs text-gray-600 bg-white rounded-lg p-2 border border-gray-200">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
@@ -500,29 +499,27 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                       <button
                         type="button"
                         onClick={() => setContentType('reel')}
-                        className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
-                          contentType === 'reel'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-800'
-                        }`}
+                        className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${contentType === 'reel'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                          }`}
                       >
                         🎬 Reel
                       </button>
                       <button
                         type="button"
                         onClick={() => setContentType('post')}
-                        className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${
-                          contentType === 'post'
-                            ? 'bg-white text-blue-600 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-800'
-                        }`}
+                        className={`flex-1 py-2 px-3 text-sm font-medium rounded-md transition-all duration-200 ${contentType === 'post'
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-800'
+                          }`}
                       >
                         📝 Post
                       </button>
                     </div>
                     <p className="text-xs text-gray-500">
-                      {contentType === 'reel' 
-                        ? 'Reels appear on the reels page with vertical video format' 
+                      {contentType === 'reel'
+                        ? 'Reels appear on the reels page with vertical video format'
                         : 'Posts appear in the main feed with standard format'
                       }
                     </p>
@@ -588,46 +585,43 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                       Quick Actions
                     </label>
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={handleEmojiButtonClick}
-                        className={`flex-1 py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${
-                          showEmojiPicker 
-                            ? 'border-blue-500 bg-blue-50 text-blue-600' 
-                            : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 text-gray-700'
-                        }`}
+                        className={`flex-1 py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${showEmojiPicker
+                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 text-gray-700'
+                          }`}
                         title="Add emoji to your text"
                       >
                         <span className="text-sm">😊</span>
                         <span className="text-xs font-medium">Emoji</span>
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={handleHashtagButtonClick}
-                        className={`flex-1 py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${
-                          showHashtagSuggestions 
-                            ? 'border-blue-500 bg-blue-50 text-blue-600' 
-                            : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 text-gray-700'
-                        }`}
+                        className={`flex-1 py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${showHashtagSuggestions
+                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 text-gray-700'
+                          }`}
                         title="Insert hashtag into your text"
                       >
                         <span className="text-xs font-bold">#</span>
                         <span className="text-xs font-medium">Hashtag</span>
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={handleMentionButtonClick}
-                        className={`flex-1 py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${
-                          showMentionSuggestions 
-                            ? 'border-blue-500 bg-blue-50 text-blue-600' 
-                            : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 text-gray-700'
-                        }`}
+                        className={`flex-1 py-2 px-3 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 ${showMentionSuggestions
+                          ? 'border-blue-500 bg-blue-50 text-blue-600'
+                          : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 text-gray-700'
+                          }`}
                         title="Insert mention into your text"
                       >
                         <span className="text-xs font-bold">@</span>
                         <span className="text-xs font-medium">Mention</span>
                       </button>
                     </div>
-                    
+
                     {/* Suggestion Panels */}
                     {showEmojiPicker && (
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 suggestion-panel">
@@ -723,11 +717,10 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                       ].map((option) => (
                         <label
                           key={option.value}
-                          className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all duration-200 ${
-                            privacy === option.value
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 bg-white hover:border-gray-300'
-                          }`}
+                          className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all duration-200 ${privacy === option.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
                         >
                           <input
                             type="radio"
@@ -737,11 +730,10 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                             onChange={(e) => setPrivacy(e.target.value as any)}
                             className="sr-only"
                           />
-                          <div className={`flex items-center justify-center w-3 h-3 rounded-full border-2 ${
-                            privacy === option.value
-                              ? 'border-blue-500 bg-blue-500'
-                              : 'border-gray-300'
-                          }`}>
+                          <div className={`flex items-center justify-center w-3 h-3 rounded-full border-2 ${privacy === option.value
+                            ? 'border-blue-500 bg-blue-500'
+                            : 'border-gray-300'
+                            }`}>
                             {privacy === option.value && (
                               <div className="w-1 h-1 bg-white rounded-full"></div>
                             )}
@@ -781,7 +773,7 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
               {getPrivacyIcon(privacy)}
               <span className="capitalize font-medium text-xs">{privacy}</span>
             </div>
-            
+
             {/* Content Info */}
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
@@ -789,41 +781,38 @@ export default function ReelsCreationModal({ isOpen, onClose, onSuccess }: Reels
                 {description.length > 0 ? `${description.length} characters` : 'No content yet'}
               </span>
             </div>
-            
+
             {/* Quick Action Buttons - Compact Footer Version */}
             <div className="flex items-center gap-1">
-              <button 
+              <button
                 onClick={handleEmojiButtonClick}
-                className={`w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group ${
-                  showEmojiPicker ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
-                }`}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group ${showEmojiPicker ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
+                  }`}
                 title="Add emoji to your text"
               >
                 <span className="text-sm group-hover:scale-110 transition-transform">😊</span>
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleHashtagButtonClick}
-                className={`w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group ${
-                  showHashtagSuggestions ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
-                }`}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group ${showHashtagSuggestions ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
+                  }`}
                 title="Insert hashtag into your text"
               >
                 <span className="text-xs font-bold group-hover:scale-110 transition-transform">#</span>
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleMentionButtonClick}
-                className={`w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group ${
-                  showMentionSuggestions ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
-                }`}
+                className={`w-7 h-7 rounded-md flex items-center justify-center transition-all duration-200 group ${showMentionSuggestions ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800'
+                  }`}
                 title="Insert mention into your text"
               >
                 <span className="text-xs font-bold group-hover:scale-110 transition-transform">@</span>
               </button>
             </div>
           </div>
-          
+
           {/* Share Button */}
           <button
             onClick={handleShare}

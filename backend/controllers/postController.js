@@ -2136,3 +2136,43 @@ exports.getLinkPreview = async (req, res) => {
   }
 };
 
+// Get a single post by ID
+exports.getPostById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🔍 Fetching single post by ID:', id);
+
+    const post = await Post.findById(id)
+      .populate('user.userId', 'name avatar username plan isVerified')
+      .populate('comments.user.userId', 'name avatar username plan')
+      .populate('likes', 'name avatar')
+      .populate('savedBy', 'name avatar')
+      .populate('views', 'name avatar');
+
+    if (!post) {
+      console.log('❌ Post not found:', id);
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const postObj = post.toObject();
+
+    // Construct full URLs for media
+    if (postObj.media && postObj.media.length > 0) {
+      postObj.media = postObj.media.map(media => {
+        if (media.url && !media.url.startsWith('http')) {
+          const baseUrl = process.env.NODE_ENV === 'production'
+            ? 'https://jaifriend-backend-production.up.railway.app'
+            : 'http://localhost:3002';
+          media.url = constructFullUrl(baseUrl, media.url);
+        }
+        return media;
+      });
+    }
+
+    res.json(postObj);
+  } catch (error) {
+    console.error('❌ Error in getPostById:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
