@@ -896,6 +896,44 @@ const websiteSettingsSchema = new mongoose.Schema({
     }]
   },
 
+  // Payment Methods
+  paymentMethods: {
+    stripe: {
+      enabled: { type: Boolean, default: false },
+      currency: { type: String, default: 'USD' },
+      apiSecretKey: { type: String, default: '' },
+      publishableKey: { type: String, default: '' },
+      aliPay: { type: Boolean, default: false }
+    },
+    paypal: {
+      enabled: { type: Boolean, default: false },
+      mode: { type: String, enum: ['sandbox', 'live'], default: 'sandbox' },
+      clientId: { type: String, default: '' },
+      secretKey: { type: String, default: '' },
+      currency: { type: String, default: 'USD' },
+      showTransactionLogs: { type: Boolean, default: true }
+    },
+    coinPayments: {
+      enabled: { type: Boolean, default: false },
+      secretKey: { type: String, default: '' },
+      publicKey: { type: String, default: '' }
+    },
+    localBank: {
+      enabled: { type: Boolean, default: false },
+      description: { type: String, default: '' },
+      transferNote: { type: String, default: '' }
+    },
+    paystack: {
+      enabled: { type: Boolean, default: false },
+      secretKey: { type: String, default: '' }
+    },
+    razorpay: {
+      enabled: { type: Boolean, default: false },
+      applicationId: { type: String, default: '' },
+      applicationSecret: { type: String, default: '' }
+    }
+  },
+
   // Legal Documents
   privacyPolicy: {
     type: String,

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { config } from '@/utils/config';
 import { useDarkMode } from '@/contexts/DarkModeContext';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 type CallMode = 'audio' | 'video';
 type PlanCategory = 'single' | 'subscription';
@@ -215,7 +217,7 @@ const buildTimeSlots = (
   return slots;
 };
 
-export function BookingModal({
+function BookingFormInner({
   open,
   onClose,
   expertName,
@@ -229,8 +231,11 @@ export function BookingModal({
   onBookingError,
 }: BookingModalProps) {
   const { isDarkMode } = useDarkMode();
+  const stripe = useStripe();
+  const elements = useElements();
   const [callMode, setCallMode] = useState<CallMode>('audio');
   const [planCategory, setPlanCategory] = useState<PlanCategory>('single');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'card'>('wallet');
   const [callMinutes, setCallMinutes] = useState<number>(CALL_PLAN_MINUTES[0]);
   const [subscriptionMinutes, setSubscriptionMinutes] = useState<number>(SUBSCRIPTION_MINUTES[0]);
   const [subscriptionType, setSubscriptionType] = useState<string>(SUBSCRIPTION_TYPES[SUBSCRIPTION_TYPES.length - 1].value);
@@ -364,7 +369,6 @@ export function BookingModal({
 
     if (selectedMinutes !== null && workingStartMinutes !== null && workingEndMinutes !== null) {
       if (selectedMinutes >= workingStartMinutes && selectedMinutes <= workingEndMinutes) {
-
         // Check for overlaps with booked ranges
         const slotStart = selectedMinutes;
         const slotEnd = selectedMinutes + activeMinutes;
@@ -394,6 +398,18 @@ export function BookingModal({
       setSubmissionError(message);
       onBookingError?.(message);
       return;
+    }
+
+    if (paymentMethod === 'card') {
+      if (!stripe || !elements) {
+        setSubmissionError("Stripe is not loaded yet.");
+        return;
+      }
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) {
+        setSubmissionError("Please enter card details.");
+        return;
+      }
     }
 
     // Create the scheduled date in the provider's timezone
@@ -437,12 +453,14 @@ export function BookingModal({
       attachments: [],
       hasRealtimeTranslation: translateActive,
       discountCode: appliedCoupon || null,
+      paymentMethod: paymentMethod
     };
 
     setIsSubmitting(true);
     setSubmissionError(null);
 
     try {
+      // 1. Create Booking (and Payment Intent if Card)
       const response = await fetch(`${config.API_URL}/api/bookings`, {
         method: 'POST',
         headers: {
@@ -458,25 +476,83 @@ export function BookingModal({
         const message = data.message || 'Failed to create booking. Please try again.';
         setSubmissionError(message);
         onBookingError?.(message);
+        setIsSubmitting(false); // Only unset if error
         return;
       }
 
-      onBookingSuccess?.({
-        bookingId: data.booking?._id,
-        planSummary,
-        scheduledDate,
-        totalPrice,
-        mode: callMode,
-        timezone: availability.timezone,
-      });
-      setSubmissionError(null);
-      onClose();
+      // 2. Handle Stripe Confirmation if Card
+      if (paymentMethod === 'card' && data.clientSecret) {
+        if (!stripe || !elements) return; // Should allow check earlier
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) return;
+
+        const result = await stripe.confirmCardPayment(data.clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: 'Client Name' // ideally fetch from user profile
+            }
+          }
+        });
+
+        if (result.error) {
+          setSubmissionError(result.error.message || 'Payment failed');
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (result.paymentIntent?.status === 'succeeded') {
+          // 3. Confirm to Backend
+          const confirmRes = await fetch(`${config.API_URL}/api/bookings/${data.bookingId}/confirm-payment`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ paymentIntentId: result.paymentIntent.id })
+          });
+
+          if (!confirmRes.ok) {
+            const confirmData = await confirmRes.json();
+            setSubmissionError(confirmData.message || 'Payment confirmed but booking update failed. Contact support.');
+            setIsSubmitting(false);
+            return;
+          }
+
+          // Success
+          onBookingSuccess?.({
+            bookingId: data.bookingId,
+            planSummary,
+            scheduledDate,
+            totalPrice,
+            mode: callMode,
+            timezone: availability.timezone,
+          });
+          onClose();
+        }
+      } else {
+        // Wallet success
+        onBookingSuccess?.({
+          bookingId: data.booking?._id,
+          planSummary,
+          scheduledDate,
+          totalPrice,
+          mode: callMode,
+          timezone: availability.timezone,
+        });
+        onClose();
+      }
+
     } catch (error) {
+      console.error(error);
       const message = 'Network error while creating booking. Please try again.';
       setSubmissionError(message);
       onBookingError?.(message);
+      setIsSubmitting(false); // Ensure reset on error
     } finally {
-      setIsSubmitting(false);
+      if (paymentMethod !== 'card' || submissionError) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -501,6 +577,7 @@ export function BookingModal({
       setProviderBookings([]);
       setAvailabilityError(null);
       setIsSubscriptionExpanded(false);
+      setIsSubmitting(false);
     }
   }, [availability.baseDate, availability.startTime, initialMode, open, timeOptions]);
 
@@ -1156,6 +1233,54 @@ export function BookingModal({
               </div>
             </div>
 
+            {/* Payment Method Selection */}
+            <div className={`mt-6 rounded-2xl border-2 p-4 ${isDarkMode ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-white'}`}>
+              <h3 className={`text-base font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Payment Method</h3>
+              <div className="flex gap-4 mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="wallet"
+                    checked={paymentMethod === 'wallet'}
+                    onChange={() => setPaymentMethod('wallet')}
+                    className="accent-[#148F80]"
+                  />
+                  <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Pay from Wallet</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="card"
+                    checked={paymentMethod === 'card'}
+                    onChange={() => setPaymentMethod('card')}
+                    className="accent-[#148F80]"
+                  />
+                  <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Pay by Card (Stripe)</span>
+                </label>
+              </div>
+
+              {paymentMethod === 'card' && (
+                <div className="p-3 border rounded-md bg-white">
+                  <CardElement options={{
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        color: '#424770',
+                        '::placeholder': {
+                          color: '#aab7c4',
+                        },
+                      },
+                      invalid: {
+                        color: '#9e2146',
+                      },
+                    },
+                  }} />
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={handlePayNow}
@@ -1176,6 +1301,34 @@ export function BookingModal({
         </div>
       </div>
     </div>
+  );
+}
+
+export function BookingModal(props: BookingModalProps) {
+  const [stripePromise, setStripePromise] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(`${config.API_URL}/api/website-settings/payment-config`);
+        if (response.ok) {
+          const resData = await response.json();
+          const data = resData.data;
+          if (data.stripe?.enabled && data.stripe?.publishableKey) {
+            setStripePromise(loadStripe(data.stripe.publishableKey));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load payment config", err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  return (
+    <Elements stripe={stripePromise}>
+      <BookingFormInner {...props} />
+    </Elements>
   );
 }
 

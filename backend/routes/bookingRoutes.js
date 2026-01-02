@@ -13,7 +13,8 @@ const {
   getBookingById,
   getBookingStats,
   getProviderDailyBookings,
-  updateBookingTime
+  updateBookingTime,
+  confirmBookingPayment
 } = require('../controllers/bookingController');
 
 // Protected routes (require authentication)
@@ -29,5 +30,6 @@ router.put('/:bookingId/start', authMiddleware, startBooking);
 router.put('/:bookingId/complete', authMiddleware, completeBooking);
 router.put('/:bookingId/cancel', authMiddleware, cancelBooking);
 router.put('/:bookingId/update-time', authMiddleware, updateBookingTime);
+router.post('/:bookingId/confirm-payment', authMiddleware, confirmBookingPayment);
 
 module.exports = router;

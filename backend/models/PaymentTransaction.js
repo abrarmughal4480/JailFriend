@@ -16,7 +16,7 @@ const paymentTransactionSchema = new mongoose.Schema({
         required: true,
         enum: ['paypal', 'qiwi', 'credit-card', '2checkout', 'paystack', 'cashfree',
             'flutterwave', 'coingate', 'aamarapay', 'ngenius', 'iyzico', 'payfast',
-            'bitcoin', 'alipay', 'wallet']
+            'bitcoin', 'alipay', 'wallet', 'stripe']
     },
     bookingId: {
         type: mongoose.Schema.Types.ObjectId,

@@ -219,7 +219,12 @@ const createBooking = async (req, res) => {
       baseAmount = 0; // Fallback
     }
 
-    // Get website settings for translation rate and coupons
+    // Handle Payment based on method
+    let paymentIntent = null;
+    let paymentStatus = 'paid'; // Default for wallet
+    let clientBalanceBefore = 0;
+
+    // Load Website Settings to get Stripe keys and AI settings
     const WebsiteSettings = require('../models/websiteSettings');
     const settings = await WebsiteSettings.getSettings();
     const aiSettings = settings.ai || {};
@@ -246,26 +251,77 @@ const createBooking = async (req, res) => {
 
     const totalAmount = Math.max(baseAmount + translationAmount - discountAmount, 0);
 
-    // Check client wallet balance
-    const client = await User.findById(clientId).session(session);
-    if (!client || client.balance < totalAmount) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient wallet balance. You need ${totalAmount} ${profile.currency || 'USD'} but only have ${client?.balance || 0} ${profile.currency || 'USD'}.`
-      });
-    }
+    if (req.body.paymentMethod === 'card') {
+      // ---------------------------------------------------------
+      // STRIPE CARD PAYMENT FLOW
+      // ---------------------------------------------------------
+      if (!settings.paymentMethods?.stripe?.enabled) {
+        throw new Error('Stripe payments are disabled.');
+      }
+      const stripeSecretKey = settings.paymentMethods?.stripe?.apiSecretKey;
+      if (!stripeSecretKey) {
+        throw new Error('Stripe is not configured by admin.');
+      }
 
-    // Deduct from client
-    client.balance -= totalAmount;
-    await client.save({ session });
+      const stripe = require('stripe')(stripeSecretKey);
 
-    // Add to provider
-    const provider = await User.findById(serviceProviderId).session(session);
-    if (provider) {
-      provider.balance = (provider.balance || 0) + totalAmount;
-      await provider.save({ session });
+      // Create a PaymentIntent
+      // Amount must be integer (cents)
+      // Assuming currency is USD or matches profile currency. Stripe needs lowercase currency.
+      const currencyCode = (profile.currency || 'usd').toLowerCase();
+
+      if (totalAmount > 0) {
+        paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(totalAmount * 100),
+          currency: currencyCode,
+          metadata: {
+            serviceProviderId: serviceProviderId.toString(),
+            serviceType,
+            title
+          },
+          automatic_payment_methods: {
+            enabled: true,
+          },
+        });
+
+        paymentStatus = 'pending'; // Payment is pending until confirmed on frontend
+      }
+
+    } else {
+      // ---------------------------------------------------------
+      // WALLET PAYMENT FLOW
+      // ---------------------------------------------------------
+
+      // Check client wallet balance
+      const client = await User.findById(clientId).session(session);
+      if (!client || client.balance < totalAmount) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient wallet balance. You need ${totalAmount} ${profile.currency || 'USD'} but only have ${client?.balance || 0} ${profile.currency || 'USD'}.`
+        });
+      }
+
+      // Deduct from client
+      clientBalanceBefore = client.balance;
+      client.balance -= totalAmount;
+      await client.save({ session });
+
+      // Add to provider
+      const provider = await User.findById(serviceProviderId).session(session);
+      if (provider) {
+        provider.balance = (provider.balance || 0) + totalAmount;
+        await provider.save({ session });
+      }
+
+      // Notify users about balance updates via socket
+      if (socketService.io) {
+        socketService.io.to(clientId.toString()).emit('balanceUpdated', { balance: client.balance });
+        if (provider) {
+          socketService.io.to(serviceProviderId.toString()).emit('balanceUpdated', { balance: provider.balance });
+        }
+      }
     }
 
     // Create the booking
@@ -286,8 +342,9 @@ const createBooking = async (req, res) => {
       requirements: requirements || [],
       deliverables: deliverables || [],
       attachments: attachments || [],
-      paymentStatus: 'paid', // Mark as paid since we deducted from wallet
-      paymentMethod: 'wallet',
+      paymentStatus: paymentStatus,
+      paymentMethod: req.body.paymentMethod === 'card' ? 'stripe' : 'wallet',
+      paymentId: paymentIntent ? paymentIntent.id : null,
       hasRealtimeTranslation: !!hasRealtimeTranslation,
       translationAmount,
       discountCode: discountCode || null,
@@ -296,37 +353,56 @@ const createBooking = async (req, res) => {
 
     await booking.save({ session });
 
-    // Create Payment Transactions for records
-    const clientTransaction = new PaymentTransaction({
-      userId: clientId,
-      amount: totalAmount,
-      paymentMethod: 'wallet',
-      status: 'completed',
-      bookingId: booking._id,
-      paymentDetails: { type: 'deduction', description: `Payment for booking: ${title}` }
-    });
-    await clientTransaction.save({ session });
+    // Create Payment Transactions for records ONLY if Paid (Wallet)
+    // For Stripe, we create transactions after confirmation
+    if (paymentStatus === 'paid') {
+      const clientTransaction = new PaymentTransaction({
+        userId: clientId,
+        amount: totalAmount,
+        paymentMethod: 'wallet',
+        status: 'completed',
+        bookingId: booking._id,
+        paymentDetails: { type: 'deduction', description: `Payment for booking: ${title}` }
+      });
+      await clientTransaction.save({ session });
 
-    const providerTransaction = new PaymentTransaction({
-      userId: serviceProviderId,
-      amount: totalAmount,
-      paymentMethod: 'wallet',
-      status: 'completed',
-      bookingId: booking._id,
-      paymentDetails: { type: 'addition', description: `Payment received for booking: ${title}` }
-    });
-    await providerTransaction.save({ session });
+      const providerTransaction = new PaymentTransaction({
+        userId: serviceProviderId,
+        amount: totalAmount,
+        paymentMethod: 'wallet',
+        status: 'completed',
+        bookingId: booking._id,
+        paymentDetails: { type: 'addition', description: `Payment received for booking: ${title}` }
+      });
+      await providerTransaction.save({ session });
+    }
 
     await session.commitTransaction();
     session.endSession();
 
-    // Notify users about balance updates via socket
-    if (socketService.io) {
-      socketService.io.to(clientId.toString()).emit('balanceUpdated', { balance: client.balance });
-      if (provider) {
-        socketService.io.to(serviceProviderId.toString()).emit('balanceUpdated', { balance: provider.balance });
-      }
+    // Populate the booking with user details
+    await booking.populate([
+      { path: 'clientId', select: 'name username avatar' },
+      { path: 'serviceProviderId', select: 'name username avatar' },
+      { path: 'p2pProfileId', select: 'occupation hourlyRate currency' }
+    ]);
+
+    // Return response
+    if (paymentIntent) {
+      return res.status(201).json({
+        success: true,
+        message: 'Payment initiation successful',
+        clientSecret: paymentIntent.client_secret,
+        bookingId: booking._id,
+        booking
+      });
     }
+
+    res.status(201).json({
+      success: true,
+      message: 'Booking request created and paid successfully',
+      booking
+    });
 
     // Populate the booking with user details
     await booking.populate([
@@ -1124,6 +1200,99 @@ const updateBookingTime = async (req, res) => {
   }
 };
 
+
+
+// Confirm booking payment (Stripe)
+const confirmBookingPayment = async (req, res) => {
+  const session = await User.startSession();
+  session.startTransaction();
+  try {
+    const { bookingId } = req.params;
+    const { paymentIntentId } = req.body;
+
+    const booking = await Booking.findById(bookingId).session(session);
+    if (!booking) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.paymentStatus === 'paid') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(200).json({ success: true, message: 'Booking already paid', booking });
+    }
+
+    // Verify Stripe Payment
+    const WebsiteSettings = require('../models/websiteSettings');
+    const settings = await WebsiteSettings.getSettings();
+    const stripeSecretKey = settings.paymentMethods?.stripe?.apiSecretKey;
+    if (!stripeSecretKey) throw new Error('Stripe not configured');
+
+    const stripe = require('stripe')(stripeSecretKey);
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.status !== 'succeeded') {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ success: false, message: 'Payment not successful', status: paymentIntent.status });
+    }
+
+    // Update Booking
+    booking.paymentStatus = 'paid';
+    await booking.save({ session });
+
+    // Credit Provider Wallet (Admin received money in Stripe, so Admin credits Provider)
+    const provider = await User.findById(booking.serviceProviderId).session(session);
+    if (provider) {
+      provider.balance = (provider.balance || 0) + booking.totalAmount;
+      await provider.save({ session });
+    }
+
+    // Create Transactions
+    const clientTransaction = new PaymentTransaction({
+      userId: booking.clientId,
+      amount: booking.totalAmount,
+      paymentMethod: 'stripe',
+      status: 'completed',
+      bookingId: booking._id,
+      paymentDetails: { type: 'payment', description: `Card Payment for booking: ${booking.title}` }
+    });
+    await clientTransaction.save({ session });
+
+    const providerTransaction = new PaymentTransaction({
+      userId: booking.serviceProviderId,
+      amount: booking.totalAmount,
+      paymentMethod: 'wallet', // Provider receives to wallet
+      status: 'completed',
+      bookingId: booking._id,
+      paymentDetails: { type: 'addition', description: `Payment received for booking: ${booking.title}` }
+    });
+    await providerTransaction.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    // Notify Provider about balance
+    const socketService = require('../services/socketService');
+    if (socketService.io && provider) {
+      socketService.io.to(booking.serviceProviderId.toString()).emit('balanceUpdated', { balance: provider.balance });
+    }
+
+    return res.status(200).json({ success: true, message: 'Payment confirmed and booking updated', booking });
+
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error('Error confirming payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createBooking,
   getUserBookings,
@@ -1137,5 +1306,6 @@ module.exports = {
   getBookingStats,
   getBookingByVideoCallId,
   getProviderDailyBookings,
-  updateBookingTime
+  updateBookingTime,
+  confirmBookingPayment
 };

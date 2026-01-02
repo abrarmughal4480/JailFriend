@@ -10,8 +10,12 @@ const {
   toggleMaintenanceMode,
   getWebsiteMode,
   resetToDefaults,
-  getLegalDocuments
+  getLegalDocuments,
+  getPublicPaymentConfig
 } = require('../controllers/websiteSettingsController');
+
+// Get public payment config (public - no auth required)
+router.get('/payment-config', getPublicPaymentConfig);
 
 // Get all website settings (admin only)
 router.get('/', authMiddleware, getWebsiteSettings);

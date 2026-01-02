@@ -22,13 +22,13 @@ const getWebsiteSettings = async (req, res) => {
 const updateWebsiteSettings = async (req, res) => {
   try {
     const updateData = req.body;
-    
+
     // Get current settings or create new ones
     let settings = await WebsiteSettings.findOne();
     if (!settings) {
       settings = new WebsiteSettings();
     }
-    
+
     // Update all fields that are provided
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined) {
@@ -53,9 +53,9 @@ const updateWebsiteSettings = async (req, res) => {
         }
       }
     });
-    
+
     await settings.save();
-    
+
     res.json({
       success: true,
       message: 'Website settings updated successfully',
@@ -75,16 +75,16 @@ const updateWebsiteSettings = async (req, res) => {
 const updateFeature = async (req, res) => {
   try {
     const { feature, enabled } = req.body;
-    
+
     if (!feature || typeof enabled !== 'boolean') {
       return res.status(400).json({
         success: false,
         message: 'Feature name and enabled status are required'
       });
     }
-    
+
     const settings = await WebsiteSettings.getSettings();
-    
+
     // Check if feature exists in the schema
     if (!settings.features.hasOwnProperty(feature)) {
       return res.status(400).json({
@@ -92,10 +92,10 @@ const updateFeature = async (req, res) => {
         message: 'Invalid feature name'
       });
     }
-    
+
     settings.features[feature] = enabled;
     await settings.save();
-    
+
     res.json({
       success: true,
       message: `Feature ${feature} ${enabled ? 'enabled' : 'disabled'} successfully`,
@@ -115,16 +115,16 @@ const updateFeature = async (req, res) => {
 const updateGeneralSetting = async (req, res) => {
   try {
     const { setting, value, enabled } = req.body;
-    
+
     if (!setting) {
       return res.status(400).json({
         success: false,
         message: 'Setting name is required'
       });
     }
-    
+
     const settings = await WebsiteSettings.getSettings();
-    
+
     // Check if setting exists in the general schema
     if (!settings.general.hasOwnProperty(setting)) {
       return res.status(400).json({
@@ -132,16 +132,16 @@ const updateGeneralSetting = async (req, res) => {
         message: 'Invalid setting name'
       });
     }
-    
+
     // Update the setting
     if (enabled !== undefined) {
       settings.general[setting] = enabled;
     } else if (value !== undefined) {
       settings.general[setting] = value;
     }
-    
+
     await settings.save();
-    
+
     res.json({
       success: true,
       message: `Setting ${setting} updated successfully`,
@@ -161,16 +161,16 @@ const updateGeneralSetting = async (req, res) => {
 const updateApiKey = async (req, res) => {
   try {
     const { service, key, enabled } = req.body;
-    
+
     if (!service || !key) {
       return res.status(400).json({
         success: false,
         message: 'Service name and API key are required'
       });
     }
-    
+
     const settings = await WebsiteSettings.getSettings();
-    
+
     // Check if service exists in the schema
     if (!settings.apiKeys.hasOwnProperty(service)) {
       return res.status(400).json({
@@ -178,14 +178,14 @@ const updateApiKey = async (req, res) => {
         message: 'Invalid service name'
       });
     }
-    
+
     settings.apiKeys[service].key = key;
     if (enabled !== undefined) {
       settings.apiKeys[service].enabled = enabled;
     }
-    
+
     await settings.save();
-    
+
     res.json({
       success: true,
       message: `API key for ${service} updated successfully`,
@@ -205,16 +205,16 @@ const updateApiKey = async (req, res) => {
 const toggleMaintenanceMode = async (req, res) => {
   try {
     const { enabled, message } = req.body;
-    
+
     const settings = await WebsiteSettings.getSettings();
-    
+
     settings.maintenance.enabled = enabled;
     if (message) {
       settings.maintenance.message = message;
     }
-    
+
     await settings.save();
-    
+
     res.json({
       success: true,
       message: `Maintenance mode ${enabled ? 'enabled' : 'disabled'} successfully`,
@@ -237,7 +237,7 @@ const toggleMaintenanceMode = async (req, res) => {
 const getWebsiteMode = async (req, res) => {
   try {
     const settings = await WebsiteSettings.getSettings();
-    
+
     res.json({
       success: true,
       data: {
@@ -260,7 +260,7 @@ const getWebsiteMode = async (req, res) => {
 const resetToDefaults = async (req, res) => {
   try {
     const settings = await WebsiteSettings.getSettings();
-    
+
     // Reset to default values
     const defaultSettings = new WebsiteSettings();
     Object.keys(defaultSettings.toObject()).forEach(key => {
@@ -268,9 +268,9 @@ const resetToDefaults = async (req, res) => {
         settings[key] = defaultSettings[key];
       }
     });
-    
+
     await settings.save();
-    
+
     res.json({
       success: true,
       message: 'Settings reset to defaults successfully',
@@ -290,7 +290,7 @@ const resetToDefaults = async (req, res) => {
 const getLegalDocuments = async (req, res) => {
   try {
     const settings = await WebsiteSettings.getSettings();
-    
+
     res.json({
       success: true,
       data: {
@@ -308,6 +308,44 @@ const getLegalDocuments = async (req, res) => {
   }
 };
 
+// Get public payment configuration (public endpoint)
+const getPublicPaymentConfig = async (req, res) => {
+  try {
+    const settings = await WebsiteSettings.getSettings();
+
+    // Extract only public keys
+    const config = {
+      stripe: {
+        enabled: settings.paymentMethods?.stripe?.enabled || false,
+        publishableKey: settings.paymentMethods?.stripe?.publishableKey || '',
+        currency: settings.paymentMethods?.stripe?.currency || 'USD'
+      },
+      paypal: {
+        enabled: settings.paymentMethods?.paypal?.enabled || false,
+        clientId: settings.paymentMethods?.paypal?.clientId || '',
+        currency: settings.paymentMethods?.paypal?.currency || 'USD',
+        mode: settings.paymentMethods?.paypal?.mode || 'sandbox'
+      },
+      razorpay: {
+        enabled: settings.paymentMethods?.razorpay?.enabled || false,
+        keyId: settings.paymentMethods?.razorpay?.applicationId || ''
+      }
+    };
+
+    res.json({
+      success: true,
+      data: config
+    });
+  } catch (error) {
+    console.error('Error getting public payment config:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get payment configuration',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getWebsiteSettings,
   updateWebsiteSettings,
@@ -317,5 +355,6 @@ module.exports = {
   toggleMaintenanceMode,
   getWebsiteMode,
   resetToDefaults,
-  getLegalDocuments
+  getLegalDocuments,
+  getPublicPaymentConfig
 }; 
