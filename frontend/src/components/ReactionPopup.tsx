@@ -9,6 +9,7 @@ interface ReactionPopupProps {
   onReaction: (reactionType: ReactionType) => void;
   currentReaction?: ReactionType | null;
   isDarkMode?: boolean;
+  placement?: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end';
 }
 
 const reactions: { type: ReactionType; emoji: string; label: string; color: string }[] = [
@@ -24,7 +25,8 @@ export default function ReactionPopup({
   children,
   onReaction,
   currentReaction,
-  isDarkMode = false
+  isDarkMode = false,
+  placement = 'top-end'
 }: ReactionPopupProps) {
   const handleReaction = (reactionType: ReactionType, e: React.MouseEvent | React.TouchEvent) => {
     // We don't stop propagation here anymore, so the click bubbles up to CustomTooltip
@@ -65,7 +67,7 @@ export default function ReactionPopup({
       }
       interactive={true}
       trigger="click"
-      placement="top-end"
+      placement={placement}
     >
       {children}
     </CustomTooltip>

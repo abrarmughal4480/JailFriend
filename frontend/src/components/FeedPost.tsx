@@ -1095,7 +1095,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-1 sm:space-x-2">
                 <div
-                  className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate`}
+                  className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate max-w-[150px] sm:max-w-none`}
                   onClick={navigateToProfile}
                 >
                   {post.user?.name || 'User'}
@@ -1695,6 +1695,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
             <ReactionPopup
               onReaction={handleReaction}
               currentReaction={getCurrentReaction()}
+              placement="top-start"
             >
               <button
                 disabled={isReacting}
