@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import AlbumDisplay from '@/components/AlbumDisplay';
-import { Edit, Search, Camera, Video, Music, FileText, Plus, MapPin, Globe, Calendar, Users, Eye, Phone, Bot, Sparkles, Wand2, Image as ImageIcon } from 'lucide-react';
+import { Edit, Search, Camera, Video, Music, FileText, Plus, MapPin, Globe, Calendar, Users, Eye, Phone, Bot, Sparkles, Wand2, Image as ImageIcon, Heart, MessageCircle, Share2, Bookmark, Send, MoreHorizontal, X } from 'lucide-react';
 import SharePopup, { ShareOptions } from '@/components/SharePopup';
 import LatestProducts from '@/components/LatestProducts';
 import Popup from '@/components/Popup';
@@ -3178,7 +3178,7 @@ export default function Dashboard() {
               {/* Modal Content - Fixed Layout */}
               <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
                 {/* Left Side - Content/Media - Dark for Albums */}
-                <div className={`relative ${selectedPostForWatch.type === 'album' ? 'lg:w-2/3 bg-black' : 'flex-1 overflow-y-auto scrollbar-hide'}`}>
+                <div className={`relative ${selectedPostForWatch.type === 'album' ? 'lg:w-2/3 bg-black h-[65vh] lg:h-auto' : 'flex-1 overflow-y-auto scrollbar-hide'}`}>
                   {selectedPostForWatch.type === 'album' ? (
                     <>
                       {/* Top Utility Bar for Albums */}
@@ -3307,8 +3307,8 @@ export default function Dashboard() {
                       </div>
 
                       {/* Center Overlay with Action Buttons */}
-                      <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20">
-                        <div className="bg-blue-900/80 backdrop-blur-md rounded-2xl p-4 flex items-center gap-6">
+                      <div className="hidden lg:flex absolute bottom-20 left-1/2 -translate-x-1/2 z-20 w-auto justify-center">
+                        <div className="bg-blue-900/80 backdrop-blur-md rounded-2xl p-2 sm:p-4 flex items-center justify-between sm:justify-center gap-3 sm:gap-6 w-full sm:w-auto">
                           <button
                             onClick={() => {
                               if (selectedPostForWatch.type === 'album') {
@@ -3586,117 +3586,165 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Side - Enhanced Actions & Comments - White for Albums */}
-                <div className={`w-full ${selectedPostForWatch.type === 'album' ? 'lg:w-1/3 bg-white' : ''} ${selectedPostForWatch.type === 'album' ? 'lg:border-l border-gray-200' : 'border-l'} ${selectedPostForWatch.type === 'album' ? '' : 'bg-gradient-to-b p-4'} flex flex-col min-h-0 flex-shrink-0 ${selectedPostForWatch.type === 'album' ? '' : (isDarkMode ? 'border-gray-700 from-gray-900 to-gray-800' : 'border-gray-200 from-white to-gray-50')}`}>
+                <div className={`w-full ${selectedPostForWatch.type === 'album' ? 'lg:w-1/3 bg-white' : ''} ${selectedPostForWatch.type === 'album' ? 'lg:border-l border-gray-200' : 'border-l'} ${selectedPostForWatch.type === 'album' ? '' : 'bg-gradient-to-b p-4'} flex flex-col min-h-0 flex-1 lg:flex-none ${selectedPostForWatch.type === 'album' ? '' : (isDarkMode ? 'border-gray-700 from-gray-900 to-gray-800' : 'border-gray-200 from-white to-gray-50')}`}>
                   {selectedPostForWatch.type === 'album' ? (
-                    <div className="p-4 flex flex-col h-full">
-                      {/* User Info at Top */}
-                      <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
-                        <img
-                          src={selectedPostForWatch.user?.avatar || selectedPostForWatch.createdBy?.avatar || '/default-avatar.svg'}
-                          alt="User avatar"
-                          className="w-10 h-10 rounded-full border border-gray-300"
-                          onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.svg';
-                          }}
-                        />
-                        <div>
-                          <div className="font-medium text-sm text-gray-900">
-                            {selectedPostForWatch.user?.name || selectedPostForWatch.user?.username || selectedPostForWatch.createdBy?.name || 'User'}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {(() => {
-                              const date = new Date(selectedPostForWatch.createdAt);
-                              const now = new Date();
-                              const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-                              if (diffInHours < 1) return 'Just now';
-                              if (diffInHours < 24) return `${diffInHours} h`;
-                              return date.toLocaleDateString();
-                            })()}
+                    <div className="flex flex-col h-full bg-white">
+                      {/* User Info Header - Fixed Top */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={selectedPostForWatch.user?.avatar || selectedPostForWatch.createdBy?.avatar || '/default-avatar.svg'}
+                            alt="User avatar"
+                            className="w-10 h-10 rounded-full border border-gray-100 object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = '/default-avatar.svg';
+                            }}
+                          />
+                          <div>
+                            <div className="font-semibold text-sm text-gray-900">
+                              {selectedPostForWatch.user?.name || selectedPostForWatch.user?.username || selectedPostForWatch.createdBy?.name || 'User'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {(() => {
+                                const date = new Date(selectedPostForWatch.createdAt);
+                                const now = new Date();
+                                const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+                                if (diffInHours < 1) return 'Just now';
+                                if (diffInHours < 24) return `${diffInHours} h`;
+                                return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                              })()}
+                            </div>
                           </div>
                         </div>
-                      </div>
-
-                      {/* Like Section */}
-                      <div className="mb-4 pb-4 border-b border-gray-200">
-                        <button
-                          onClick={() => {
-                            handleAlbumLike(selectedPostForWatch._id || selectedPostForWatch.id);
-                          }}
-                          className="flex items-center gap-2 text-gray-700 hover:text-red-600 transition-colors"
-                        >
-                          <span className="text-xl">👍</span>
-                          <span className="text-sm font-medium">Like</span>
+                        <button className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-50">
+                          <MoreHorizontal className="w-5 h-5" />
                         </button>
                       </div>
 
-                      {/* Comments Section Header */}
-                      <div className="mb-3">
-                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                          <span>💬</span>
-                          Comments ({selectedPostForWatch.comments?.length || 0})
-                        </h3>
-                      </div>
+                      {/* Scrollable Content: Caption + Comments */}
+                      <div className="flex-1 overflow-y-auto min-h-0 bg-white">
+                        {/* Album Caption if exists */}
+                        {(selectedPostForWatch.name || selectedPostForWatch.description) && (
+                          <div className="p-4 pb-2">
+                            {selectedPostForWatch.name && <h2 className="font-bold text-gray-900 text-lg mb-1">{selectedPostForWatch.name}</h2>}
+                            {selectedPostForWatch.description && <p className="text-gray-800 text-sm whitespace-pre-wrap">{selectedPostForWatch.description}</p>}
+                          </div>
+                        )}
 
-                      {/* Comments List for Albums */}
-                      <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-2 mb-4">
-                        {selectedPostForWatch.comments && selectedPostForWatch.comments.length > 0 ? (
-                          selectedPostForWatch.comments.map((comment: any, index: number) => (
-                            <div key={index} className="rounded-lg p-3 border border-gray-200 bg-white">
-                              <div className="flex gap-2">
+                        {/* Comments List */}
+                        <div className="p-4 pt-2 space-y-4">
+                          {selectedPostForWatch.comments && selectedPostForWatch.comments.length > 0 ? (
+                            selectedPostForWatch.comments.map((comment: any, index: number) => (
+                              <div key={index} className="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <img
                                   src={comment.user?.avatar || '/default-avatar.svg'}
                                   alt="User avatar"
-                                  className="w-6 h-6 rounded-full flex-shrink-0"
+                                  className="w-8 h-8 rounded-full flex-shrink-0 object-cover mt-1"
                                   onError={(e) => {
                                     e.currentTarget.src = '/default-avatar.svg';
                                   }}
                                 />
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-semibold text-gray-900">
-                                      {comment.user?.name || comment.user?.username || 'User'}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {(() => {
-                                        const date = new Date(comment.createdAt || comment.date);
-                                        const now = new Date();
-                                        const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-                                        if (diffInHours < 1) return 'Just now';
-                                        if (diffInHours < 24) return `${diffInHours}h`;
-                                        return date.toLocaleDateString();
-                                      })()}
-                                    </span>
+                                  <div className="bg-gray-50 rounded-2xl rounded-tl-none p-3 inline-block min-w-[150px]">
+                                    <div className="flex justify-between items-baseline mb-1">
+                                      <span className="text-sm font-semibold text-gray-900">
+                                        {comment.user?.name || comment.user?.username || 'User'}
+                                      </span>
+                                      <span className="text-[10px] text-gray-400 ml-2">
+                                        {(() => {
+                                          const date = new Date(comment.createdAt || comment.date);
+                                          const now = new Date();
+                                          const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+                                          if (diffInHours < 1) return 'Just now';
+                                          if (diffInHours < 24) return `${diffInHours}h`;
+                                          return date.toLocaleDateString();
+                                        })()}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 leading-snug">{comment.text || comment.content}</p>
                                   </div>
-                                  <p className="text-sm text-gray-700">{comment.text || comment.content}</p>
                                 </div>
                               </div>
+                            ))
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-center opacity-60">
+                              <MessageCircle className="w-12 h-12 text-gray-300 mb-2" />
+                              <p className="text-sm text-gray-500 font-medium">No comments yet</p>
+                              <p className="text-xs text-gray-400">Be the first to share your thoughts.</p>
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-8 text-center">
-                            <div className="text-6xl mb-3">💬</div>
-                            <p className="text-sm text-gray-500">No comments to show</p>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
 
-                      {/* Comment Input for Albums */}
-                      <div className="rounded-lg p-3 border border-gray-200 bg-gray-50 flex-shrink-0">
-                        <div className="flex gap-2">
-                          <img
-                            src={JSON.parse(localStorage.getItem('user') || '{}')?.avatar || '/default-avatar.svg'}
-                            alt="Your avatar"
-                            className="w-6 h-6 rounded-full flex-shrink-0"
-                            onError={(e) => {
-                              e.currentTarget.src = '/default-avatar.svg';
-                            }}
-                          />
-                          <div className="flex-1 flex gap-2">
+                      {/* Footer Actions & Input - Fixed Bottom */}
+                      <div className="flex-shrink-0 bg-white border-t border-gray-100 z-10 w-full">
+                        {/* Action Icons Row */}
+                        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100">
+                          <div className="flex items-center gap-6">
+                            <button
+                              onClick={() => handleAlbumLike(selectedPostForWatch._id || selectedPostForWatch.id)}
+                              className="group flex flex-col items-center justify-center gap-1 focus:outline-none"
+                            >
+                              <Heart
+                                className={`w-6 h-6 transition-all duration-200 ${(selectedPostForWatch.likes?.includes(getCurrentUserId()) || selectedPostForWatch.likedBy?.includes(getCurrentUserId()))
+                                  ? 'fill-red-500 text-red-500 scale-110'
+                                  : 'text-gray-600 group-hover:text-red-500 group-hover:scale-110'
+                                  }`}
+                              />
+                              <span className="text-[10px] font-medium text-gray-500">
+                                {selectedPostForWatch.likes?.length || selectedPostForWatch.likedBy?.length || 'Like'}
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => document.getElementById('watch-comment-input')?.focus()}
+                              className="group flex flex-col items-center justify-center gap-1 focus:outline-none"
+                            >
+                              <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-blue-500 transition-all duration-200 group-hover:scale-110" />
+                              <span className="text-[10px] font-medium text-gray-500">
+                                {selectedPostForWatch.comments?.length || 'Comment'}
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => handleShare(selectedPostForWatch._id || selectedPostForWatch.id, {
+                                shareOnTimeline: false,
+                                shareToPage: false,
+                                shareToGroup: false,
+                                customMessage: ''
+                              })}
+                              className="group flex flex-col items-center justify-center gap-1 focus:outline-none"
+                            >
+                              <Share2 className="w-6 h-6 text-gray-600 group-hover:text-green-500 transition-all duration-200 group-hover:scale-110" />
+                              <span className="text-[10px] font-medium text-gray-500">Share</span>
+                            </button>
+                          </div>
+
+                          <button
+                            onClick={() => handleSave(selectedPostForWatch._id || selectedPostForWatch.id)}
+                            className="group flex flex-col items-center justify-center gap-1 focus:outline-none"
+                          >
+                            <Bookmark className="w-6 h-6 text-gray-600 group-hover:text-yellow-500 transition-all duration-200 group-hover:scale-110" />
+                            <span className="text-[10px] font-medium text-gray-500">Save</span>
+                          </button>
+                        </div>
+
+                        {/* Comment Input Area */}
+                        <div className="p-3 bg-gray-50/50">
+                          <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-blue-100 focus-within:border-blue-400 transition-all">
+                            <img
+                              src={JSON.parse(localStorage.getItem('user') || '{}')?.avatar || '/default-avatar.svg'}
+                              alt="Your avatar"
+                              className="w-7 h-7 rounded-full flex-shrink-0 object-cover border border-gray-100"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-avatar.svg';
+                              }}
+                            />
                             <input
                               id="watch-comment-input"
                               type="text"
-                              placeholder="Write a comment and press enter"
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent outline-none bg-white text-gray-900"
+                              placeholder="Add a comment..."
+                              className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-900 placeholder-gray-500"
                               onKeyPress={(e) => {
                                 if (e.key === 'Enter') {
                                   const input = e.currentTarget;
@@ -3716,8 +3764,26 @@ export default function Dashboard() {
                                 }
                               }}
                             />
-                            <button className="px-3 py-2 text-gray-400 hover:text-gray-600 transition-colors">
-                              <span className="text-xl">😊</span>
+                            <button
+                              className="text-blue-500 hover:text-blue-600 transition-colors disabled:opacity-50"
+                              onClick={() => {
+                                const input = document.getElementById('watch-comment-input') as HTMLInputElement;
+                                if (input && input.value.trim()) {
+                                  const commentText = input.value.trim();
+                                  input.value = '';
+                                  handleAlbumComment(selectedPostForWatch._id || selectedPostForWatch.id, commentText);
+                                  setSelectedPostForWatch((prev: any) => ({
+                                    ...prev,
+                                    comments: [...(prev.comments || []), {
+                                      text: commentText,
+                                      user: JSON.parse(localStorage.getItem('user') || '{}'),
+                                      createdAt: new Date().toISOString()
+                                    }]
+                                  }));
+                                }
+                              }}
+                            >
+                              <Send className="w-5 h-5 fill-current" />
                             </button>
                           </div>
                         </div>
