@@ -6,12 +6,17 @@ import ConnectionMonitor from '@/utils/connectionMonitor';
 
 // TypeScript interfaces
 interface User {
-    _id: string;
-    email: string;
-    role: string;
+    _id?: string;
+    id?: string;
+    userId?: string;
+    email?: string;
+    role?: string;
     company?: string;
-    firstName: string;
-    lastName: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    username?: string;
+    avatar?: string;
 }
 
 interface AuthData {
@@ -368,12 +373,12 @@ const useWebRTC = ({ isAdmin, roomId, videoRef, user = null }: WebRTCHookProps):
 
         if (currentUser) {
             const authData: AuthData = {
-                userId: currentUser._id,
-                email: currentUser.email,
-                role: currentUser.role,
+                userId: currentUser._id || currentUser.id || 'unknown',
+                email: currentUser.email || 'unknown',
+                role: currentUser.role || 'user',
                 company: currentUser.company,
-                firstName: currentUser.firstName,
-                lastName: currentUser.lastName
+                firstName: currentUser.firstName || (currentUser.name?.split(' ')[0]) || 'User',
+                lastName: currentUser.lastName || (currentUser.name?.split(' ').slice(1).join(' ')) || ''
             };
             console.log('Authenticating user:', authData.email);
             socketConnection.current.emit('user-authenticated', authData);

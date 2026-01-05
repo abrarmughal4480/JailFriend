@@ -12,6 +12,11 @@ interface VideoCallContextType {
   setShowVideoCallNotification: (show: boolean) => void;
   acceptVideoCall: (callId: string) => void;
   declineVideoCall: (callId: string) => void;
+  incomingAudioCall: any | null;
+  showAudioCallNotification: boolean;
+  setShowAudioCallNotification: (show: boolean) => void;
+  acceptAudioCall: (callId: string) => void;
+  declineAudioCall: (callId: string) => void;
 }
 
 const VideoCallContext = createContext<VideoCallContextType | undefined>(undefined);
@@ -32,7 +37,10 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
   const [videoCallService, setVideoCallService] = useState<VideoCallService | null>(null);
   const [incomingVideoCall, setIncomingVideoCall] = useState<any | null>(null);
   const [showVideoCallNotification, setShowVideoCallNotification] = useState(false);
+  const [incomingAudioCall, setIncomingAudioCall] = useState<any | null>(null);
+  const [showAudioCallNotification, setShowAudioCallNotification] = useState(false);
   const [callTimer, setCallTimer] = useState(30);
+  const [audioCallTimer, setAudioCallTimer] = useState(30);
 
   useEffect(() => {
     // Request notification permission on app load
@@ -174,10 +182,41 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
     // Start initialization immediately, but with socket checking
     initializeWithSocketCheck();
 
+    // Listen for audio calls globally
+    const handleIncomingAudioCall = (event: any) => {
+      const callData = event.detail;
+      console.log('📞 Global incoming audio call:', callData);
+      setIncomingAudioCall(callData);
+      setShowAudioCallNotification(true);
+      setAudioCallTimer(30);
+
+      // Play ringtone for audio call
+      try {
+        const audio = new Audio('/ringtone.mp3');
+        audio.play().catch(() => {
+          // Fallback ringtone if file not found
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.1);
+          oscillator.start();
+          setTimeout(() => oscillator.stop(), 2000);
+        });
+      } catch (e) { }
+    };
+
+    window.addEventListener('socket_incoming_call', handleIncomingAudioCall);
+
     return () => {
       if (videoCallService) {
         videoCallService.disconnect();
       }
+      window.removeEventListener('socket_incoming_call', handleIncomingAudioCall);
     };
   }, []);
 
@@ -206,6 +245,22 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
     }
   }, [showVideoCallNotification]);
 
+  // Timer effect for incoming audio calls
+  useEffect(() => {
+    if (showAudioCallNotification && audioCallTimer > 0) {
+      const timer = setTimeout(() => {
+        setAudioCallTimer(prev => {
+          if (prev <= 1) {
+            declineAudioCall(incomingAudioCall?.callId || '');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAudioCallNotification, audioCallTimer, incomingAudioCall]);
+
   const acceptVideoCall = (callId: string) => {
     if (videoCallService && incomingVideoCall) {
       console.log('🎯 Accepting video call:', {
@@ -227,13 +282,44 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
     }
   };
 
+  const acceptAudioCall = (callId: string) => {
+    if (incomingAudioCall) {
+      const callerId = incomingAudioCall.callerId?._id || incomingAudioCall.callerId;
+      const callerName = incomingAudioCall.caller?.name || 'User';
+      const callerUsername = incomingAudioCall.caller?.username || 'unknown';
+      console.log('🎯 Accepting audio call:', { callId, callerId, callerName, callerUsername });
+      setShowAudioCallNotification(false);
+      // Redirect to messages page with call activation params
+      window.location.href = `/dashboard/messages?action=acceptCall&callId=${callId}&callerId=${callerId}&callerName=${encodeURIComponent(callerName)}&callerUsername=${encodeURIComponent(callerUsername)}`;
+    }
+  };
+
+  const declineAudioCall = (callId: string) => {
+    const socket = socketService.getSocket();
+    if (socket && incomingAudioCall) {
+      const callerId = incomingAudioCall.callerId?._id || incomingAudioCall.callerId;
+      socket.emit('reject_call', {
+        callId,
+        callerId,
+        reason: 'user_rejected'
+      });
+    }
+    setShowAudioCallNotification(false);
+    setIncomingAudioCall(null);
+  };
+
   const value: VideoCallContextType = {
     videoCallService,
     incomingVideoCall,
     showVideoCallNotification,
     setShowVideoCallNotification,
     acceptVideoCall,
-    declineVideoCall
+    declineVideoCall,
+    incomingAudioCall,
+    showAudioCallNotification,
+    setShowAudioCallNotification: setShowAudioCallNotification,
+    acceptAudioCall,
+    declineAudioCall
   };
 
   return (
@@ -325,6 +411,73 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
                 <div className="text-xs text-gray-400 dark:text-gray-500">
                   Call ID: {incomingVideoCall.callId?.slice(0, 8)}...
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Global Audio Call Notification */}
+      {showAudioCallNotification && incomingAudioCall && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 video-call-backdrop">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-sm w-full mx-4 transform transition-all duration-500 scale-100 video-call-notification">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Incoming Audio Call
+                  </h3>
+                </div>
+              </div>
+
+              <div className="text-center mb-6">
+                <div className="relative mb-4">
+                  <div className="w-24 h-24 mx-auto rounded-full overflow-hidden border-4 border-blue-500 shadow-lg video-call-avatar">
+                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+                      {incomingAudioCall.caller?.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 rounded-full border-4 border-blue-400 animate-ping opacity-75"></div>
+                </div>
+
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  {incomingAudioCall.caller?.name || 'Unknown Caller'}
+                </h2>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Audio Call Request
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Auto-decline in</span>
+                  <span className="font-bold text-red-500 text-lg video-call-timer">{audioCallTimer}s</span>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => acceptAudioCall(incomingAudioCall.callId)}
+                  className="flex-1 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-2xl h-14 flex items-center justify-center space-x-2 font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg video-call-button"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span>Accept</span>
+                </button>
+
+                <button
+                  onClick={() => declineAudioCall(incomingAudioCall.callId)}
+                  className="flex-1 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-2xl h-14 flex items-center justify-center space-x-2 font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg video-call-button"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>Decline</span>
+                </button>
               </div>
             </div>
           </div>

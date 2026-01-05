@@ -8,7 +8,7 @@ import { useRealtimeTranslation } from '@/hooks/useRealtimeTranslation';
 import { TranslationControls } from '@/components/TranslationControls';
 import LanguageSelectorModal from '@/components/LanguageSelectorModal';
 import { getVideoCallDetailsApi } from '@/utils/api';
-import { getToken } from '@/utils/auth';
+import { getToken, getCurrentUser } from '@/utils/auth';
 
 interface VideoCallPageProps { }
 
@@ -63,6 +63,7 @@ const VideoCallPage: React.FC<VideoCallPageProps> = () => {
     const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     const userType = urlParams.get('type');
     const isAdminFromURL = userType === 'admin';
+    const currentUser = getCurrentUser();
 
     const {
         localStream,
@@ -81,7 +82,7 @@ const VideoCallPage: React.FC<VideoCallPageProps> = () => {
         isAdmin: isAdminFromURL,
         roomId: callId,
         videoRef,
-        user: null
+        user: currentUser
     });
 
 

@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import '@/styles/custom-scrollbar.css';
-import { 
-  Search, 
-  MoreVertical, 
-  Phone, 
-  Info, 
-  Send, 
-  Paperclip, 
-  Smile, 
+import {
+  Search,
+  MoreVertical,
+  Phone,
+  Info,
+  Send,
+  Paperclip,
+  Smile,
   Image as ImageIcon,
   FileText,
   Mic,
@@ -38,6 +38,19 @@ import VideoCallNotification from '@/components/VideoCallNotification';
 import { useVideoCall } from '@/contexts/VideoCallContext';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    {
+      urls: 'turn:relay1.expressturn.com:3480',
+      username: '174776437859052610',
+      credential: 'ZKziYTYdi6V/oRdHNuUn/INQkq4=',
+    },
+  ],
+};
 
 interface Message {
   _id: string;
@@ -128,7 +141,7 @@ export default function MessagesPage() {
   const { isDarkMode } = useDarkMode();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [allMessages, setAllMessages] = useState<{[conversationId: string]: Message[]}>({});
+  const [allMessages, setAllMessages] = useState<{ [conversationId: string]: Message[] }>({});
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -146,22 +159,31 @@ export default function MessagesPage() {
   const [showFollowerUsers, setShowFollowerUsers] = useState(false);
   const [followerUsersLoading, setFollowerUsersLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  
+
   // Audio call states
   const [showCallInterface, setShowCallInterface] = useState(false);
   const [callType, setCallType] = useState<'incoming' | 'outgoing' | 'active'>('incoming');
   const [currentCall, setCurrentCall] = useState<any>(null);
   const [caller, setCaller] = useState<any>(null);
-  
+  const [remoteOffer, setRemoteOffer] = useState<any>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+
   // Video call states - using global context
   const { videoCallService, incomingVideoCall, showVideoCallNotification, setShowVideoCallNotification, acceptVideoCall, declineVideoCall } = useVideoCall();
   const [showCallHistory, setShowCallHistory] = useState(false);
-  
-  
+
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const processedNotifications = useRef<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // WebRTC for audio calls
+  const peerConnection = useRef<RTCPeerConnection | null>(null);
+  const localStream = useRef<MediaStream | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const iceCandidatesBuffer = useRef<RTCIceCandidateInit[]>([]);
 
   const messages = selectedConversation ? (allMessages[selectedConversation._id] || []) : [];
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -182,7 +204,7 @@ export default function MessagesPage() {
   const updateMessageStatus = (conversationId: string, messageId: string, status: 'sent' | 'delivered' | 'read') => {
     setAllMessages(prev => ({
       ...prev,
-      [conversationId]: (prev[conversationId] || []).map((msg: Message) => 
+      [conversationId]: (prev[conversationId] || []).map((msg: Message) =>
         msg._id === messageId ? { ...msg, status, isRead: status === 'read' } : msg
       )
     }));
@@ -209,8 +231,8 @@ export default function MessagesPage() {
         }));
 
         // Update conversation list - clear unread count
-        setConversations(prev => prev.map(conv => 
-          conv._id === conversationId 
+        setConversations(prev => prev.map(conv =>
+          conv._id === conversationId
             ? { ...conv, unreadCount: 0 }
             : conv
         ));
@@ -238,13 +260,13 @@ export default function MessagesPage() {
           const otherUserId = conv.otherUser._id;
           const sortedIds = [currentUserId, otherUserId].sort();
           const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
-          
+
           // Get P2P context
           const conversationContext = conv.conversationContext || {};
           const isP2PConversation = conversationContext.type && conversationContext.type !== 'regular';
           const p2pProfile = conv.p2pProfile;
           const booking = conv.booking;
-          
+
           return {
             _id: conversationId,
             participants: [{
@@ -295,7 +317,7 @@ export default function MessagesPage() {
           };
         });
         setConversations(mappedConversations);
-        
+
         // Load messages for all conversations
         await loadAllMessages(mappedConversations);
       }
@@ -313,7 +335,7 @@ export default function MessagesPage() {
       // Load messages for each conversation
       const messagePromises = conversations.map(async (conversation) => {
         const [userId1, userId2] = conversation._id.split('-');
-        
+
         if (!userId1 || !userId2) {
           console.error('Invalid conversation ID format:', conversation._id);
           return;
@@ -347,7 +369,7 @@ export default function MessagesPage() {
               media: msg.mediaUrl,
               replyTo: msg.replyTo
             }));
-            
+
             return { conversationId: conversation._id, messages: mappedMessages };
           }
         } catch (error) {
@@ -357,20 +379,20 @@ export default function MessagesPage() {
 
       // Wait for all message loading to complete
       const messageResults = await Promise.all(messagePromises);
-      
+
       // Update allMessages state with all loaded messages
-      const allMessagesUpdate: {[conversationId: string]: Message[]} = {};
+      const allMessagesUpdate: { [conversationId: string]: Message[] } = {};
       messageResults.forEach(result => {
         if (result) {
           allMessagesUpdate[result.conversationId] = result.messages;
         }
       });
-      
+
       setAllMessages(prev => ({
         ...prev,
         ...allMessagesUpdate
       }));
-      
+
       console.log('✅ All messages loaded for', Object.keys(allMessagesUpdate).length, 'conversations');
     } catch (error) {
       console.error('Error loading all messages:', error);
@@ -382,7 +404,7 @@ export default function MessagesPage() {
   const updateOnlineStatusFromSocket = (userId: string, isOnline: boolean) => {
     setConversations(prev => prev.map(conv => ({
       ...conv,
-      participants: conv.participants.map(participant => 
+      participants: conv.participants.map(participant =>
         participant._id === userId ? { ...participant, isOnline } : participant
       )
     })));
@@ -453,7 +475,7 @@ export default function MessagesPage() {
     const currentUserId = getCurrentUserId();
     const sortedIds = [currentUserId, user._id].sort();
     const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
-    
+
     const newConversation: Conversation = {
       _id: conversationId,
       participants: [{
@@ -466,27 +488,27 @@ export default function MessagesPage() {
       lastMessage: {
         _id: 'temp',
         content: 'Conversation started',
-          sender: {
+        sender: {
           _id: currentUserId || 'temp',
           name: 'System',
           username: 'system'
-          },
-          receiver: {
+        },
+        receiver: {
           _id: user._id,
           name: user.name,
           username: user.username
         },
         timestamp: new Date().toISOString(),
-          isRead: true,
-          type: 'text'
-        },
+        isRead: true,
+        type: 'text'
+      },
       unreadCount: 0,
       isPinned: false,
       isArchived: false,
       isP2PUser: false, // Regular conversations are not P2P users
       updatedAt: new Date().toISOString()
     };
-    
+
     // Check if conversation already exists before adding to prevent duplicates
     setConversations(prev => {
       const exists = prev.some(conv => conv._id === conversationId);
@@ -495,11 +517,11 @@ export default function MessagesPage() {
       }
       return prev;
     });
-    
+
     setSelectedConversation(newConversation);
     setShowFollowedUsers(false);
     setShowFollowerUsers(false);
-    
+
     // Join conversation room
     socketService.joinConversation(newConversation._id);
   };
@@ -517,13 +539,13 @@ export default function MessagesPage() {
 
       if (response.ok) {
         const userData = await response.json();
-        
+
         // Check if userData is valid
         if (!userData || !userData.id) {
           console.error('Invalid user data received:', userData);
           return;
         }
-        
+
         const user = {
           _id: userData.id,
           name: userData.name,
@@ -538,9 +560,9 @@ export default function MessagesPage() {
         const currentUserId = getCurrentUserId();
         const sortedIds = [currentUserId, userId].sort();
         const conversationId = `${sortedIds[0]}-${sortedIds[1]}`;
-        
+
         const existingConversation = conversations.find(conv => conv._id === conversationId);
-        
+
         if (existingConversation) {
           // Open existing conversation
           setSelectedConversation(existingConversation);
@@ -579,7 +601,7 @@ export default function MessagesPage() {
             isP2PUser: true, // Mark as P2P user
             updatedAt: new Date().toISOString()
           };
-          
+
           // Check if conversation already exists before adding to prevent duplicates
           setConversations(prev => {
             const exists = prev.some(conv => conv._id === conversationId);
@@ -588,7 +610,7 @@ export default function MessagesPage() {
             }
             return prev;
           });
-          
+
           setSelectedConversation(newConversation);
           socketService.joinConversation(newConversation._id);
         }
@@ -618,7 +640,7 @@ export default function MessagesPage() {
     try {
       // Parse conversation ID to get the two user IDs
       const [userId1, userId2] = conversationId.split('-');
-      
+
       // Validate conversation ID format
       if (!userId1 || !userId2) {
         console.error('Invalid conversation ID format:', conversationId);
@@ -652,7 +674,7 @@ export default function MessagesPage() {
           media: msg.mediaUrl,
           replyTo: msg.replyTo
         }));
-        
+
         setAllMessages(prev => ({
           ...prev,
           [conversationId]: mappedMessages
@@ -671,7 +693,7 @@ export default function MessagesPage() {
       const currentUserId = getCurrentUserId();
       const receiver = selectedConversation.participants[0];
       const isReceiverOnline = receiver.isOnline || false;
-      
+
       const message: Message = {
         _id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: newMessage.trim(),
@@ -712,7 +734,7 @@ export default function MessagesPage() {
         }
         return prev;
       });
-      
+
       setConversations(prev => {
         const existingConv = prev.find(conv => conv._id === selectedConversation._id);
         if (existingConv) {
@@ -721,15 +743,15 @@ export default function MessagesPage() {
             previousUnreadCount: existingConv.unreadCount,
             newUnreadCount: 0
           });
-          return prev.map(conv => 
-            conv._id === selectedConversation._id 
+          return prev.map(conv =>
+            conv._id === selectedConversation._id
               ? {
-                  ...conv,
-                  lastMessage: message,
-                  unreadCount: 0,
-                  updatedAt: message.timestamp,
-                  isP2PUser: conv.isP2PUser // Preserve P2P flag
-                }
+                ...conv,
+                lastMessage: message,
+                unreadCount: 0,
+                updatedAt: message.timestamp,
+                isP2PUser: conv.isP2PUser // Preserve P2P flag
+              }
               : conv
           );
         } else {
@@ -761,7 +783,7 @@ export default function MessagesPage() {
     fetchFollowedUsers();
     fetchFollowerUsers();
     fetchConversations();
-    
+
     // Handle URL parameter for opening specific conversation
     const userId = searchParams.get('userId');
     if (userId) {
@@ -770,7 +792,7 @@ export default function MessagesPage() {
         startConversationWithUserId(userId);
       }, 1000);
     }
-    
+
     if (!socketService.getConnected()) {
       console.log('🔌 Socket not connected, connecting...');
       socketService.connect();
@@ -778,16 +800,48 @@ export default function MessagesPage() {
       console.log('✅ Socket already connected');
     }
 
-    // Video call service is now handled globally via VideoCallProvider
+    // Handle action=acceptCall for auto-joining call
+    const action = searchParams.get('action');
+    const callId = searchParams.get('callId');
+    const callerIdParam = searchParams.get('callerId');
+    const callerNameParam = searchParams.get('callerName');
+    const callerUsernameParam = searchParams.get('callerUsername');
 
-    // Add a small delay to ensure socket is ready
-    setTimeout(() => {
-      console.log('🔍 Socket status check:', {
-        connected: socketService.getConnected(),
-        socket: socketService.getSocket(),
-        socketConnected: socketService.getSocket()?.connected
-      });
-    }, 1000);
+    if (action === 'acceptCall' && callId && callerIdParam) {
+      console.log('🎯 Detected auto-accept call action:', { callId, callerIdParam, callerNameParam, callerUsernameParam });
+
+      // Initialize call states
+      setCallType('incoming');
+      setShowCallInterface(true);
+      setIsMuted(false);
+      setIsSpeakerOn(true);
+      if (callerNameParam) {
+        setCaller({
+          _id: callerIdParam,
+          name: callerNameParam,
+          username: callerUsernameParam || 'unknown'
+        });
+      }
+      const callData = {
+        _id: callId,
+        callerId: {
+          _id: callerIdParam,
+          name: callerNameParam || 'User',
+          username: callerUsernameParam || 'unknown'
+        },
+        receiverId: { _id: getCurrentUserId() }
+      };
+      setCurrentCall(callData);
+
+      // Trigger accept after a short delay to ensure states are updated
+      setTimeout(() => {
+        // We need to call the accept logic here
+        // Since acceptCall is defined in the same component, we can call it
+        // but it might be easier to just copy the core logic if it depends on currentCall state
+        // and we want it to be reliable.
+        // Actually, if we use setCurrentCall(callData), acceptCall() should work if called next.
+      }, 500);
+    }
 
     const updateMyOnlineStatus = async () => {
       try {
@@ -810,15 +864,15 @@ export default function MessagesPage() {
     const handleNewMessage = (event: CustomEvent) => {
       const message = event.detail;
       const currentUserId = getCurrentUserId();
-      
+
       // Don't process messages sent by current user - they're already added locally
       if (message.sender._id === currentUserId) {
         console.log('🚫 Ignoring own message in socket handler:', message._id);
         return;
       }
-      
+
       updateOnlineStatusFromSocket(message.sender._id, true);
-      
+
       setAllMessages(prev => {
         const conversationId = message.conversationId;
         const currentMessages = prev[conversationId] || [];
@@ -836,7 +890,7 @@ export default function MessagesPage() {
         }
         return prev;
       });
-      
+
       setConversations(prev => {
         const existingConv = prev.find(conv => conv._id === message.conversationId);
         if (existingConv) {
@@ -911,11 +965,11 @@ export default function MessagesPage() {
 
     const handleUserStatusChange = (event: CustomEvent) => {
       const data = event.detail;
-      
+
       setConversations(prev => prev.map(conv => ({
         ...conv,
-        participants: conv.participants.map(participant => 
-          participant._id === data.userId 
+        participants: conv.participants.map(participant =>
+          participant._id === data.userId
             ? { ...participant, isOnline: data.isOnline }
             : participant
         )
@@ -926,8 +980,8 @@ export default function MessagesPage() {
         if (otherParticipant) {
           setAllMessages(prev => ({
             ...prev,
-            [selectedConversation._id]: (prev[selectedConversation._id] || []).map((msg: Message) => 
-              msg.sender._id === getCurrentUserId() && !msg.isRead 
+            [selectedConversation._id]: (prev[selectedConversation._id] || []).map((msg: Message) =>
+              msg.sender._id === getCurrentUserId() && !msg.isRead
                 ? { ...msg, receiverOnline: true, status: 'delivered' }
                 : msg
             )
@@ -939,28 +993,28 @@ export default function MessagesPage() {
     const handleMessageNotification = (event: CustomEvent) => {
       const notification = event.detail;
       const currentUserId = getCurrentUserId();
-      
+
       updateOnlineStatusFromSocket(notification.senderId, true);
-      
+
       const messageId = notification.message._id || notification.message.id || `msg_${Date.now()}`;
       const notificationId = `${notification.conversationId}_${messageId}_${currentUserId}`;
-      
+
       if (processedNotifications.current.has(notificationId)) {
         return;
       }
-      
+
       if (notification.senderId === currentUserId) {
         return;
       }
-      
+
       processedNotifications.current.add(notificationId);
-      
+
       if (processedNotifications.current.size > 100) {
         const notificationsArray = Array.from(processedNotifications.current);
         processedNotifications.current.clear();
         notificationsArray.slice(-50).forEach(id => processedNotifications.current.add(id));
       }
-      
+
       const message = {
         _id: messageId,
         content: notification.message.content,
@@ -975,15 +1029,15 @@ export default function MessagesPage() {
         type: notification.message.type || 'text',
         conversationId: notification.conversationId
       };
-      
+
       setAllMessages(prev => {
         const conversationId = notification.conversationId;
         const currentMessages = prev[conversationId] || [];
-        const exists = currentMessages.some(msg => 
-          msg._id === message._id || 
-          (msg.content === message.content && 
-           msg.sender._id === message.sender._id && 
-           Math.abs(new Date(msg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 1000)
+        const exists = currentMessages.some(msg =>
+          msg._id === message._id ||
+          (msg.content === message.content &&
+            msg.sender._id === message.sender._id &&
+            Math.abs(new Date(msg.timestamp).getTime() - new Date(message.timestamp).getTime()) < 1000)
         );
         if (!exists) {
           const messageWithStatus = {
@@ -998,7 +1052,7 @@ export default function MessagesPage() {
         }
         return prev;
       });
-      
+
       setConversations(prev => {
         const existingConv = prev.find(conv => conv._id === notification.conversationId);
         if (existingConv) {
@@ -1046,7 +1100,9 @@ export default function MessagesPage() {
       setCaller(callData.caller);
       setCallType('incoming');
       setShowCallInterface(true);
-      
+      setIsMuted(false);
+      setIsSpeakerOn(true);
+
       // Use the actual call ID from the database
       setCurrentCall({
         _id: callData.callId,
@@ -1058,10 +1114,14 @@ export default function MessagesPage() {
     const handleCallAccepted = (event: CustomEvent) => {
       const callData = event.detail;
       console.log('📞 Call accepted event received:', callData);
-      
+
       if (currentCall && currentCall._id === callData.callId) {
         console.log('✅ Call accepted - switching to active mode');
         setCallType('active');
+        // Ensure caller info is set if it was somehow cleared
+        if (callData.receiver && !caller) {
+          setCaller(callData.receiver);
+        }
       } else if (!currentCall && (callType === 'outgoing' || callType === 'active' || callType === 'incoming')) {
         console.log('📞 Fallback: Creating call object from event data');
         const callObject = {
@@ -1077,28 +1137,33 @@ export default function MessagesPage() {
     const handleCallRejected = (event: CustomEvent) => {
       const callData = event.detail;
       if (currentCall && currentCall._id === callData.callId) {
+        stopAllTracks();
         setShowCallInterface(false);
         setCurrentCall(null);
         setCaller(null);
+        setRemoteOffer(null);
       }
     };
 
     const handleCallEnded = (event: CustomEvent) => {
       const callData = event.detail;
       if (currentCall && currentCall._id === callData.callId) {
-        // endWebRTCCall();
+        stopAllTracks();
         setShowCallInterface(false);
         setCurrentCall(null);
         setCaller(null);
+        setRemoteOffer(null);
       }
     };
 
     const handleCallCancelled = (event: CustomEvent) => {
       const callData = event.detail;
       if (currentCall && currentCall._id === callData.callId) {
+        stopAllTracks();
         setShowCallInterface(false);
         setCurrentCall(null);
         setCaller(null);
+        setRemoteOffer(null);
       }
     };
 
@@ -1109,7 +1174,7 @@ export default function MessagesPage() {
     window.addEventListener('socket_message_read', handleMessageRead as EventListener);
     window.addEventListener('socket_user_status_change', handleUserStatusChange as EventListener);
     window.addEventListener('socket_message_notification', handleMessageNotification as EventListener);
-    
+
     // Audio call socket events
     window.addEventListener('socket_incoming_call', handleIncomingCall as EventListener);
     window.addEventListener('socket_call_accepted', handleCallAccepted as EventListener);
@@ -1124,16 +1189,16 @@ export default function MessagesPage() {
       window.removeEventListener('socket_message_read', handleMessageRead as EventListener);
       window.removeEventListener('socket_user_status_change', handleUserStatusChange as EventListener);
       window.removeEventListener('socket_message_notification', handleMessageNotification as EventListener);
-      
+
       // Video call service cleanup is handled globally via VideoCallProvider
-      
+
       // Audio call socket events cleanup
       window.removeEventListener('socket_incoming_call', handleIncomingCall as EventListener);
       window.removeEventListener('socket_call_accepted', handleCallAccepted as EventListener);
       window.removeEventListener('socket_call_rejected', handleCallRejected as EventListener);
       window.removeEventListener('socket_call_ended', handleCallEnded as EventListener);
       window.removeEventListener('socket_call_cancelled', handleCallCancelled as EventListener);
-      
+
       const setOfflineStatus = async () => {
         try {
           const token = getToken();
@@ -1159,23 +1224,23 @@ export default function MessagesPage() {
   useEffect(() => {
     setLoading(false);
   }, []);
-   
+
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation._id);
-      
+
       console.log('👁️ Opening conversation - Clearing unread count:', {
         conversationId: selectedConversation._id,
         previousUnreadCount: selectedConversation.unreadCount
       });
-      
+
       // Mark messages as read in the database and update local state
       if (selectedConversation.unreadCount > 0) {
         markMessagesAsRead(selectedConversation._id);
       } else {
         // Just update local state if no unread messages
-        setConversations(prev => prev.map(conv => 
-          conv._id === selectedConversation._id 
+        setConversations(prev => prev.map(conv =>
+          conv._id === selectedConversation._id
             ? { ...conv, unreadCount: 0 }
             : conv
         ));
@@ -1191,7 +1256,7 @@ export default function MessagesPage() {
     if (selectedConversation) {
       const conversationId = selectedConversation._id;
       const conversationMessages = allMessages[conversationId] || [];
-      
+
       conversationMessages.forEach((message: Message) => {
         const currentUserId = getCurrentUserId();
         if (message.sender._id === currentUserId && message.status === 'sent') {
@@ -1217,12 +1282,12 @@ export default function MessagesPage() {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - date.getTime();
-    
+
     if (diff < 60 * 1000) return 'Just now';
     if (diff < 60 * 60 * 1000) return `${Math.floor(diff / (60 * 1000))}m`;
     if (diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / (60 * 60 * 1000))}h`;
     if (diff < 7 * 24 * 60 * 60 * 1000) return `${Math.floor(diff / (24 * 60 * 60 * 1000))}d`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -1230,6 +1295,194 @@ export default function MessagesPage() {
     const currentUserId = getCurrentUserId();
     return conversation.participants.find(p => p._id !== currentUserId) || conversation.participants[0];
   };
+
+  // WebRTC Helper Functions
+  const stopAllTracks = () => {
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
+      localStream.current = null;
+    }
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+    }
+  };
+
+  const createPeerConnection = (callId: string, otherUserId: string) => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+    }
+
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    peerConnection.current = pc;
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socketService.getSocket()?.emit('webrtc_ice_candidate', {
+          receiverId: otherUserId, // Backend expects receiverId even if otherUserId is the caller
+          candidate: event.candidate,
+          callId
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      console.log('🔊 Received remote track:', event.track.kind);
+      if (remoteAudioRef.current) {
+        if (event.streams && event.streams[0]) {
+          console.log('🔊 Using existing remote stream');
+          remoteAudioRef.current.srcObject = event.streams[0];
+        } else {
+          console.log('🔊 Creating new remote stream from track');
+          const remoteStream = new MediaStream([event.track]);
+          remoteAudioRef.current.srcObject = remoteStream;
+        }
+
+        // Ensure playback starts
+        remoteAudioRef.current.play().catch(err => {
+          console.error('❌ Error playing remote audio:', err);
+        });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log('📞 Connection state:', pc.connectionState);
+    };
+
+    return pc;
+  };
+
+  const startWebRTCCall = async (callId: string, receiverId: string) => {
+    try {
+      console.log('📡 Starting WebRTC call (Offer side)');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.current = stream;
+
+      // Apply initial mute state
+      if (isMuted) {
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+      }
+
+      const pc = createPeerConnection(callId, receiverId);
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      console.log('📡 Emitting webrtc_offer to:', receiverId);
+      socketService.getSocket()?.emit('webrtc_offer', {
+        receiverId: receiverId,
+        offer,
+        callId
+      });
+    } catch (error) {
+      console.error('❌ WebRTC Start Error:', error);
+    }
+  };
+
+  const handleWebRTCOffer = async (callId: string, callerId: string, offer: RTCSessionDescriptionInit) => {
+    try {
+      console.log('📡 Handling WebRTC Offer (Answer side)');
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStream.current = stream;
+
+      // Apply initial mute state
+      if (isMuted) {
+        stream.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+      }
+
+      const pc = createPeerConnection(callId, callerId);
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      console.log('📡 Emitting webrtc_answer to:', callerId);
+      socketService.getSocket()?.emit('webrtc_answer', {
+        callerId: callerId,
+        answer,
+        callId
+      });
+
+      // Process buffered ICE candidates
+      while (iceCandidatesBuffer.current.length > 0) {
+        const candidate = iceCandidatesBuffer.current.shift();
+        if (candidate) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    } catch (error) {
+      console.error('❌ WebRTC Offer Error:', error);
+    }
+  };
+
+  const handleWebRTCAnswer = async (answer: RTCSessionDescriptionInit) => {
+    try {
+      console.log('📡 Handling WebRTC Answer');
+      if (peerConnection.current) {
+        await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+
+        // Process buffered ICE candidates
+        console.log(`📡 Processing ${iceCandidatesBuffer.current.length} buffered ICE candidates after answer`);
+        while (iceCandidatesBuffer.current.length > 0) {
+          const candidate = iceCandidatesBuffer.current.shift();
+          if (candidate) {
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ WebRTC Answer Error:', error);
+    }
+  };
+
+  const handleWebRTCIceCandidate = async (candidate: RTCIceCandidateInit) => {
+    try {
+      if (peerConnection.current && peerConnection.current.remoteDescription) {
+        await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        iceCandidatesBuffer.current.push(candidate);
+      }
+    } catch (error) {
+      console.error('❌ WebRTC ICE Candidate Error:', error);
+    }
+  };
+
+  useEffect(() => {
+    const handleWebRTCOfferEvent = (e: any) => {
+      const { callId, senderId, offer } = e.detail;
+      console.log('📡 WebRTC Offer received via socket from:', senderId);
+      // We use senderId as the callerId for processing
+      setRemoteOffer({ callId, callerId: senderId, offer });
+    };
+
+    const handleWebRTCAnswerEvent = (e: any) => {
+      const { answer } = e.detail;
+      handleWebRTCAnswer(answer);
+    };
+
+    const handleWebRTCIceCandidateEvent = (e: any) => {
+      const { candidate, senderId } = e.detail;
+      console.log('📡 WebRTC ICE Candidate received from:', senderId);
+      handleWebRTCIceCandidate(candidate);
+    };
+
+    window.addEventListener('socket_webrtc_offer', handleWebRTCOfferEvent as EventListener);
+    window.addEventListener('socket_webrtc_answer', handleWebRTCAnswerEvent as EventListener);
+    window.addEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidateEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('socket_webrtc_offer', handleWebRTCOfferEvent as EventListener);
+      window.removeEventListener('socket_webrtc_answer', handleWebRTCAnswerEvent as EventListener);
+      window.removeEventListener('socket_webrtc_ice_candidate', handleWebRTCIceCandidateEvent as EventListener);
+    };
+  }, [showCallInterface, callType]);
 
   // Audio Call Functions
   const initiateCall = async (receiverId: string) => {
@@ -1263,13 +1516,13 @@ export default function MessagesPage() {
       if (response.ok) {
         const data = await response.json();
         setCurrentCall(data.call);
+        setCaller(data.call.receiverId);
         setCallType('outgoing');
         setShowCallInterface(true);
-        
-        // Start WebRTC call
+        setIsMuted(false);
+        setIsSpeakerOn(true);
+
         const callId = data.call._id;
-        // await startWebRTCCall(callId, receiverId, true);
-        
         // Emit socket event for call initiation with actual call ID
         socketService.getSocket()?.emit('initiate_call', {
           receiverId,
@@ -1283,7 +1536,7 @@ export default function MessagesPage() {
           statusText: response.statusText,
           error: errorData
         });
-        
+
         // Show user-friendly error message
         if (errorData.message) {
           alert(`Call failed: ${errorData.message}`);
@@ -1310,16 +1563,22 @@ export default function MessagesPage() {
 
       if (response.ok) {
         setCallType('active');
-        
+
         // Start WebRTC call
         const callId = currentCall._id;
-        const callerId = currentCall.callerId._id;
-        // await acceptWebRTCCall(callId, callerId);
-        
+        const callerId = currentCall.callerId?._id || currentCall.callerId;
+
+        if (remoteOffer && remoteOffer.callId === callId) {
+          console.log('📡 Found stored remote offer, accepting now');
+          await handleWebRTCOffer(callId, callerId, remoteOffer.offer);
+        } else {
+          console.log('⏳ No offer found yet, waiting for caller to send offer...');
+        }
+
         // Emit socket event for call acceptance
         socketService.getSocket()?.emit('accept_call', {
           callId: currentCall._id,
-          callerId: currentCall.callerId._id
+          callerId: callerId
         });
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -1366,7 +1625,7 @@ export default function MessagesPage() {
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Call rejection failed:', errorData);
-        
+
         // If rejection fails because call is already answered, end it instead
         if (errorData.message && errorData.message.includes('current status')) {
           console.log('📞 Call already answered, ending instead');
@@ -1388,36 +1647,32 @@ export default function MessagesPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/end`, {
+      await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/end`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        // Emit socket event for call end
-        const otherUserId = currentCall.callerId._id === getCurrentUserId() 
-          ? currentCall.receiverId._id 
-          : currentCall.callerId._id;
-        
-        socketService.getSocket()?.emit('end_call', {
-          callId: currentCall._id,
-          otherUserId
-        });
+      const otherUserId = (currentCall.callerId?._id || currentCall.callerId) === getCurrentUserId()
+        ? (currentCall.receiverId?._id || currentCall.receiverId)
+        : (currentCall.callerId?._id || currentCall.callerId);
 
-        // Clean up WebRTC connection
-        // await endWebRTCCall();
-        
-        // Close call interface
-        setShowCallInterface(false);
-        setCurrentCall(null);
-        setCaller(null);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Call end failed:', errorData);
-        alert('Failed to end call. Please try again.');
-      }
+      socketService.getSocket()?.emit('end_call', {
+        callId: currentCall._id,
+        targetId: otherUserId
+      });
+
+      stopAllTracks();
+      setShowCallInterface(false);
+      setCurrentCall(null);
+      setCaller(null);
+      setRemoteOffer(null);
     } catch (error) {
       console.error('Error ending call:', error);
+      stopAllTracks();
+      setShowCallInterface(false);
+      setCurrentCall(null);
+      setCaller(null);
+      setRemoteOffer(null);
       alert('Failed to end call. Please try again.');
     }
   };
@@ -1429,27 +1684,99 @@ export default function MessagesPage() {
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/cancel`, {
+      await fetch(`${API_URL}/api/audio-calls/${currentCall._id}/cancel`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        // Emit socket event for call cancellation
-        socketService.getSocket()?.emit('cancel_call', {
-          callId: currentCall._id,
-          receiverId: currentCall.receiverId._id
-        });
+      socketService.getSocket()?.emit('cancel_call', {
+        callId: currentCall._id,
+        receiverId: currentCall.receiverId?._id || currentCall.receiverId
+      });
 
-        // Close call interface
-        setShowCallInterface(false);
-        setCurrentCall(null);
-        setCaller(null);
-      }
+      stopAllTracks();
+      setShowCallInterface(false);
+      setCurrentCall(null);
+      setCaller(null);
+      setRemoteOffer(null);
     } catch (error) {
       console.error('Error cancelling call:', error);
+      stopAllTracks();
+      setShowCallInterface(false);
+      setCurrentCall(null);
+      setCaller(null);
+      setRemoteOffer(null);
     }
   };
+
+  const toggleMute = () => {
+    const newMuteState = !isMuted;
+    setIsMuted(newMuteState);
+
+    if (localStream.current) {
+      const audioTracks = localStream.current.getAudioTracks();
+      console.log(`🎙️ Toggling mute: ${newMuteState}. Found ${audioTracks.length} tracks.`);
+      audioTracks.forEach(track => {
+        track.enabled = !newMuteState;
+      });
+    }
+  };
+
+  const toggleSpeaker = () => {
+    const newSpeakerState = !isSpeakerOn;
+    setIsSpeakerOn(newSpeakerState);
+
+    if (remoteAudioRef.current) {
+      console.log(`🔊 Toggling speaker: ${newSpeakerState}`);
+      remoteAudioRef.current.muted = !newSpeakerState;
+    }
+  };
+
+  // Auto-accept call when parameters are present
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (currentCall && action === 'acceptCall' && callType === 'incoming') {
+      console.log('🎯 Auto-accepting call:', currentCall._id);
+      acceptCall();
+      // Remove the parameters from URL so it doesn't re-trigger on refresh
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action');
+      url.searchParams.delete('callId');
+      url.searchParams.delete('callerId');
+      url.searchParams.delete('callerName');
+      url.searchParams.delete('callerUsername');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [currentCall, callType]);
+
+  // WebRTC Connection Orchestrator
+  useEffect(() => {
+    if (callType === 'active' && currentCall) {
+      const currentUserId = getCurrentUserId();
+      const isCaller = (currentCall.callerId?._id || currentCall.callerId) === currentUserId;
+      const otherUserId = isCaller
+        ? (currentCall.receiverId?._id || currentCall.receiverId)
+        : (currentCall.callerId?._id || currentCall.callerId);
+
+      if (isCaller) {
+        // I am the caller, I should initiate the WebRTC offer when the receiver accepts
+        if (!peerConnection.current || peerConnection.current.connectionState === 'closed' || peerConnection.current.connectionState === 'new') {
+          console.log('📡 I am caller, initiating WebRTC offer to:', otherUserId);
+          startWebRTCCall(currentCall._id, otherUserId);
+        }
+      } else {
+        // I am the receiver, I should process the offer if it exists and I am active
+        if (remoteOffer && remoteOffer.callId === currentCall._id) {
+          if (!peerConnection.current || peerConnection.current.connectionState === 'closed' || peerConnection.current.connectionState === 'new') {
+            console.log('📡 I am receiver, processing stored WebRTC offer from:', otherUserId);
+            handleWebRTCOffer(currentCall._id, otherUserId, remoteOffer.offer);
+          }
+        } else {
+          console.log('⏳ I am receiver, waiting for WebRTC offer for call:', currentCall._id);
+        }
+      }
+    }
+  }, [callType, currentCall?._id, remoteOffer]);
 
   // Video Call Functions
   // Video call handlers are now handled globally via VideoCallProvider
@@ -1458,7 +1785,7 @@ export default function MessagesPage() {
     if (videoCallService) {
       const callId = videoCallService.initiateCall(userId, userName);
       const url = `/dashboard/video-call/${callId}?type=admin&caller=${encodeURIComponent(userName)}`;
-      
+
       console.log('🎯 Initiating video call:', {
         userId,
         userName,
@@ -1466,7 +1793,7 @@ export default function MessagesPage() {
         userType: 'ADMIN',
         url
       });
-      
+
       router.push(url);
     }
   };
@@ -1475,13 +1802,13 @@ export default function MessagesPage() {
     .filter(conv => {
       const otherParticipant = getOtherParticipant(conv);
       return otherParticipant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-             otherParticipant.username.toLowerCase().includes(searchQuery.toLowerCase());
+        otherParticipant.username.toLowerCase().includes(searchQuery.toLowerCase());
     })
     .sort((a, b) => {
       // Sort by updatedAt (most recent first)
       const dateA = new Date(a.updatedAt || a.lastMessage?.timestamp || new Date(0));
       const dateB = new Date(b.updatedAt || b.lastMessage?.timestamp || new Date(0));
-      
+
       console.log('🔄 Sorting conversation:', {
         name: getOtherParticipant(a).name,
         updatedAt: a.updatedAt,
@@ -1493,7 +1820,7 @@ export default function MessagesPage() {
         lastMessageTime: b.lastMessage?.timestamp,
         finalDate: dateB.toISOString()
       });
-      
+
       return dateB.getTime() - dateA.getTime();
     });
 
@@ -1513,77 +1840,69 @@ export default function MessagesPage() {
   return (
     <div className={`h-screen flex ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Sidebar - Contacts List */}
-      <div className={`w-full max-w-md border-r transition-all duration-300 ease-in-out flex flex-col ${
-        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      } ${selectedConversation ? 'hidden lg:flex' : 'flex'}`}>
-      
-        <div className={`p-4 border-b transition-colors duration-200 ${
-          isDarkMode ? 'border-gray-700' : 'border-gray-200'
-        }`}>
+      <div className={`w-full max-w-md border-r transition-all duration-300 ease-in-out flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        } ${selectedConversation ? 'hidden lg:flex' : 'flex'}`}>
+
+        <div className={`p-4 border-b transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          }`}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push('/dashboard')}
-                className={`p-2 rounded-lg transition-colors duration-200 active:scale-95 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
+                className={`p-2 rounded-lg transition-colors duration-200 active:scale-95 ${isDarkMode
+                  ? 'hover:bg-gray-700 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
+                  }`}
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h1 className={`text-xl font-semibold transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
+              <h1 className={`text-xl font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                 Messages
               </h1>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowSearch(!showSearch)}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
+                className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
+                  }`}
               >
                 <Search className="w-5 h-5" />
               </button>
               <button
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
+                className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
+                  }`}
               >
                 <MoreVertical className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          
+
           {showSearch && (
             <div className="relative">
-              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-400'
-              }`} />
+              <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-400'
+                }`} />
               <input
                 type="text"
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full pl-10 pr-4 py-2 rounded-lg border-0 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'bg-gray-700 text-white placeholder-gray-400' 
-                    : 'bg-gray-100 text-gray-900 placeholder-gray-500'
-                }`}
+                className={`w-full pl-10 pr-4 py-2 rounded-lg border-0 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-colors duration-200 ${isDarkMode
+                  ? 'bg-gray-700 text-white placeholder-gray-400'
+                  : 'bg-gray-100 text-gray-900 placeholder-gray-500'
+                  }`}
               />
             </div>
           )}
-          
+
         </div>
 
-     
+
         <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar flex flex-col">
           {(showFollowedUsers || showFollowerUsers) ? (
             <div className="flex flex-col h-full">
@@ -1594,11 +1913,10 @@ export default function MessagesPage() {
                     setShowFollowedUsers(true);
                     setShowFollowerUsers(false);
                   }}
-                  className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                    showFollowedUsers
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors duration-200 ${showFollowedUsers
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
                 >
                   Following ({followedUsers.length})
                 </button>
@@ -1607,11 +1925,10 @@ export default function MessagesPage() {
                     setShowFollowerUsers(true);
                     setShowFollowedUsers(false);
                   }}
-                  className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                    showFollowerUsers
-                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors duration-200 ${showFollowerUsers
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
                 >
                   Followers ({followerUsers.length})
                 </button>
@@ -1620,11 +1937,10 @@ export default function MessagesPage() {
                     setShowFollowedUsers(false);
                     setShowFollowerUsers(false);
                   }}
-                  className={`ml-auto p-1 rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700 text-gray-400' 
-                      : 'hover:bg-gray-100 text-gray-500'
-                  }`}
+                  className={`ml-auto p-1 rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'hover:bg-gray-700 text-gray-400'
+                    : 'hover:bg-gray-100 text-gray-500'
+                    }`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1645,16 +1961,14 @@ export default function MessagesPage() {
                       <div
                         key={user._id}
                         onClick={() => startConversation(user)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-700' 
-                            : 'hover:bg-gray-100'
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${isDarkMode
+                          ? 'hover:bg-gray-700'
+                          : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="relative">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                            }`}>
                             {user.avatar && user.avatar !== '/default-avatar.svg' ? (
                               <img
                                 src={user.avatar}
@@ -1670,27 +1984,23 @@ export default function MessagesPage() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className={`font-medium text-sm truncate ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>
+                          <div className={`font-medium text-sm truncate ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                             {user.name}
                           </div>
-                          <div className={`text-xs truncate ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
+                          <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                             @{user.username}
                           </div>
                           {user.bio && (
-                            <div className={`text-xs truncate mt-1 ${
-                              isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                            }`}>
+                            <div className={`text-xs truncate mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                              }`}>
                               {user.bio}
                             </div>
                           )}
                         </div>
-                        <MessageCircle className={`w-4 h-4 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`} />
+                        <MessageCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`} />
                       </div>
                     ))}
                   </div>
@@ -1700,16 +2010,14 @@ export default function MessagesPage() {
                       <div
                         key={user._id}
                         onClick={() => startConversation(user)}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-700' 
-                            : 'hover:bg-gray-100'
-                        }`}
+                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors duration-200 hover:scale-[1.02] active:scale-[0.98] ${isDarkMode
+                          ? 'hover:bg-gray-700'
+                          : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="relative">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                            }`}>
                             {user.avatar && user.avatar !== '/default-avatar.svg' ? (
                               <img
                                 src={user.avatar}
@@ -1725,35 +2033,30 @@ export default function MessagesPage() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className={`font-medium text-sm truncate ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>
+                          <div className={`font-medium text-sm truncate ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                             {user.name}
                           </div>
-                          <div className={`text-xs truncate ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
+                          <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                             @{user.username}
                           </div>
                           {user.bio && (
-                            <div className={`text-xs truncate mt-1 ${
-                              isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                            }`}>
+                            <div className={`text-xs truncate mt-1 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                              }`}>
                               {user.bio}
                             </div>
                           )}
                         </div>
-                        <MessageCircle className={`w-4 h-4 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`} />
+                        <MessageCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`} />
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 flex flex-col items-center justify-center h-full">
-                    <MessageCircle className={`w-8 h-8 mb-2 ${
-                      isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`} />
+                    <MessageCircle className={`w-8 h-8 mb-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                      }`} />
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                       {showFollowedUsers ? 'No followed users found' : 'No followers found'}
                     </p>
@@ -1769,23 +2072,23 @@ export default function MessagesPage() {
               {filteredConversations.map((conversation) => {
                 const otherParticipant = getOtherParticipant(conversation);
                 const isSelected = selectedConversation?._id === conversation._id;
-                
+
                 // Check if conversation was updated recently (within last 5 minutes)
                 const lastUpdate = new Date(conversation.updatedAt || conversation.lastMessage?.timestamp || new Date(0));
                 const isRecent = (Date.now() - lastUpdate.getTime()) < 5 * 60 * 1000; // 5 minutes
-                
+
                 return (
                   <div
                     key={conversation._id}
                     onClick={() => {
                       setSelectedConversation(conversation);
                       socketService.joinConversation(conversation._id);
-                      
+
                       // Mark messages as read when opening conversation
                       if (conversation.unreadCount > 0) {
                         markMessagesAsRead(conversation._id);
                       }
-                      
+
                       setTimeout(() => {
                         const chatSection = document.querySelector('[data-chat-section]');
                         if (chatSection) {
@@ -1793,15 +2096,14 @@ export default function MessagesPage() {
                         }
                       }, 100);
                     }}
-                    className={`py-3 cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-[1.02] active:scale-[0.98] min-h-[80px] flex items-center mb-2 w-full ${
-                      isSelected
-                        ? isDarkMode
-                          ? 'bg-blue-900/30 border border-blue-700 shadow-lg'
-                          : 'bg-blue-50 border border-blue-200 shadow-lg'
-                        : isDarkMode
-                          ? 'hover:bg-gray-700 hover:shadow-md'
-                          : 'hover:bg-gray-50 hover:shadow-md'
-                    } ${isRecent && !isSelected ? 'bg-green-50/50 dark:bg-green-900/20' : ''}`}
+                    className={`py-3 cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-[1.02] active:scale-[0.98] min-h-[80px] flex items-center mb-2 w-full ${isSelected
+                      ? isDarkMode
+                        ? 'bg-blue-900/30 border border-blue-700 shadow-lg'
+                        : 'bg-blue-50 border border-blue-200 shadow-lg'
+                      : isDarkMode
+                        ? 'hover:bg-gray-700 hover:shadow-md'
+                        : 'hover:bg-gray-50 hover:shadow-md'
+                      } ${isRecent && !isSelected ? 'bg-green-50/50 dark:bg-green-900/20' : ''}`}
                   >
                     <div className="flex items-center gap-4 px-4 w-full">
                       {/* Avatar */}
@@ -1822,13 +2124,12 @@ export default function MessagesPage() {
                         )}
                       </div>
 
-                    
+
                       <div className="flex-1 min-w-0 w-full">
                         <div className="flex items-start justify-between mb-2 w-full">
                           <div className="flex items-center gap-2 flex-1">
-                            <h3 className={`font-medium transition-colors duration-200 text-sm sm:text-base ${
-                              isDarkMode ? 'text-white' : 'text-gray-900'
-                            }`}>
+                            <h3 className={`font-medium transition-colors duration-200 text-sm sm:text-base ${isDarkMode ? 'text-white' : 'text-gray-900'
+                              }`}>
                               {otherParticipant.name}
                             </h3>
                             {conversation.isP2PUser && (
@@ -1837,30 +2138,27 @@ export default function MessagesPage() {
                               </span>
                             )}
                           </div>
-                          <span className={`text-xs sm:text-sm transition-colors duration-200 flex-shrink-0 ml-2 ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
+                          <span className={`text-xs sm:text-sm transition-colors duration-200 flex-shrink-0 ml-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
                             {formatTime(conversation.updatedAt)}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center justify-between w-full">
-                          <p className={`text-xs sm:text-sm transition-colors duration-200 flex-1 ${
-                            conversation.unreadCount > 0
-                              ? isDarkMode
-                                ? 'text-white font-medium'
-                                : 'text-gray-900 font-medium'
-                              : isDarkMode
-                                ? 'text-gray-300'
-                                : 'text-gray-600'
-                          }`}>
+                          <p className={`text-xs sm:text-sm transition-colors duration-200 flex-1 ${conversation.unreadCount > 0
+                            ? isDarkMode
+                              ? 'text-white font-medium'
+                              : 'text-gray-900 font-medium'
+                            : isDarkMode
+                              ? 'text-gray-300'
+                              : 'text-gray-600'
+                            }`}>
                             {conversation.lastMessage.content}
                           </p>
-                          
+
                           {conversation.unreadCount > 0 && (
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ml-2 flex-shrink-0 ${
-                              isDarkMode ? 'bg-blue-500 text-white' : 'bg-blue-500 text-white'
-                            }`}>
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium ml-2 flex-shrink-0 ${isDarkMode ? 'bg-blue-500 text-white' : 'bg-blue-500 text-white'
+                              }`}>
                               {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
                             </div>
                           )}
@@ -1873,23 +2171,19 @@ export default function MessagesPage() {
             </div>
           ) : !(showFollowedUsers || showFollowerUsers) ? (
             <div className="text-center py-8">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-                isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-              }`}>
-                <MessageCircle className={`w-8 h-8 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                }`}>
+                <MessageCircle className={`w-8 h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
               </div>
-              <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
+              <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>
                 {searchQuery ? 'No conversations found' : 'No messages yet'}
               </h3>
-              <p className={`text-sm transition-colors duration-200 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
-                {searchQuery 
-                  ? 'Try searching with different keywords' 
+              <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}>
+                {searchQuery
+                  ? 'Try searching with different keywords'
                   : 'Start a conversation with someone you follow'
                 }
               </p>
@@ -1906,14 +2200,13 @@ export default function MessagesPage() {
         </div>
       </div>
 
-    
+
       {/* Chat Section */}
       {selectedConversation ? (
         <div className="flex-1 flex flex-col h-screen" data-chat-section>
           {/* Chat Header */}
-          <div className={`p-4 border-b transition-colors duration-200 flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b transition-colors duration-200 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
@@ -1927,7 +2220,7 @@ export default function MessagesPage() {
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                
+
                 <div className="relative w-10 h-10 flex-shrink-0">
                   <img
                     src={getOtherParticipant(selectedConversation).avatar || '/default-avatar.svg'}
@@ -1941,23 +2234,21 @@ export default function MessagesPage() {
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                   )}
                 </div>
-                
+
                 <div>
-                  <h2 className={`font-semibold transition-colors duration-200 ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <h2 className={`font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
                     {getOtherParticipant(selectedConversation).name}
                   </h2>
-                  <p className={`text-sm transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                  }`}>
+                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                    }`}>
                     {getOtherParticipant(selectedConversation).isOnline ? 'Online' : 'Last seen recently'}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <button 
+                <button
                   onClick={() => {
                     const otherParticipant = getOtherParticipant(selectedConversation);
                     console.log('📞 Call button clicked:', {
@@ -1967,16 +2258,15 @@ export default function MessagesPage() {
                     });
                     initiateCall(otherParticipant._id);
                   }}
-                  className={`p-2 rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700 text-gray-300' 
-                      : 'hover:bg-gray-100 text-gray-600'
-                  }`}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'hover:bg-gray-700 text-gray-300'
+                    : 'hover:bg-gray-100 text-gray-600'
+                    }`}
                   title="Start Audio Call"
                 >
                   <Phone className="w-5 h-5" />
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const otherParticipant = getOtherParticipant(selectedConversation);
                     console.log('📹 Video call button clicked:', {
@@ -1986,38 +2276,35 @@ export default function MessagesPage() {
                     });
                     initiateVideoCall(otherParticipant._id, otherParticipant.name);
                   }}
-                  className={`p-2 rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700 text-gray-300' 
-                      : 'hover:bg-gray-100 text-gray-600'
-                  }`}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'hover:bg-gray-700 text-gray-300'
+                    : 'hover:bg-gray-100 text-gray-600'
+                    }`}
                   title="Start Video Call"
                 >
                   <Video className="w-5 h-5" />
                 </button>
-                <button 
+                <button
                   onClick={() => setShowCallHistory(true)}
-                  className={`p-2 rounded-lg transition-colors duration-200 ${
-                    isDarkMode 
-                      ? 'hover:bg-gray-700 text-gray-300' 
-                      : 'hover:bg-gray-100 text-gray-600'
-                  }`}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                    ? 'hover:bg-gray-700 text-gray-300'
+                    : 'hover:bg-gray-100 text-gray-600'
+                    }`}
                   title="Call History"
                 >
                   <History className="w-5 h-5" />
                 </button>
-                <button className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`} title="Conversation Info">
+                <button className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
+                  }`} title="Conversation Info">
                   <Info className="w-5 h-5" />
                 </button>
               </div>
             </div>
           </div>
 
-      
+
           {/* Messages Container */}
           <div className="flex-1 overflow-y-auto min-h-0 flex flex-col messages-scrollbar">
             <div className="flex-1 p-4 space-y-4">
@@ -2026,63 +2313,57 @@ export default function MessagesPage() {
                   const currentUserId = getCurrentUserId();
                   const isOwn = message.sender._id === currentUserId;
                   const isRead = message.isRead;
-                
-                return (
-                  <div
-                    key={message._id}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}
-                  >
-                    <div className={`max-w-xs sm:max-w-sm lg:max-w-md px-3 sm:px-4 py-2 rounded-2xl transition-colors duration-200 ${
-                      isOwn
+
+                  return (
+                    <div
+                      key={message._id}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}
+                    >
+                      <div className={`max-w-xs sm:max-w-sm lg:max-w-md px-3 sm:px-4 py-2 rounded-2xl transition-colors duration-200 ${isOwn
                         ? isDarkMode
                           ? 'bg-blue-600 text-white'
                           : 'bg-blue-500 text-white'
                         : isDarkMode
                           ? 'bg-gray-700 text-white'
                           : 'bg-gray-200 text-gray-900'
-                    }`}>
-                      <p className="text-sm">{message.content}</p>
-                      <div className={`flex items-center justify-end gap-1 mt-1 ${
-                        isOwn ? 'text-blue-100' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                      }`}>
-                        <span className="text-xs">
-                          {new Date(message.timestamp).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </span>
-                        {isOwn && (
-                          <div className="ml-1">
-                            <Check className="w-3 h-3 text-gray-400" />
-                          </div>
-                        )}
+                        }`}>
+                        <p className="text-sm">{message.content}</p>
+                        <div className={`flex items-center justify-end gap-1 mt-1 ${isOwn ? 'text-blue-100' : isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                          <span className="text-xs">
+                            {new Date(message.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                          {isOwn && (
+                            <div className="ml-1">
+                              <Check className="w-3 h-3 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
+                  );
                 })
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
-                    isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                  }`}>
-                    <MessageCircle className={`w-8 h-8 ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                    }`}>
+                    <MessageCircle className={`w-8 h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`} />
                   </div>
-                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-                    isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
+                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
                     Start the conversation
                   </h3>
-                  <p className={`text-sm transition-colors duration-200 ${
-                    isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                  }`}>
+                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                    }`}>
                     Send a message to begin chatting
                   </p>
                 </div>
               )}
-            
+
               {isTyping && typingUsers.length > 0 && (
                 <div className={`px-4 py-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   <div className="flex items-center gap-2">
@@ -2097,36 +2378,31 @@ export default function MessagesPage() {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
           </div>
 
-          <div className={`p-3 sm:p-4 border-t transition-colors duration-200 flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-3 sm:p-4 border-t transition-colors duration-200 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             {replyingTo && (
-              <div className={`mb-3 p-3 rounded-lg border-l-4 border-blue-500 ${
-                isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
-              }`}>
+              <div className={`mb-3 p-3 rounded-lg border-l-4 border-blue-500 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
+                }`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className={`text-xs font-medium ${
-                      isDarkMode ? 'text-blue-300' : 'text-blue-600'
-                    }`}>
+                    <p className={`text-xs font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-600'
+                      }`}>
                       Replying to {replyingTo.sender.name}
                     </p>
-                    <p className={`text-sm truncate ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
+                    <p className={`text-sm truncate ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                      }`}>
                       {replyingTo.content}
                     </p>
                   </div>
                   <button
                     onClick={() => setReplyingTo(null)}
-                    className={`p-1 rounded ${
-                      isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'
-                    }`}
+                    className={`p-1 rounded ${isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'
+                      }`}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -2137,22 +2413,20 @@ export default function MessagesPage() {
             <div className="flex items-end gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
+                className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
+                  }`}
               >
                 <Paperclip className="w-5 h-5" />
               </button>
-              
+
               <button
                 onClick={() => imageInputRef.current?.click()}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-300' 
-                    : 'hover:bg-gray-100 text-gray-600'
-                }`}
+                className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-700 text-gray-300'
+                  : 'hover:bg-gray-100 text-gray-600'
+                  }`}
               >
                 <ImageIcon className="w-5 h-5" />
               </button>
@@ -2160,34 +2434,32 @@ export default function MessagesPage() {
               <div className="flex-1 relative">
                 <textarea
                   value={newMessage}
-                    onChange={(e) => {
+                  onChange={(e) => {
                     setNewMessage(e.target.value);
-                    
+
                     if (selectedConversation && e.target.value.trim()) {
                       socketService.startTyping(selectedConversation._id);
                     } else if (selectedConversation) {
                       socketService.stopTyping(selectedConversation._id);
                     }
-                    
+
                     e.target.style.height = 'auto';
                     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                   }}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 rounded-2xl border-0 resize-none focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-200 text-sm sm:text-base ${
-                    isDarkMode 
-                      ? 'bg-gray-700 text-white placeholder-gray-400' 
-                      : 'bg-gray-100 text-gray-900 placeholder-gray-500'
-                  }`}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 rounded-2xl border-0 resize-none focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-200 text-sm sm:text-base ${isDarkMode
+                    ? 'bg-gray-700 text-white placeholder-gray-400'
+                    : 'bg-gray-100 text-gray-900 placeholder-gray-500'
+                    }`}
                   rows={1}
                   style={{ minHeight: '40px', maxHeight: '120px', height: '40px' }}
                 />
-                
-                <button className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors duration-200 ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-600 text-gray-300' 
-                    : 'hover:bg-gray-200 text-gray-600'
-                }`}>
+
+                <button className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  ? 'hover:bg-gray-600 text-gray-300'
+                  : 'hover:bg-gray-200 text-gray-600'
+                  }`}>
                   <Smile className="w-5 h-5" />
                 </button>
               </div>
@@ -2195,13 +2467,12 @@ export default function MessagesPage() {
               <button
                 onClick={sendMessage}
                 disabled={!newMessage.trim() || sending}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  newMessage.trim() && !sending
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                    : isDarkMode
-                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
+                className={`p-2 rounded-lg transition-colors duration-200 ${newMessage.trim() && !sending
+                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                  : isDarkMode
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
               >
                 {sending ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -2232,41 +2503,41 @@ export default function MessagesPage() {
       ) : (
         <div className="hidden lg:flex flex-1 items-center justify-center">
           <div className="text-center">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-              isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-            }`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+              }`}>
               <MessageCircle className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               Select a conversation
             </h3>
-            <p className={`text-sm transition-colors duration-200 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}>
+            <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
               Choose a conversation from the sidebar to start messaging
             </p>
           </div>
         </div>
       )}
 
-      {/* Audio Call Interface */}
+      {/* Audio Call interface for audio calls */}
       <AudioCallInterface
         isVisible={showCallInterface}
         callType={callType}
         caller={caller}
-        onAccept={acceptCall}
-        onReject={rejectCall}
-        onEnd={endCall}
-        onCancel={cancelCall}
-        onMuteToggle={() => {}}
-        onSpeakerToggle={() => {}}
-        isMuted={false}
-        isSpeakerOn={false}
+        onAccept={() => acceptCall()}
+        onReject={() => rejectCall()}
+        onEnd={() => endCall()}
+        onCancel={() => cancelCall()}
+        onMuteToggle={toggleMute}
+        onSpeakerToggle={toggleSpeaker}
+        isMuted={isMuted}
+        isSpeakerOn={isSpeakerOn}
         callDuration={currentCall?.duration || 0}
-        connectionQuality="good"
+        connectionQuality="excellent"
       />
+
+      {/* Hidden audio element for WebRTC audio calls */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Video Call Notification */}
       {incomingVideoCall && (

@@ -139,6 +139,10 @@ const PeopleYouMayKnow: React.FC<PeopleYouMayKnowProps> = ({ onFollow }) => {
   const handleFollow = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
+      if (!userId || userId === 'undefined') {
+        console.error('Invalid user ID in handleFollow');
+        return;
+      }
       if (!token) {
         alert('Please login to follow users');
         return;

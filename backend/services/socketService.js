@@ -296,6 +296,7 @@ class SocketService {
       // WebRTC signaling events
       socket.on('webrtc_offer', (data) => {
         const { callId, offer, receiverId } = data;
+        console.log(`📞 WebRTC offer event received:`, JSON.stringify(data));
         console.log(`📞 WebRTC offer sent from ${socket.user.name} to user ${receiverId}`);
 
         // Forward offer to receiver
@@ -309,6 +310,7 @@ class SocketService {
 
       socket.on('webrtc_answer', (data) => {
         const { callId, answer, callerId } = data;
+        console.log(`📞 WebRTC answer event received:`, JSON.stringify(data));
         console.log(`📞 WebRTC answer sent from ${socket.user.name} to user ${callerId}`);
 
         // Forward answer to caller
@@ -321,10 +323,16 @@ class SocketService {
       });
 
       socket.on('webrtc_ice_candidate', (data) => {
-        const { callId, candidate, receiverId } = data;
+        const { callId, candidate, receiverId, callerId } = data;
+        const targetId = receiverId || callerId;
 
-        // Forward ICE candidate to receiver
-        socket.to(`user_${receiverId}`).emit('webrtc_ice_candidate', {
+        if (!targetId) {
+          console.warn(`⚠️ WebRTC ICE candidate received without targetId from ${socket.user.name}`);
+          return;
+        }
+
+        // Forward ICE candidate to recipient
+        socket.to(`user_${targetId}`).emit('webrtc_ice_candidate', {
           callId,
           candidate,
           senderId: socket.userId,

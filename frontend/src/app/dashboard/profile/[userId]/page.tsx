@@ -37,7 +37,8 @@ interface Album {
 type ContentItem = Post | (Album & { type: 'album' }) | (Job & { type: 'job' });
 
 interface User {
-  _id: string;
+  _id?: string;
+  id?: string;
   name: string;
   username: string;
   email: string;
@@ -981,7 +982,12 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token || !user) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user._id}/follow`, {
+      const userId = user.id || user._id;
+      if (!userId) {
+        console.error('User ID is missing');
+        return;
+      }
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/follow`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1004,7 +1010,10 @@ const UserProfile: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token || !user) return;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user._id}/block`, {
+      const userId = user.id || user._id;
+      if (!userId) return;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/block`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1069,7 +1078,10 @@ const UserProfile: React.FC = () => {
 
   const handleMessage = () => {
     // Navigate to messages or open chat
-    router.push(`/dashboard/messages/${user?._id}`);
+    const userId = user?.id || user?._id;
+    if (userId) {
+      router.push(`/dashboard/messages?userId=${userId}`);
+    }
   };
 
   const handleEditPost = (post: Post) => {
@@ -1393,12 +1405,13 @@ const UserProfile: React.FC = () => {
       if (response.ok) {
         setPosts(posts.map(post => {
           if (post._id === postId) {
-            const isLiked = post.likes?.includes(user?._id || '');
+            const userId = user?.id || user?._id || '';
+            const isLiked = post.likes?.includes(userId);
             return {
               ...post,
               likes: isLiked
-                ? post.likes?.filter(id => id !== (user?._id || '')) || []
-                : [...(post.likes || []), user?._id || '']
+                ? post.likes?.filter(id => id !== userId) || []
+                : [...(post.likes || []), userId]
             };
           }
           return post;
@@ -1492,12 +1505,13 @@ const UserProfile: React.FC = () => {
       if (response.ok) {
         setPosts(posts.map(post => {
           if (post._id === postId) {
-            const isSaved = post.savedBy?.includes(user?._id || '');
+            const userId = user?.id || user?._id || '';
+            const isSaved = post.savedBy?.includes(userId);
             return {
               ...post,
               savedBy: isSaved
-                ? post.savedBy?.filter(id => id !== (user?._id || '')) || []
-                : [...(post.savedBy || []), user?._id || '']
+                ? post.savedBy?.filter(id => id !== userId) || []
+                : [...(post.savedBy || []), userId]
             };
           }
           return post;
@@ -1725,9 +1739,10 @@ const UserProfile: React.FC = () => {
         questions: jobFormData.questions.filter(q => q.trim() !== '').map(q => ({ question: q }))
       };
 
-      // Only include pageId if user._id exists (valid ObjectId)
-      if (user?._id) {
-        jobData.pageId = user._id;
+      // Only include pageId if user._id or user.id exists
+      const userId = user?._id || user?.id;
+      if (userId) {
+        jobData.pageId = userId;
       }
 
       if (imageUrl) {
