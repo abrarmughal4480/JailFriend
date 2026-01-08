@@ -32,28 +32,28 @@ export default function PopularPostsPage() {
         setLoading(true);
       }
       console.log('Fetching popular content...');
-      
+
       const [postsResponse, albumsResponse] = await Promise.all([
         fetch(`${API_URL}/api/posts`),
         fetch(`${API_URL}/api/albums`)
       ]);
-      
+
       if (!postsResponse.ok) {
         throw new Error(`Posts API error: ${postsResponse.status}`);
       }
-      
+
       if (!albumsResponse.ok) {
         throw new Error(`Albums API error: ${albumsResponse.status}`);
       }
-      
+
       const [postsData, albumsData] = await Promise.all([
         postsResponse.json(),
         albumsResponse.json()
       ]);
-      
+
       console.log('📊 Popular posts fetched:', postsData.length);
       console.log('📊 Popular albums fetched:', albumsData.length);
-      
+
       setPosts(postsData);
       setAlbums(albumsData);
     } catch (error) {
@@ -94,7 +94,7 @@ export default function PopularPostsPage() {
     window.addEventListener('albumDeleted', handleAlbumDeleted);
     window.addEventListener('postCreated', handlePostCreated);
     window.addEventListener('postDeleted', handlePostDeleted);
-    
+
     return () => {
       window.removeEventListener('albumCreated', handleAlbumCreated);
       window.removeEventListener('albumDeleted', handleAlbumDeleted);
@@ -108,12 +108,12 @@ export default function PopularPostsPage() {
     let filteredAlbums = albums;
 
     if (searchQuery) {
-      filteredPosts = posts.filter(post => 
+      filteredPosts = posts.filter(post =>
         post.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         post.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         post.hashtag?.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      filteredAlbums = albums.filter(album => 
+      filteredAlbums = albums.filter(album =>
         album.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         album.description?.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -131,20 +131,20 @@ export default function PopularPostsPage() {
           const bEngagement = (b.likes?.length || 0) + (b.comments?.length || 0) + (b.shares?.length || 0);
           return bEngagement - aEngagement;
         }).slice(0, 10);
-        
+
         const trendingAlbums = [...filteredAlbums].sort((a, b) => {
           const aEngagement = (a.likes?.length || 0) + (a.comments?.length || 0) + (a.shares?.length || 0);
           const bEngagement = (b.likes?.length || 0) + (b.comments?.length || 0) + (b.shares?.length || 0);
           return bEngagement - aEngagement;
         }).slice(0, 5);
-        
+
         return { posts: trendingPosts, albums: trendingAlbums };
       default:
         // Sort by creation date for "all" filter
-        const sortedPosts = [...filteredPosts].sort((a, b) => 
+        const sortedPosts = [...filteredPosts].sort((a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-        const sortedAlbums = [...filteredAlbums].sort((a, b) => 
+        const sortedAlbums = [...filteredAlbums].sort((a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         return { posts: sortedPosts, albums: sortedAlbums };
@@ -156,7 +156,7 @@ export default function PopularPostsPage() {
   const handlePostShare = async (postId: string, shareOptions?: any) => {
     const token = localStorage.getItem('token');
     try {
-    const res = await fetch(`${API_URL}/api/posts/${postId}/share`, {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/share`, {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -166,7 +166,7 @@ export default function PopularPostsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setPosts(prev => prev.map(post => 
+        setPosts(prev => prev.map(post =>
           post._id === postId ? { ...post, shares: data.shares, shared: data.shared } : post
         ));
         console.log('Post shared successfully!');
@@ -179,7 +179,7 @@ export default function PopularPostsPage() {
   const handlePostView = async (postId: string) => {
     const token = localStorage.getItem('token');
     try {
-    const res = await fetch(`${API_URL}/api/posts/${postId}/view`, {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/view`, {
         method: 'POST',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -187,7 +187,7 @@ export default function PopularPostsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setPosts(prev => prev.map(post => 
+        setPosts(prev => prev.map(post =>
           post._id === postId ? { ...post, views: data.views } : post
         ));
       }
@@ -198,7 +198,7 @@ export default function PopularPostsPage() {
 
   const handleLike = async (postId: string) => {
     const token = localStorage.getItem('token');
-  const res = await fetch(`${API_URL}/api/posts/${postId}/like`, { 
+    const res = await fetch(`${API_URL}/api/posts/${postId}/like`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -214,7 +214,7 @@ export default function PopularPostsPage() {
 
   const handleReaction = async (postId: string, reactionType: string) => {
     const token = localStorage.getItem('token');
-  const res = await fetch(`${API_URL}/api/posts/${postId}/reaction`, { 
+    const res = await fetch(`${API_URL}/api/posts/${postId}/reaction`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -249,11 +249,10 @@ export default function PopularPostsPage() {
           <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button className={`lg:hidden p-2 rounded-full transition-colors ${
-                  isDarkMode 
-                    ? 'hover:bg-gray-700' 
+                <button className={`lg:hidden p-2 rounded-full transition-colors ${isDarkMode
+                    ? 'hover:bg-gray-700'
                     : 'hover:bg-gray-100'
-                }`}>
+                  }`}>
                   <ArrowLeft className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
                 </button>
                 <div>
@@ -266,7 +265,7 @@ export default function PopularPostsPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Loading Overlay */}
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -285,11 +284,10 @@ export default function PopularPostsPage() {
         <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <button className={`lg:hidden p-2 rounded-full transition-colors ${
-                isDarkMode 
-                  ? 'hover:bg-gray-700' 
+              <button className={`lg:hidden p-2 rounded-full transition-colors ${isDarkMode
+                  ? 'hover:bg-gray-700'
                   : 'hover:bg-gray-100'
-              }`}>
+                }`}>
                 <ArrowLeft className={`w-5 h-5 transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} />
               </button>
               <div>
@@ -304,7 +302,7 @@ export default function PopularPostsPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {/* Refresh Button */}
               <button
@@ -319,7 +317,7 @@ export default function PopularPostsPage() {
                   </svg>
                 </div>
               </button>
-              
+
               {/* Search Toggle */}
               <button
                 onClick={() => setShowSearch(!showSearch)}
@@ -327,7 +325,7 @@ export default function PopularPostsPage() {
               >
                 <Search className="w-5 h-5" />
               </button>
-              
+
               {/* View Mode Toggle - Hidden on mobile */}
               <div className="hidden sm:flex bg-gray-100 rounded-lg p-1">
                 <button
@@ -343,7 +341,7 @@ export default function PopularPostsPage() {
                   <Grid className="w-4 h-4" />
                 </button>
               </div>
-              
+
               {/* Filter Button */}
               <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <Filter className="w-5 h-5 text-gray-600" />
@@ -380,13 +378,12 @@ export default function PopularPostsPage() {
                 <button
                   key={filter.id}
                   onClick={() => setActiveFilter(filter.id)}
-                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm sm:text-base duration-200 ${
-                    activeFilter === filter.id
+                  className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg whitespace-nowrap transition-all text-sm sm:text-base duration-200 ${activeFilter === filter.id
                       ? 'bg-blue-500 text-white shadow-md'
-                      : isDarkMode 
-                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' 
+                      : isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                         : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{filter.label}</span>
@@ -433,7 +430,7 @@ export default function PopularPostsPage() {
                 {searchQuery ? 'No results found' : 'No content available'}
               </h3>
               <p className="text-sm sm:text-base text-gray-600 mb-6 max-w-md mx-auto">
-                {searchQuery 
+                {searchQuery
                   ? `Try adjusting your search terms or browse all content.`
                   : 'No posts or albums found. Check back later for fresh content!'
                 }
@@ -493,13 +490,13 @@ export default function PopularPostsPage() {
                   <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6' : 'space-y-4 sm:space-y-6'}`}>
                     {displayPosts.map((post) => (
                       <div key={post._id} className={viewMode === 'grid' ? 'bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow' : ''}>
-                        <PostDisplay 
-                          post={post} 
+                        <PostDisplay
+                          post={post}
                           isOwner={false}
                           onPostUpdate={(updatedPost) => {
                             // Update the post in the local state
-                            setPosts(prevPosts => 
-                              prevPosts.map(p => 
+                            setPosts(prevPosts =>
+                              prevPosts.map(p =>
                                 p._id === updatedPost._id ? updatedPost : p
                               )
                             );

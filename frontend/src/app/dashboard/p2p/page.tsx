@@ -1162,12 +1162,7 @@ export default function P2PPage() {
                           </span>
                         </div>
                       )}
-                      <FaShareAlt
-                        className={`w-6 h-6 cursor-pointer ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                      />
-                      <HiDotsVertical
-                        className={`w-6 h-6 cursor-pointer ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                      />
+
                     </div>
                   </div>
 
@@ -1678,7 +1673,7 @@ export default function P2PPage() {
                       <h3 className={`text-[35px] font-semibold ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'} leading-[35px] mb-12`}>
                         Worth Exploring
                       </h3>
-                      <div className="flex flex-wrap gap-3 justify-center">
+                      <div className="flex flex-nowrap sm:flex-wrap gap-3 justify-start sm:justify-center overflow-x-auto sm:overflow-visible pb-4 -mx-5 px-5 sm:mx-0 sm:px-0 scroll-smooth no-scrollbar touch-pan-x">
                         {worthExploringItems.map(item => {
                           const isActive = item.isSelectable && selectedCategoryId === item.id;
                           return (
@@ -1687,7 +1682,7 @@ export default function P2PPage() {
                               type="button"
                               disabled={!item.isSelectable}
                               onClick={() => item.isSelectable && handleCategorySelect(item.id)}
-                              className={`px-[18px] py-2 rounded-[100px] border text-sm font-medium transition-all ${isActive
+                              className={`px-[18px] py-2 rounded-[100px] border text-sm font-medium transition-all shrink-0 whitespace-nowrap ${isActive
                                 ? 'bg-blue-500 border-blue-500 text-white'
                                 : isDarkMode
                                   ? 'border-blue-700 bg-blue-900/20 text-white hover:bg-blue-500 hover:text-white'
@@ -1709,80 +1704,7 @@ export default function P2PPage() {
                 )}
               </div>
 
-              {SHOW_TRENDING_SHORTS && (
-                <div className={`py-20 ${isDarkMode ? 'bg-gray-800/50' : 'bg-[rgba(255,255,255,0.15)]'} mt-[60px] w-full mb-5`}>
-                  <div className="w-[90%] mx-auto">
-                    <div className="mb-10">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className={`text-[35px] font-semibold leading-[35px] ${isDarkMode ? 'text-white' : 'text-[#1A1A1A]'}`}>
-                          Trending JFshorts
-                        </h3>
-                        <button className={`flex items-center gap-1 text-base font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'} cursor-pointer bg-none border-none hover:underline`}>
-                          View all
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arrow-icon">
-                            <path d="M5 12h14"></path>
-                            <path d="m12 5 7 7-7 7"></path>
-                          </svg>
-                        </button>
-                      </div>
-                      <h5 className={`text-base font-light ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Watch the latest clips from trending sessions. Click to view the full session and gain expert insights.
-                      </h5>
-                    </div>
 
-                    <div className="relative">
-                      <Swiper
-                        modules={[Navigation]}
-                        spaceBetween={20}
-                        slidesPerView={4}
-                        navigation={{
-                          nextEl: '.video-next',
-                          prevEl: '.video-prev',
-                        }}
-                        breakpoints={{
-                          320: { slidesPerView: 1 },
-                          640: { slidesPerView: 2 },
-                          1024: { slidesPerView: 3 },
-                          1280: { slidesPerView: 4 },
-                        }}
-                      >
-                        {[
-                          { title: 'Want a career in media industry?', src: 'https://cfront-snips.unikon.ai/snip_asset_29370_846b5248-22ad-48ed-9d10-37476f925522.mp4' },
-                          { title: 'Want to increase profitability?', src: 'https://cfront-snips.unikon.ai/snip_asset_36431_6eb907df-9e0b-4fa8-8a3c-d9705d1a86f8.mp4' },
-                          { title: 'Seeking key startup steps?', src: 'https://cfront-snips.unikon.ai/snip_asset_22996_49aea3b3-3e6d-464e-bcf9-b04d011ae460.mp4' },
-                          { title: 'How to pivot from design to data analysis?', src: 'https://cfront-snips.unikon.ai/snip_asset_68177_059ff3fd-f17a-4d67-b60c-56523dcfca76.mp4' },
-                        ].map((video, idx) => (
-                          <SwiperSlide key={idx}>
-                            <div className="relative rounded-lg overflow-hidden">
-                              <div className="absolute bottom-4 left-3 z-10">
-                                <div className="flex items-center gap-1 px-2 py-1 bg-[rgba(36,36,36,0.7)] rounded">
-                                  <FaLightbulb className="w-2.5 h-2.5 text-white" />
-                                  <h5 className="text-[10px] text-white m-0">{video.title}</h5>
-                                </div>
-                              </div>
-                              <video playsInline loop className="w-full h-auto rounded-lg">
-                                <source src={video.src} type="video/mp4" />
-                              </video>
-                            </div>
-                          </SwiperSlide>
-                        ))}
-                      </Swiper>
-                      <div className="flex justify-between absolute top-1/2 left-0 right-0 transform -translate-y-1/2 z-10">
-                        <button className="bg-[#D9D9D9] border-none rounded-full w-[27px] h-[27px] flex items-center justify-center cursor-pointer transition-all hover:bg-[#C0C0C0] video-prev">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-[#1C1B1F]">
-                            <path d="m15 18-6-6 6-6"></path>
-                          </svg>
-                        </button>
-                        <button className="bg-[#D9D9D9] border-none rounded-full w-[27px] h-[27px] flex items-center justify-center cursor-pointer transition-all hover:bg-[#C0C0C0] video-next">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-[#1C1B1F]">
-                            <path d="m9 18 6-6-6-6"></path>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {SHOW_TOP_RATED_PROFILES && (
                 <div className={`w-full mx-auto mb-5 p-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-md rounded-xl`}>

@@ -1,7 +1,7 @@
 "use client";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ChevronDown, Smile, Paperclip, Send, MoreHorizontal, Globe, ThumbsUp, Eye, Sparkles } from 'lucide-react';
 import { getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 import SharePopup, { ShareOptions } from './SharePopup';
@@ -745,15 +745,23 @@ export default function AlbumDisplay({
 
           {/* Right Side: Engagement Metrics */}
           <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-blue-500 cursor-pointer transition-colors">
+              <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="text-xs sm:text-sm">{getReactionCount()} Likes</span>
+            </div>
+
+            <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-blue-500 cursor-pointer transition-colors">
+              <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="text-xs sm:text-sm">{album.comments?.length || 0} Comments</span>
             </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-green-500 cursor-pointer transition-colors">
+              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="text-xs sm:text-sm">{album.views?.length || 0} Views</span>
             </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2">
+            <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-yellow-500 cursor-pointer transition-colors">
+              <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
               <span className="text-xs sm:text-sm">{album.reviews?.length || 0} Reviews</span>
             </div>
           </div>
@@ -769,6 +777,13 @@ export default function AlbumDisplay({
               isDarkMode={isDarkMode}
             >
               <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // If we already have a reaction, toggle it off by sending the same type
+                  // Or just handle it in the backend. 
+                  // For now, let's just trigger 'like' as a default single-click action.
+                  handleReaction(getCurrentReaction() || 'like');
+                }}
                 className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer relative z-50"
                 style={{ touchAction: 'manipulation' }}
               >

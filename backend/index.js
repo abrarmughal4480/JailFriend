@@ -245,6 +245,8 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/advertisements', advertisementRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/ai', aiRoutes);
+const liveStreamRoutes = require('./routes/liveStreamRoutes');
+app.use('/api/live-streams', liveStreamRoutes);
 // Static file serving for uploads and avatars
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 app.use('/avatars', express.static(require('path').join(__dirname, '../frontend/public/avatars')));

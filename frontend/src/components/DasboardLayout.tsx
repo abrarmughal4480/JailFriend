@@ -225,7 +225,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.search-container')) {
+      // On desktop, close when clicking outside the search container
+      if (!isMobile && !target.closest('.search-container')) {
         setShowSearchResults(false);
       }
     };
@@ -316,8 +317,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
   // Close mobile sidebar when route changes
   useEffect(() => {
+    // Close sidebar and search results when route changes on mobile
     if (isMobile) {
       setSidebarOpen(false);
+      setShowSearchResults(false);
+      setSearchQuery('');
+    } else {
+      // Also close search results on desktop when route changes
+      setShowSearchResults(false);
+      setSearchQuery('');
     }
   }, [pathname, isMobile]);
 
@@ -1409,9 +1417,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
               {/* Mobile Search Modal */}
               {isMobile && showSearchResults && (
-                <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-1">
-                  <div className={`rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-                    }`}>
+                <div
+                  className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-start justify-center pt-20 px-1 mobile-search-overlay"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setShowSearchResults(false);
+                    }
+                  }}
+                >
+                  <div
+                    className={`rounded-xl shadow-xl w-full max-w-md max-h-96 overflow-hidden ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
@@ -1440,57 +1457,76 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                           </h3>
                         </div>
                         <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                          {searchResults.map((result, index) => (
-                            <div
-                              key={index}
-                              className={`p-3 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
-                              onClick={() => {
-                                if (result.type === 'user') {
-                                  router.push(`/dashboard/profile/${result.id}`);
-                                } else if (result.type === 'post') {
-                                  router.push(`/dashboard/post/${result.id}`);
-                                } else if (result.type === 'group') {
-                                  router.push(`/dashboard/groups/${result.id}`);
-                                } else if (result.type === 'album') {
-                                  router.push(`/dashboard/albums/${result.id}`);
+                          {searchResults.map((result, index) => {
+                            const resultId = result.id || result._id;
+                            const path = result.type === 'user' ? `/dashboard/profile/${resultId}` :
+                              result.type === 'post' ? `/dashboard/post/${resultId}` :
+                                result.type === 'group' ? `/dashboard/groups/${resultId}` :
+                                  result.type === 'album' ? `/dashboard/albums/${resultId}` : '#';
+
+                            const handleTouchResult = (e: React.TouchEvent | React.MouseEvent) => {
+                              // Use touch events for mobile to avoid the 300ms delay and event cancellation
+                              e.preventDefault();
+                              e.stopPropagation();
+
+                              console.log('📱 Mobile search result clicked:', { type: result.type, id: resultId, path });
+
+                              if (path && path !== '#') {
+                                // Dismiss keyboard on mobile
+                                if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+                                  document.activeElement.blur();
                                 }
+
+                                // Close results immediately
                                 setShowSearchResults(false);
                                 setSearchQuery('');
-                              }}
-                            >
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0">
-                                  {result.type === 'user' ? (
-                                    <img
-                                      src={result.avatar || '/default-avatar.svg'}
-                                      alt={result.title}
-                                      className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                                      onError={(e) => {
-                                        e.currentTarget.src = '/default-avatar.svg';
-                                      }}
-                                    />
-                                  ) : (
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${result.type === 'post' ? 'bg-blue-500' :
-                                      result.type === 'group' ? 'bg-green-500' :
-                                        'bg-purple-500'
-                                      }`}>
-                                      <span className="text-white font-medium text-sm">
-                                        {result.type === 'post' ? 'P' : result.type === 'group' ? 'G' : 'A'}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                    {result.title}
-                                  </p>
-                                  <p className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                    {result.subtitle}
-                                  </p>
+
+                                // Direct navigation
+                                window.location.href = path;
+                              }
+                            };
+
+                            return (
+                              <div
+                                key={index}
+                                onTouchEnd={handleTouchResult}
+                                onClick={handleTouchResult}
+                                className={`block p-3 cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}
+                              >
+                                <div className="flex items-center space-x-3 pointer-events-none">
+                                  <div className="flex-shrink-0">
+                                    {result.type === 'user' ? (
+                                      <img
+                                        src={result.avatar || '/default-avatar.svg'}
+                                        alt={result.title}
+                                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                                        onError={(e) => {
+                                          e.currentTarget.src = '/default-avatar.svg';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${result.type === 'post' ? 'bg-blue-500' :
+                                        result.type === 'group' ? 'bg-green-500' :
+                                          'bg-purple-500'
+                                        }`}>
+                                        <span className="text-white font-medium text-sm">
+                                          {result.type === 'post' ? 'P' : result.type === 'group' ? 'G' : 'A'}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                      {result.title}
+                                    </p>
+                                    <p className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      {result.subtitle}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -2925,7 +2961,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       )}
 
       {/* Floating Action Button */}
-      {!isMessagesPage && !isVideoCallPage && !isReelsPage && <FloatingActionButton isAdminPage={isAdminPage} />}
+      {pathname === '/dashboard' && <FloatingActionButton isAdminPage={isAdminPage} />}
 
       <style jsx>{`
         .scrollbar-hide {

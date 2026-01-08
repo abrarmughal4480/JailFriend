@@ -798,6 +798,9 @@ class SocketService {
         );
 
         if (success) {
+          console.log(`✅ Soniox translation initialized for user ${socket.userId}`);
+
+
           // Notify user that translation is ready
           socket.emit('translation-enabled', {
             roomId,
@@ -875,7 +878,7 @@ class SocketService {
       });
 
       // Handle user disconnect
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
         console.log(`🔌 User disconnected: ${socket.user.name} (${socket.userId})`);
 
         // Remove user from connected users
@@ -887,9 +890,188 @@ class SocketService {
         // Clean up Soniox translation connection
         sonioxService.closeConnection(socket.userId);
 
-        // Update user offline status
+        // Update user online status
         this.updateUserOnlineStatus(socket.userId, false);
+
+        // Clean up live stream viewership
+        try {
+          const LiveStream = require('../models/liveStream');
+          const streams = await LiveStream.find({
+            status: 'live',
+            viewers: socket.userId
+          });
+
+          for (const stream of streams) {
+            await LiveStream.findByIdAndUpdate(stream._id, {
+              $pull: { viewers: socket.userId },
+              $inc: { viewerCount: -1 }
+            });
+
+            this.io.to(`live_stream_${stream._id}`).emit('viewer_count_update', {
+              streamId: stream._id,
+              count: Math.max(0, stream.viewerCount - 1)
+            });
+            console.log(`👤 User ${socket.user.name} removed from live stream ${stream._id} (disconnect)`);
+          }
+        } catch (error) {
+          console.error('Error cleaning up live streams on disconnect:', error);
+        }
       });
+
+      // --- LIVE STREAMING HANDLERS ---
+
+      socket.on('live_stream_started', (data) => {
+        // Broadcast to all connected users so they see the live indicator in their feed/stories
+        this.io.emit('live_stream_available', data);
+      });
+
+      socket.on('join_live_stream', async (data) => {
+        const { streamId } = data;
+        socket.join(`live_stream_${streamId}`);
+        console.log(`👤 User ${socket.user.name} joined live stream ${streamId}`);
+
+        // Increment viewer count in DB
+        const LiveStream = require('../models/liveStream');
+        const stream = await LiveStream.findByIdAndUpdate(streamId, {
+          $addToSet: { viewers: socket.userId },
+          $inc: { viewerCount: 1 }
+        }, { new: true }).populate('hostId', 'name username avatar');
+
+        if (stream) {
+          // Notify the room about the new viewer count
+          this.io.to(`live_stream_${streamId}`).emit('viewer_count_update', {
+            streamId,
+            count: stream.viewerCount,
+            user: {
+              _id: socket.user._id,
+              name: socket.user.name,
+              avatar: socket.user.avatar
+            }
+          });
+
+          // If user joined, and it's not the host, notify the host to initiate WebRTC
+          if (stream.hostId._id.toString() !== socket.userId) {
+            socket.to(`user_${stream.hostId._id}`).emit('viewer_request_stream', {
+              streamId,
+              viewerId: socket.userId,
+              viewerName: socket.user.name
+            });
+          }
+        }
+      });
+
+      socket.on('leave_live_stream', async (data) => {
+        const { streamId } = data;
+        socket.leave(`live_stream_${streamId}`);
+        console.log(`👤 User ${socket.user.name} left live stream ${streamId}`);
+
+        // Decrement viewer count in DB
+        const LiveStream = require('../models/liveStream');
+        const stream = await LiveStream.findByIdAndUpdate(streamId, {
+          $pull: { viewers: socket.userId },
+          $inc: { viewerCount: -1 }
+        }, { new: true });
+
+        if (stream) {
+          this.io.to(`live_stream_${streamId}`).emit('viewer_count_update', {
+            streamId,
+            count: Math.max(0, stream.viewerCount)
+          });
+        }
+      });
+
+      socket.on('live_stream_comment', (data) => {
+        const { streamId, content } = data;
+        const comment = {
+          _id: Date.now().toString(),
+          streamId,
+          content,
+          sender: {
+            _id: socket.user._id,
+            name: socket.user.name,
+            username: socket.user.username,
+            avatar: socket.user.avatar
+          },
+          createdAt: new Date().toISOString()
+        };
+
+        // Broadcast to everyone in the room
+        this.io.to(`live_stream_${streamId}`).emit('new_live_comment', comment);
+      });
+
+      socket.on('live_stream_reaction', (data) => {
+        const { streamId, reaction } = data;
+        // Broadcast reaction to everyone in the room
+        this.io.to(`live_stream_${streamId}`).emit('new_live_reaction', {
+          streamId,
+          reaction,
+          userId: socket.userId
+        });
+      });
+
+      // WebRTC Signal: Host -> Viewer
+      socket.on('live_stream_offer', (data) => {
+        const { streamId, viewerId, offer } = data;
+        socket.to(`user_${viewerId}`).emit('live_stream_offer', {
+          streamId,
+          hostId: socket.userId,
+          offer
+        });
+      });
+
+      socket.on('live_stream_answer', (data) => {
+        const { streamId, hostId, answer } = data;
+        socket.to(`user_${hostId}`).emit('live_stream_answer', {
+          streamId,
+          viewerId: socket.userId,
+          answer
+        });
+      });
+
+      socket.on('live_stream_ice_candidate', (data) => {
+        const { streamId, targetId, candidate } = data;
+        socket.to(`user_${targetId}`).emit('live_stream_ice_candidate', {
+          streamId,
+          senderId: socket.userId,
+          candidate
+        });
+      });
+
+      // Guest Invitation Handlers
+      socket.on('invite_guest', async (data) => {
+        const { streamId, targetUserId } = data;
+        const LiveStream = require('../models/liveStream');
+        const stream = await LiveStream.findById(streamId).populate('hostId', 'name username');
+
+        if (stream) {
+          socket.to(`user_${targetUserId}`).emit('guest_invite_received', {
+            streamId,
+            hostName: stream.hostId.name,
+            hostId: stream.hostId._id,
+            streamTitle: stream.title
+          });
+        }
+      });
+
+      socket.on('guest_accept_invite', (data) => {
+        const { streamId, hostId } = data;
+        socket.to(`user_${hostId}`).emit('guest_invite_accepted', {
+          streamId,
+          guestId: socket.userId,
+          guestName: socket.user.name
+        });
+      });
+
+      socket.on('guest_decline_invite', (data) => {
+        const { streamId, hostId } = data;
+        socket.to(`user_${hostId}`).emit('guest_invite_declined', {
+          streamId,
+          guestId: socket.userId,
+          guestName: socket.user.name
+        });
+      });
+
+      // --- END LIVE STREAMING HANDLERS ---
     });
   }
 

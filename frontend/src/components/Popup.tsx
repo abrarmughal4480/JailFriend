@@ -8,6 +8,8 @@ interface PopupState {
   showConfirm?: boolean;
   confirmText?: string;
   cancelText?: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
 interface PopupProps {
@@ -100,7 +102,7 @@ const Popup: React.FC<PopupProps> = ({ popup, onClose, onConfirm, onCancel }) =>
           <div className="flex items-center justify-center mb-3 sm:mb-4">
             {getIcon()}
           </div>
-          
+
           <div className="text-center">
             <h3 className="text-lg sm:text-xl font-semibold mb-2 text-gray-900 dark:text-white break-words">
               {popup.title}
@@ -108,7 +110,7 @@ const Popup: React.FC<PopupProps> = ({ popup, onClose, onConfirm, onCancel }) =>
             <p className="mb-4 sm:mb-6 text-sm sm:text-base text-gray-600 dark:text-gray-300 break-words leading-relaxed">
               {popup.message}
             </p>
-            
+
             {popup.showConfirm ? (
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
@@ -148,5 +150,5 @@ const Popup: React.FC<PopupProps> = ({ popup, onClose, onConfirm, onCancel }) =>
   );
 };
 export default Popup;
-export type { PopupState }; 
+export type { PopupState };
 

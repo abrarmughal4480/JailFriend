@@ -159,6 +159,7 @@ export default function MessagesPage() {
   const [showFollowerUsers, setShowFollowerUsers] = useState(false);
   const [followerUsersLoading, setFollowerUsersLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [isInitializingWithUserId, setIsInitializingWithUserId] = useState(!!searchParams.get('userId'));
 
   // Audio call states
   const [showCallInterface, setShowCallInterface] = useState(false);
@@ -787,9 +788,11 @@ export default function MessagesPage() {
     // Handle URL parameter for opening specific conversation
     const userId = searchParams.get('userId');
     if (userId) {
+      setIsInitializingWithUserId(true);
       // Wait for conversations to load before trying to open specific conversation
-      setTimeout(() => {
-        startConversationWithUserId(userId);
+      setTimeout(async () => {
+        await startConversationWithUserId(userId);
+        setIsInitializingWithUserId(false);
       }, 1000);
     }
 
@@ -1824,13 +1827,13 @@ export default function MessagesPage() {
       return dateB.getTime() - dateA.getTime();
     });
 
-  if (loading) {
+  if (loading || isInitializingWithUserId) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            {loadingMessages ? 'Loading all messages...' : 'Loading conversations...'}
+            {isInitializingWithUserId ? 'Starting conversation...' : (loadingMessages ? 'Loading all messages...' : 'Loading conversations...')}
           </p>
         </div>
       </div>
@@ -2205,10 +2208,10 @@ export default function MessagesPage() {
       {selectedConversation ? (
         <div className="flex-1 flex flex-col h-screen" data-chat-section>
           {/* Chat Header */}
-          <div className={`p-4 border-b transition-colors duration-200 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`px-3 py-2 sm:p-4 border-b transition-colors duration-200 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setSelectedConversation(null);
@@ -2216,38 +2219,51 @@ export default function MessagesPage() {
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }, 100);
                   }}
-                  className="lg:hidden p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
+                  className="lg:hidden p-1.5 rounded-lg transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 active:scale-95"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
 
-                <div className="relative w-10 h-10 flex-shrink-0">
-                  <img
-                    src={getOtherParticipant(selectedConversation).avatar || '/default-avatar.svg'}
-                    alt={getOtherParticipant(selectedConversation).name}
-                    className="w-full h-full rounded-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-avatar.svg';
-                    }}
-                  />
-                  {getOtherParticipant(selectedConversation).isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                  )}
-                </div>
+                {(() => {
+                  const otherParticipant = getOtherParticipant(selectedConversation);
+                  return (
+                    <>
+                      <div
+                        className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => router.push(`/dashboard/profile/${otherParticipant._id}`)}
+                      >
+                        <img
+                          src={otherParticipant.avatar || '/default-avatar.svg'}
+                          alt={otherParticipant.name}
+                          className="w-full h-full rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-avatar.svg';
+                          }}
+                        />
+                        {otherParticipant.isOnline && (
+                          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                        )}
+                      </div>
 
-                <div>
-                  <h2 className={`font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
-                    {getOtherParticipant(selectedConversation).name}
-                  </h2>
-                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
-                    {getOtherParticipant(selectedConversation).isOnline ? 'Online' : 'Last seen recently'}
-                  </p>
-                </div>
+                      <div
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => router.push(`/dashboard/profile/${otherParticipant._id}`)}
+                      >
+                        <h2 className={`text-sm sm:text-base font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
+                          {otherParticipant.name}
+                        </h2>
+                        <p className={`text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                          }`}>
+                          {otherParticipant.isOnline ? 'Online' : 'Last seen recently'}
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <button
                   onClick={() => {
                     const otherParticipant = getOtherParticipant(selectedConversation);
@@ -2258,13 +2274,13 @@ export default function MessagesPage() {
                     });
                     initiateCall(otherParticipant._id);
                   }}
-                  className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                     ? 'hover:bg-gray-700 text-gray-300'
                     : 'hover:bg-gray-100 text-gray-600'
                     }`}
                   title="Start Audio Call"
                 >
-                  <Phone className="w-5 h-5" />
+                  <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 <button
                   onClick={() => {
@@ -2276,29 +2292,29 @@ export default function MessagesPage() {
                     });
                     initiateVideoCall(otherParticipant._id, otherParticipant.name);
                   }}
-                  className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                     ? 'hover:bg-gray-700 text-gray-300'
                     : 'hover:bg-gray-100 text-gray-600'
                     }`}
                   title="Start Video Call"
                 >
-                  <Video className="w-5 h-5" />
+                  <Video className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 <button
                   onClick={() => setShowCallHistory(true)}
-                  className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                     ? 'hover:bg-gray-700 text-gray-300'
                     : 'hover:bg-gray-100 text-gray-600'
                     }`}
                   title="Call History"
                 >
-                  <History className="w-5 h-5" />
+                  <History className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-                <button className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                <button className={`p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                   ? 'hover:bg-gray-700 text-gray-300'
                   : 'hover:bg-gray-100 text-gray-600'
                   }`} title="Conversation Info">
-                  <Info className="w-5 h-5" />
+                  <Info className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
@@ -2348,16 +2364,16 @@ export default function MessagesPage() {
                 })
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                  <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
                     }`}>
-                    <MessageCircle className={`w-8 h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                    <MessageCircle className={`w-6 h-6 sm:w-8 sm:h-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`} />
                   </div>
-                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  <h3 className={`text-base sm:text-lg font-medium mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>
                     Start the conversation
                   </h3>
-                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                  <p className={`text-xs sm:text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
                     }`}>
                     Send a message to begin chatting
                   </p>
@@ -2383,7 +2399,7 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          <div className={`p-3 sm:p-4 border-t transition-colors duration-200 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`p-2 sm:p-4 border-t transition-colors duration-200 flex-shrink-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             {replyingTo && (
               <div className={`mb-3 p-3 rounded-lg border-l-4 border-blue-500 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'
@@ -2410,25 +2426,25 @@ export default function MessagesPage() {
               </div>
             )}
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end gap-1 sm:gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                className={`p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                   ? 'hover:bg-gray-700 text-gray-300'
                   : 'hover:bg-gray-100 text-gray-600'
                   }`}
               >
-                <Paperclip className="w-5 h-5" />
+                <Paperclip className="w-5 h-5 sm:w-5 sm:h-5" />
               </button>
 
               <button
                 onClick={() => imageInputRef.current?.click()}
-                className={`p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                className={`p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                   ? 'hover:bg-gray-700 text-gray-300'
                   : 'hover:bg-gray-100 text-gray-600'
                   }`}
               >
-                <ImageIcon className="w-5 h-5" />
+                <ImageIcon className="w-5 h-5 sm:w-5 sm:h-5" />
               </button>
 
               <div className="flex-1 relative">
@@ -2448,7 +2464,7 @@ export default function MessagesPage() {
                   }}
                   onKeyPress={handleKeyPress}
                   placeholder="Type a message..."
-                  className={`w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 rounded-2xl border-0 resize-none focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-200 text-sm sm:text-base ${isDarkMode
+                  className={`w-full px-3 py-2 sm:py-3 pr-8 sm:pr-12 rounded-2xl border-0 resize-none focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-200 text-sm sm:text-base ${isDarkMode
                     ? 'bg-gray-700 text-white placeholder-gray-400'
                     : 'bg-gray-100 text-gray-900 placeholder-gray-500'
                     }`}
@@ -2456,11 +2472,11 @@ export default function MessagesPage() {
                   style={{ minHeight: '40px', maxHeight: '120px', height: '40px' }}
                 />
 
-                <button className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                <button className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 sm:p-2 rounded-lg transition-colors duration-200 ${isDarkMode
                   ? 'hover:bg-gray-600 text-gray-300'
                   : 'hover:bg-gray-200 text-gray-600'
                   }`}>
-                  <Smile className="w-5 h-5" />
+                  <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
@@ -2566,7 +2582,7 @@ export default function MessagesPage() {
           setShowFollowedUsers(true);
           setShowFollowerUsers(false);
         }}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 z-50"
+        className={`fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center transition-all duration-300 transform hover:scale-110 z-50 ${selectedConversation ? 'hidden lg:flex' : 'flex'}`}
         aria-label="New Message"
       >
         <Plus className="w-6 h-6" />

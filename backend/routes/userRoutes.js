@@ -27,6 +27,12 @@ router.get('/activity', authMiddleware, userController.getUserActivity);
 // Delete user account
 router.delete('/account', authMiddleware, userController.deleteAccount);
 
+// Get current user's following (for sidebar)
+router.get('/following/me', authMiddleware, userController.getMyFollowing);
+
+// Get current user's followers (for messages)
+router.get('/followers/me', authMiddleware, userController.getMyFollowers);
+
 // Get user by ID
 router.get('/:id', authMiddleware, userController.getUserById);
 
@@ -60,11 +66,7 @@ router.get('/:userId/followers', authMiddleware, userController.getUserFollowers
 // Get user's following
 router.get('/:userId/following', authMiddleware, userController.getUserFollowing);
 
-// Get current user's following (for sidebar)
-router.get('/following/me', authMiddleware, userController.getMyFollowing);
 
-// Get current user's followers (for messages)
-router.get('/followers/me', authMiddleware, userController.getMyFollowers);
 
 // Toggle user verification (admin only)
 router.post('/:userId/verify', authMiddleware, userController.toggleVerification);

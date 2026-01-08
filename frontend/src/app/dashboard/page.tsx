@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import { useRouter } from 'next/navigation';
 import AlbumDisplay from '@/components/AlbumDisplay';
 import { Edit, Search, Camera, Video, Music, FileText, Plus, MapPin, Globe, Calendar, Users, Eye, Phone, Bot, Sparkles, Wand2, Image as ImageIcon, Heart, MessageCircle, Share2, Bookmark, Send, MoreHorizontal, X } from 'lucide-react';
@@ -16,10 +17,11 @@ import PeopleYouMayKnow from '@/components/PeopleYouMayKnow';
 import LocationDetector from '@/components/LocationDetector';
 import LocationDisplay from '@/components/LocationDisplay';
 import AICreditConfirmation from '@/components/AICreditConfirmation';
+import LiveStreamModal from '@/components/LiveStreamModal';
 
 import { isAuthenticated, clearAuth, getCurrentUserId } from '@/utils/auth';
 import { useDarkMode } from '@/contexts/DarkModeContext';
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 import {
   searchGifsApi,
   getTrendingGifsApi,
@@ -145,6 +147,37 @@ export default function Dashboard() {
     setShowWatchModal(true);
   };
 
+  // Live Stream State
+  const [showLiveModal, setShowLiveModal] = useState(false);
+  const [selectedStreamId, setSelectedStreamId] = useState<string | null>(null);
+  const [selectedStreamData, setSelectedStreamData] = useState<any>(null);
+  const [isHost, setIsHost] = useState(false);
+
+  // Handle direct join via URL (e.g. /dashboard?liveStreamId=...)
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  useEffect(() => {
+    if (searchParams) {
+      const liveId = searchParams.get('liveStreamId');
+      if (liveId) {
+        console.log("🔗 Detected liveStreamId in URL:", liveId);
+        // Fetch stream details to ensure it exists and get host info
+        fetch(`${API_URL}/api/live-streams/${liveId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              setSelectedStreamId(liveId);
+              setSelectedStreamData(data.data);
+              setIsHost(false);
+              setShowLiveModal(true);
+              // Clean URL without reload
+              window.history.replaceState({}, '', '/dashboard');
+            }
+          })
+          .catch(err => console.error("Error fetching direct link stream:", err));
+      }
+    }
+  }, []);
+
   const [newPost, setNewPost] = useState('');
   const [newPostTitle, setNewPostTitle] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
@@ -213,6 +246,67 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchUserProfile();
+  }, []);
+
+  const [activeStreams, setActiveStreams] = useState<any[]>([]);
+
+  const fetchActiveStreams = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/live-streams/active`);
+      if (res.ok) {
+        const data = await res.json();
+        setActiveStreams(data.data || []);
+      }
+    } catch (e) {
+      console.error('Error fetching active streams:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchActiveStreams();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchActiveStreams, 30000);
+
+    const token = localStorage.getItem('token');
+    const socket = io(API_URL, {
+      auth: { token },
+      transports: ['websocket']
+    });
+
+    socket.on('live_stream_available', (newStream: any) => {
+      setActiveStreams(prev => {
+        if (prev.find(s => s._id === newStream._id)) return prev;
+        return [newStream, ...prev];
+      });
+      showPopup('info', 'Live Stream Started!', `${newStream.hostId?.name || 'A user'} is now live.`);
+    });
+
+    socket.on('guest_invite_received', (data: any) => {
+      setPopup({
+        isOpen: true,
+        type: 'info',
+        title: 'Guest Invitation',
+        message: `${data.hostName} invited you to join their live stream as a guest!`,
+        showConfirm: true,
+        confirmText: 'Accept & Join',
+        cancelText: 'Decline',
+        onConfirm: () => {
+          socket.emit('guest_accept_invite', { streamId: data.streamId, hostId: data.hostId });
+          // We open the modal as host=false (viewer), but in a real app we might want 'isGuest' prop
+          setIsHost(false);
+          setSelectedStreamId(data.streamId);
+          setShowLiveModal(true);
+        },
+        onCancel: () => {
+          socket.emit('guest_decline_invite', { streamId: data.streamId, hostId: data.hostId });
+        }
+      });
+    });
+
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
   }, []);
 
   const generateAIText = async () => {
@@ -988,6 +1082,36 @@ export default function Dashboard() {
   const handleShare = (postId: string, shareOptions: ShareOptions) => {
     setSelectedPostForShare({ id: postId, ...shareOptions });
     setShowSharePopup(true);
+  };
+
+  const handlePostShare = async (postId: string, shareOptions: ShareOptions) => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/share`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          message: shareOptions.customMessage || '',
+          shareTo: shareOptions.shareTo || 'friends',
+          shareOnTimeline: shareOptions.shareOnTimeline || false,
+          shareToPage: shareOptions.shareToPage || false,
+          shareToGroup: shareOptions.shareToGroup || false
+        })
+      });
+
+      if (res.ok) {
+        showPopup('success', 'Post Shared!', 'Your post has been shared successfully!');
+        fetchFeedData();
+      } else {
+        const data = await res.json();
+        showPopup('error', 'Error', data.message || 'Failed to share post');
+      }
+    } catch (error) {
+      showPopup('error', 'Error', 'Something went wrong while sharing the post');
+    }
   };
 
   const handleReelShare = async (reelData: any) => {
@@ -2191,7 +2315,20 @@ export default function Dashboard() {
   return (
     <div className={`min-h-screen w-full transition-colors duration-200 touch-manipulation ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
       }`}>
-      <Popup popup={popup} onClose={closePopup} />
+      <Popup
+        popup={popup}
+        onClose={closePopup}
+        onConfirm={() => {
+          if (popup.onConfirm) {
+            popup.onConfirm();
+          }
+        }}
+        onCancel={() => {
+          if (popup.onCancel) {
+            popup.onCancel();
+          }
+        }}
+      />
 
       <AICreditConfirmation
         isOpen={showCreditConfirm}
@@ -2219,7 +2356,7 @@ export default function Dashboard() {
         }}
         onShare={(shareOptions) => {
           if (selectedPostForShare) {
-            handleShare(selectedPostForShare._id || selectedPostForShare.id, shareOptions);
+            handlePostShare(selectedPostForShare._id || selectedPostForShare.id, shareOptions);
           }
         }}
         postContent={selectedPostForShare?.content}
@@ -2289,6 +2426,35 @@ export default function Dashboard() {
               )}
               <span className={`text-xs xs:text-sm font-medium transition-colors duration-200 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Create new story</span>
             </div>
+
+            {/* LIVE STREAMS in Story Bar */}
+            {activeStreams.map((stream) => (
+              <div
+                key={`story_live_${stream._id}`}
+                className="flex-shrink-0 flex flex-col items-center group cursor-pointer"
+                onClick={() => {
+                  setIsHost(false);
+                  setSelectedStreamId(stream._id);
+                  setSelectedStreamData(stream);
+                  setShowLiveModal(true);
+                }}
+              >
+                <div className="relative w-16 h-16 xs:w-18 xs:h-18 sm:w-20 sm:h-20 rounded-full p-1 bg-gradient-to-tr from-pink-500 via-red-500 to-yellow-500 animate-pulse">
+                  <div className="w-full h-full rounded-full border-2 border-white overflow-hidden shadow-lg">
+                    <img
+                      src={stream.hostId?.avatar || '/default-avatar.svg'}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-600 text-[8px] text-white font-black px-1.5 py-0.5 rounded-full border border-white uppercase scale-90">
+                    Live
+                  </div>
+                </div>
+                <span className={`text-[10px] sm:text-xs font-bold text-center truncate w-20 mt-2 ${isDarkMode ? 'text-white font-extrabold' : 'text-gray-800'}`}>
+                  {stream.hostId?.name}
+                </span>
+              </div>
+            ))}
 
             {/* Other Users' Stories */}
             {loadingStories ? (
@@ -2378,6 +2544,49 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Active Live Streams Section */}
+        {activeStreams.length > 0 && (
+          <div className="w-full mb-6 overflow-hidden">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Live Now</h2>
+              </div>
+              <span className="text-xs text-pink-500 font-bold cursor-pointer hover:underline">See All</span>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+              {activeStreams.map((stream) => (
+                <div
+                  key={stream._id}
+                  onClick={() => {
+                    setIsHost(false);
+                    setSelectedStreamId(stream._id);
+                    setSelectedStreamData(stream);
+                    setShowLiveModal(true);
+                  }}
+                  className="flex-shrink-0 w-28 flex flex-col items-center gap-2 cursor-pointer group"
+                >
+                  <div className="relative w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-pink-500 via-red-500 to-yellow-500">
+                    <div className="w-full h-full rounded-full border-2 border-white overflow-hidden shadow-lg">
+                      <img
+                        src={stream.hostId?.avatar || '/default-avatar.svg'}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        alt={stream.hostId?.name}
+                      />
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-600 text-[10px] text-white font-bold px-2 py-0.5 rounded-full border border-white shadow-sm uppercase">
+                      Live
+                    </div>
+                  </div>
+                  <span className={`text-xs font-bold text-center truncate w-full ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {stream.hostId?.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Two Section Layout - Feed Left, Pro Members Right */}
         <div className="w-full max-w-full overflow-x-auto pb-8" style={{
           maxWidth: '100%',
@@ -2422,7 +2631,11 @@ export default function Dashboard() {
                     </button>
                     {/* //live button */}
                     <button
-
+                      onClick={() => {
+                        setIsHost(true);
+                        setSelectedStreamId(null);
+                        setShowLiveModal(true);
+                      }}
                       className={`flex items-center gap-1 xs:gap-2 px-2 xs:px-3 py-1.5 xs:py-2 rounded-lg border transition-colors cursor-pointer ${isDarkMode
                         ? 'bg-pink-900/20 border-pink-700 hover:bg-pink-900/30'
                         : 'bg-pink-50 border-pink-200 hover:bg-pink-100'
@@ -2817,7 +3030,7 @@ export default function Dashboard() {
                                 onLike={handleLike}
                                 onReaction={handleReaction}
                                 onComment={handleAddComment}
-                                onShare={handleShare}
+                                onShare={handlePostShare}
                                 onSave={handleSave}
                                 onDelete={handleDelete}
                                 onEdit={startEditPost}
@@ -5159,6 +5372,16 @@ export default function Dashboard() {
           </div>
         )
       }
+      <LiveStreamModal
+        isOpen={showLiveModal}
+        onClose={() => {
+          setShowLiveModal(false);
+          setSelectedStreamData(null);
+        }}
+        isHost={isHost}
+        streamId={selectedStreamId || undefined}
+        initialData={selectedStreamData}
+      />
     </div >
   );
 }

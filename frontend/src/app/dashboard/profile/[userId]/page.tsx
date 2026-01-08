@@ -6,6 +6,7 @@ import { Edit, Trash2, MoreVertical, Search, Filter, Camera, Video, Music, FileT
 import PostDisplay from '@/components/PostDisplay';
 import Popup, { PopupState } from '@/components/Popup';
 import FeedPost from '@/components/FeedPost';
+import AlbumDisplay from '@/components/AlbumDisplay';
 import AICreditConfirmation from '@/components/AICreditConfirmation';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
@@ -199,6 +200,7 @@ const UserProfile: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('timeline');
@@ -258,6 +260,14 @@ const UserProfile: React.FC = () => {
       }
     };
     fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      const userData = JSON.parse(storedUser);
+      setCurrentUserId(userData.id || userData._id || '');
+    }
   }, []);
 
   const showPopup = (type: 'success' | 'error' | 'info' | 'warning', title: string, message: string) => {
@@ -1521,6 +1531,132 @@ const UserProfile: React.FC = () => {
     } catch (error) {
       console.error('Error saving post:', error);
       showPopup('error', 'Error', 'Failed to save post');
+    }
+  };
+
+  // Album Interaction Handlers
+  const handleAlbumLike = async (albumId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/albums/${albumId}/like`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAlbums(albums.map(album => {
+          if (album._id === albumId) {
+            return {
+              ...album,
+              likes: data.likes || (album.likes?.includes(currentUserId)
+                ? album.likes.filter(id => id !== currentUserId)
+                : [...(album.likes || []), currentUserId])
+            };
+          }
+          return album;
+        }));
+      }
+    } catch (error) {
+      console.error('Error toggling album like:', error);
+    }
+  };
+
+  const handleAlbumReaction = async (albumId: string, reactionType: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/albums/${albumId}/reaction`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ type: reactionType })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAlbums(albums.map(album => {
+          if (album._id === albumId) {
+            return {
+              ...album,
+              reactions: data.reactions || []
+            };
+          }
+          return album;
+        }));
+      }
+    } catch (error) {
+      console.error('Error adding album reaction:', error);
+    }
+  };
+
+  const handleAlbumComment = async (albumId: string) => {
+    router.push(`/dashboard/albums/${albumId}`);
+  };
+
+  const handleAlbumShare = async (albumId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/albums/${albumId}/share`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        showPopup('success', 'Shared!', 'Album has been shared to your timeline.');
+      }
+    } catch (error) {
+      console.error('Error sharing album:', error);
+    }
+  };
+
+  const handleAlbumSave = async (albumId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/albums/${albumId}/save`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        showPopup('success', 'Saved!', 'Album has been saved to your collection.');
+      }
+    } catch (error) {
+      console.error('Error saving album:', error);
+    }
+  };
+
+  const handleAlbumReview = (albumId: string) => {
+    showPopup('info', 'Coming Soon', 'Album reviews feature is under development.');
+  };
+
+  const handleAlbumDelete = async (albumId: string) => {
+    if (!window.confirm('Are you sure you want to delete this album? This action cannot be undone.')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/albums/${albumId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setAlbums(albums.filter(album => album._id !== albumId));
+        showPopup('success', 'Deleted!', 'Album has been deleted successfully.');
+      } else {
+        showPopup('error', 'Error', 'Failed to delete album.');
+      }
+    } catch (error) {
+      console.error('Error deleting album:', error);
+      showPopup('error', 'Error', 'An error occurred while deleting the album.');
     }
   };
 
@@ -2875,63 +3011,24 @@ const UserProfile: React.FC = () => {
 
                     return filteredContent.map((item: ContentItem) => {
                       if (isAlbum(item)) {
+                        // Ensure the user object is properly attached for AlbumDisplay
+                        const albumWithUser = {
+                          ...item,
+                          user: item.user || user // Fallback to profile user if not present
+                        };
                         return (
-                          <div key={item._id} className={`rounded-xl shadow-sm overflow-hidden transition-colors duration-200 ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                            <div className="p-4">
-                              <div className="flex items-center gap-3 mb-3">
-                                <img
-                                  src={user?.avatar ? (user.avatar.startsWith('http') ? user.avatar : `${API_URL}/${user.avatar}`) : '/default-avatar.svg'}
-                                  alt={user?.name || 'User'}
-                                  className="w-10 h-10 rounded-full border-2 border-blue-400"
-                                  onError={(e) => {
-                                    console.log('❌ Avatar load failed for user:', user?.name, 'URL:', user?.avatar);
-                                    e.currentTarget.src = '/default-avatar.svg';
-                                  }}
-                                />
-                                <div>
-                                  <h4 className={`font-semibold transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user?.name || 'User'}</h4>
-                                  <p className={`text-sm transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Created an album • {new Date(item.createdAt).toLocaleDateString()}</p>
-                                </div>
-                              </div>
-
-                              <h3 className={`text-lg font-semibold mb-3 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.name}</h3>
-
-                              {/* Album Media Grid */}
-                              {item.media && item.media.length > 0 && (
-                                <div className="grid grid-cols-3 gap-2 mb-3">
-                                  {item.media.slice(0, 6).map((media: any, index: number) => (
-                                    <img
-                                      key={index}
-                                      src={getMediaUrl(media.url)}
-                                      alt={`Album media ${index + 1}`}
-                                      className="w-full aspect-square object-cover rounded-lg"
-                                    />
-                                  ))}
-                                  {item.media.length > 6 && (
-                                    <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-500">
-                                      +{item.media.length - 6}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Album Actions */}
-                              <div className={`flex items-center gap-4 pt-3 border-t transition-colors duration-200 ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-                                <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'}`}>
-                                  <span>❤️</span>
-                                  <span className="text-sm">{item.likes?.length || 0}</span>
-                                </button>
-                                <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`}>
-                                  <span>💬</span>
-                                  <span className="text-sm">{item.comments?.length || 0}</span>
-                                </button>
-                                <button className={`flex items-center gap-2 transition-colors duration-200 ${isDarkMode ? 'text-gray-400 hover:text-green-400' : 'text-gray-500 hover:text-green-500'}`}>
-                                  <span>📤</span>
-                                  <span className="text-sm">{item.shares?.length || 0}</span>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
+                          <AlbumDisplay
+                            key={item._id}
+                            album={albumWithUser}
+                            onDelete={handleAlbumDelete}
+                            isOwner={isCurrentUser}
+                            onLike={handleAlbumLike}
+                            onReaction={handleAlbumReaction}
+                            onComment={handleAlbumComment}
+                            onSave={handleAlbumSave}
+                            onShare={handleAlbumShare}
+                            onWatch={(album) => router.push(`/dashboard/albums/${album._id}`)}
+                          />
                         );
                       } else if (isJob(item)) {
                         // Job Post Card
@@ -3105,37 +3202,27 @@ const UserProfile: React.FC = () => {
                 </div>
 
                 {albums.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {albums.map((album) => (
-                      <div key={album._id} className={`rounded-lg p-4 border transition-colors duration-200 ${isDarkMode
-                        ? 'bg-gray-700 border-gray-600'
-                        : 'bg-gray-50 border-gray-200'
-                        }`}>
-                        <h4 className={`font-semibold mb-2 transition-colors duration-200 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{album.name}</h4>
-                        <div className="grid grid-cols-3 gap-1 mb-2">
-                          {album.media && album.media.length > 0 ? (
-                            album.media.slice(0, 6).map((media: any, index: number) => (
-                              <img
-                                key={index}
-                                src={getMediaUrl(media.url)}
-                                alt="album media"
-                                className="w-full aspect-square object-cover rounded"
-                              />
-                            ))
-                          ) : (
-                            <div className="col-span-3 text-xs text-gray-400 py-4 text-center">No media</div>
-                          )}
-                          {album.media && album.media.length > 6 && (
-                            <div className="aspect-square bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
-                              +{album.media.length - 6}
-                            </div>
-                          )}
-                        </div>
-                        <p className={`text-xs transition-colors duration-200 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Created: {new Date(album.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 gap-6">
+                    {albums.map((album) => {
+                      const albumWithUser = {
+                        ...album,
+                        user: album.user || user
+                      };
+                      return (
+                        <AlbumDisplay
+                          key={album._id}
+                          album={albumWithUser}
+                          onDelete={handleAlbumDelete}
+                          isOwner={isCurrentUser}
+                          onLike={handleAlbumLike}
+                          onReaction={handleAlbumReaction}
+                          onComment={handleAlbumComment}
+                          onSave={handleAlbumSave}
+                          onShare={handleAlbumShare}
+                          onWatch={(album) => router.push(`/dashboard/albums/${album._id}`)}
+                        />
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8">

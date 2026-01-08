@@ -1199,8 +1199,9 @@ exports.sharePost = async (req, res) => {
     // Share on timeline
     if (shareOnTimeline) {
       try {
+        const cleanOriginalContent = originalPost.content.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/g, '$1').replace(/<[^>]*>/g, '').trim();
         const timelinePost = new Post({
-          content: `<pre class="whitespace-pre-wrap break-words font-sans">${message || `Shared: ${originalPost.content}`}</pre>`,
+          content: `<pre class="whitespace-pre-wrap break-words font-sans">${message || `Shared: ${cleanOriginalContent}`}</pre>`,
           isShared: true,
           originalPost: originalPost._id,
           user: {

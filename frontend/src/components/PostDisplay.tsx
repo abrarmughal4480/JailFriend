@@ -290,7 +290,7 @@ export default function PostDisplay({
               // Check if content contains HTML (from backend pre tags)
               if (text.includes('<pre')) {
                 const match = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
-                const inner = match ? match[1] : text;
+                const inner = match ? match[1].replace(/<[^>]*>/g, '').trim() : text.replace(/<[^>]*>/g, '').trim();
                 return (
                   <pre className="whitespace-pre-wrap break-words font-sans">{inner}</pre>
                 );
@@ -688,15 +688,15 @@ export default function PostDisplay({
           <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm">
             <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-300">
               <span className="text-base sm:text-lg">💬</span>
-              <span className="text-xs sm:text-sm">{post.comments?.length || 0} Comments</span>
+              <span className="text-xs sm:text-sm">{post.comments?.length || 0} </span>
             </div>
             <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-300">
               <span className="text-base sm:text-lg">👁️</span>
-              <span className="text-xs sm:text-sm">{post.views?.length || post.views || 0} Views</span>
+              <span className="text-xs sm:text-sm">{post.views?.length || post.views || 0} </span>
             </div>
             <div className="flex items-center space-x-1 text-gray-500 dark:text-gray-300">
               <span className="text-base sm:text-lg">⭐</span>
-              <span className="text-xs sm:text-sm">{post.reviews?.length || 0} Reviews</span>
+              <span className="text-xs sm:text-sm">{post.reviews?.length || 0} </span>
             </div>
           </div>
         </div>

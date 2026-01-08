@@ -2548,7 +2548,28 @@ const PagesInterface: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-3">
-              {/* Removed camera and users icon buttons from pages dashboard */}
+              {tabs.map((tab) => (
+                <button
+                  key={tab.name}
+                  onClick={() => {
+                    setActiveTab(tab.name);
+                    setShowMobileMenu(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-xl text-left transition-all duration-200 ${activeTab === tab.name
+                    ? isDarkMode
+                      ? 'bg-blue-900/20 text-blue-400'
+                      : 'bg-blue-50 text-blue-600'
+                    : isDarkMode
+                      ? 'text-gray-300 hover:bg-gray-700'
+                      : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                >
+                  <span className="font-medium">{tab.name}</span>
+                  {activeTab === tab.name && (
+                    <div className="w-2 h-2 rounded-full bg-current" />
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         </div>

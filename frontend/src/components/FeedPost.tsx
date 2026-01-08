@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp, Smile, Paperclip, Send, MoreHorizontal, Globe, X } from 'lucide-react';
+import { Heart, MessageCircle, Share2, ChevronDown, ChevronUp, Smile, Paperclip, Send, MoreHorizontal, Globe, X, ThumbsUp, Eye, Sparkles } from 'lucide-react';
 import PostOptionsDropdown from './PostOptionsDropdown';
 import ReactionPopup, { ReactionType } from './ReactionPopup';
 import ReactionAvatarDisplay from './ReactionAvatarDisplay';
@@ -862,8 +862,14 @@ const FeedPost: React.FC<FeedPostProps> = ({
     if (isPre) {
       const preMatch = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (preMatch) {
-        rawText = preMatch[1];
+        rawText = preMatch[1].replace(/<[^>]*>/g, '').trim();
+      } else {
+        // If we have <pre but match fails, still strip tags
+        rawText = content.replace(/<[^>]*>/g, '').trim();
       }
+    } else {
+      // Even if no <pre, strip tags just in case
+      rawText = content.replace(/<[^>]*>/g, '').trim();
     }
 
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -1010,7 +1016,7 @@ const FeedPost: React.FC<FeedPostProps> = ({
     if (content.includes('<pre')) {
       const preMatch = content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/);
       if (preMatch) {
-        const preContent = preMatch[1];
+        const preContent = preMatch[1].replace(/<[^>]*>/g, '').trim();
         return (
           <div className="whitespace-pre-wrap break-words font-sans">
             {renderLinkifiedSegments(preContent)}
@@ -1018,672 +1024,669 @@ const FeedPost: React.FC<FeedPostProps> = ({
         );
       }
     }
-
-    return renderLinkifiedSegments(content);
+    const cleanText = content.replace(/<[^>]*>/g, '').trim();
+    return <div className="break-words">{renderLinkifiedSegments(cleanText)}</div>;
   };
 
   return (
-    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} mb-3 sm:mb-4 transition-colors duration-200 relative overflow-visible`}>
-      {/* Promoted Post Indicator - Show when post has reactions/likes */}
-      {(() => {
-        const hasReactions = post.reactions && post.reactions.length > 0;
-        const hasLikes = post.likes && post.likes.length > 0;
-        const totalEngagement = (post.reactions?.length || 0) + (post.likes?.length || 0);
+    <>
+      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-sm border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'} mb-3 sm:mb-4 transition-colors duration-200 relative overflow-visible`}>
+        {/* Promoted Post Indicator - Show when post has reactions/likes */}
+        {(() => {
+          const hasReactions = post.reactions && post.reactions.length > 0;
+          const hasLikes = post.likes && post.likes.length > 0;
+          const totalEngagement = (post.reactions?.length || 0) + (post.likes?.length || 0);
 
-        if (totalEngagement === 0) return null;
+          if (totalEngagement === 0) return null;
 
-        let badgeType = 'PROMOTED POST';
-        let badgeColor = 'bg-orange-400';
-        let badgeIcon = '⭐';
+          let badgeType = 'PROMOTED POST';
+          let badgeColor = 'bg-orange-400';
+          let badgeIcon = '⭐';
 
 
-        if (totalEngagement >= 10) {
-          badgeType = 'TRENDING POST';
-          badgeColor = 'bg-purple-500';
-          badgeIcon = '🔥';
-        } else if (totalEngagement >= 5) {
-          badgeType = 'POPULAR POST';
-          badgeColor = 'bg-blue-500';
-          badgeIcon = '🚀';
-        } else if (hasReactions && hasLikes) {
-          badgeType = 'ENGAGED POST';
-          badgeColor = 'bg-green-500';
-          badgeIcon = '💫';
-        }
+          if (totalEngagement >= 10) {
+            badgeType = 'TRENDING POST';
+            badgeColor = 'bg-purple-500';
+            badgeIcon = '🔥';
+          } else if (totalEngagement >= 5) {
+            badgeType = 'POPULAR POST';
+            badgeColor = 'bg-blue-500';
+            badgeIcon = '🚀';
+          } else if (hasReactions && hasLikes) {
+            badgeType = 'ENGAGED POST';
+            badgeColor = 'bg-green-500';
+            badgeIcon = '💫';
+          }
 
-        return (
-          <div className="px-3 sm:px-4 pt-3 sm:pt-4 animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center justify-between">
-              <div className={`inline-flex items-center px-3 py-1.5 ${badgeColor} text-white text-xs font-semibold rounded-full shadow-sm transform hover:scale-105 transition-transform`}>
-                <span className="mr-1">{badgeIcon}</span>
-                {badgeType}
-              </div>
+          return (
+            <div className="px-3 sm:px-4 pt-3 sm:pt-4 animate-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center justify-between">
+                <div className={`inline-flex items-center px-3 py-1.5 ${badgeColor} text-white text-xs font-semibold rounded-full shadow-sm transform hover:scale-105 transition-transform`}>
+                  <span className="mr-1">{badgeIcon}</span>
+                  {badgeType}
+                </div>
 
-              {/* Engagement Count */}
-              {/* <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {/* Engagement Count */}
+                {/* <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                 <span className="font-medium">{totalEngagement}</span> {totalEngagement === 1 ? 'engagement' : 'engagements'}
               </div> */}
-            </div>
-          </div>
-        );
-      })()}
-
-
-      <div className={`p-3 sm:p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 sm:space-x-3">
-
-            <div className="relative">
-              <div
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-                onClick={navigateToProfile}
-              >
-                <img
-                  src={post.user?.avatar ? getMediaUrl(post.user.avatar) : '/default-avatar.svg'}
-                  alt={post.user?.name || 'User'}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = '/default-avatar.svg';
-                  }}
-                />
               </div>
-              {/* Online Status Indicator */}
-              <div className={`absolute bottom-0 left-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
             </div>
+          );
+        })()}
 
-            {/* User Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-1 sm:space-x-2">
+
+        <div className={`p-3 sm:p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+
+              <div className="relative">
                 <div
-                  className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate max-w-[150px] sm:max-w-none`}
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                   onClick={navigateToProfile}
                 >
-                  {post.user?.name || 'User'}
+                  <img
+                    src={post.user?.avatar ? getMediaUrl(post.user.avatar) : '/default-avatar.svg'}
+                    alt={post.user?.name || 'User'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = '/default-avatar.svg';
+                    }}
+                  />
                 </div>
-                {/* Verified Badge */}
-                {(post.user?.isVerified || post.user?.userId?.isVerified) && (
-                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                )}
-                {/* Pro Badge */}
-                {(() => {
-                  const userPlan = post.user?.plan || post.user?.userId?.plan;
-                  if (userPlan && userPlan !== 'Free') {
-                    return <ProBadge plan={userPlan} size="sm" />;
-                  }
-                  return null;
-                })()}
-
+                {/* Online Status Indicator */}
+                <div className={`absolute bottom-0 left-0 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 ${isDarkMode ? 'border-gray-800' : 'border-white'}`}></div>
               </div>
-              <div className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                <span>{formatDate(post.createdAt)}</span>
 
-                {/* Pin indicator */}
-                {post.isPinned && (
-                  <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                    <span className="text-xs sm:text-sm">📌</span>
-                    <span className="text-xs">Pinned</span>
+              {/* User Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-1 sm:space-x-2">
+                  <div
+                    className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'} cursor-pointer hover:text-blue-600 transition-colors text-sm sm:text-base truncate max-w-[150px] sm:max-w-none`}
+                    onClick={navigateToProfile}
+                  >
+                    {post.user?.name || 'User'}
                   </div>
-                )}
+                  {/* Verified Badge */}
+                  {(post.user?.isVerified || post.user?.userId?.isVerified) && (
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
+                  {/* Pro Badge */}
+                  {(() => {
+                    const userPlan = post.user?.plan || post.user?.userId?.plan;
+                    if (userPlan && userPlan !== 'Free') {
+                      return <ProBadge plan={userPlan} size="sm" />;
+                    }
+                    return null;
+                  })()}
 
-                {/* Boost indicator */}
-                {post.isBoosted && (
-                  <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
-                    <span className="text-xs sm:text-sm">🚀</span>
-                    <span className="text-xs">Boosted</span>
-                  </div>
-                )}
+                </div>
+                <div className={`flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span>{formatDate(post.createdAt)}</span>
 
-                {/* Reel indicator */}
-                {post.type === 'reel' && (
-                  <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>
-                    <span className="text-xs sm:text-sm">🎬</span>
-                    <span className="text-xs">Reel</span>
-                  </div>
-                )}
+                  {/* Pin indicator */}
+                  {post.isPinned && (
+                    <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                      <span className="text-xs sm:text-sm">📌</span>
+                      <span className="text-xs">Pinned</span>
+                    </div>
+                  )}
 
-                <Globe className="w-2 h-2 sm:w-3 sm:h-3" />
-                {post.isShared && (
-                  <span className="text-blue-600 text-xs">📤 Shared</span>
-                )}
+                  {/* Boost indicator */}
+                  {post.isBoosted && (
+                    <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-600'}`}>
+                      <span className="text-xs sm:text-sm">🚀</span>
+                      <span className="text-xs">Boosted</span>
+                    </div>
+                  )}
+
+                  {/* Reel indicator */}
+                  {post.type === 'reel' && (
+                    <div className={`flex items-center space-x-1 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`}>
+                      <span className="text-xs sm:text-sm">🎬</span>
+                      <span className="text-xs">Reel</span>
+                    </div>
+                  )}
+
+                  <Globe className="w-2 h-2 sm:w-3 sm:h-3" />
+                  {post.isShared && (
+                    <span className="text-blue-600 text-xs">📤 Shared</span>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Options Dropdown - Show for everyone, but internal options are filtered by owner status */}
+            {(() => {
+              const currentUserId = getCurrentUserId();
+              // Robust check: matches prop isOwnPost OR manually checks user ID
+              const isActuallyOwnPost = isOwnPost || (
+                post.user && currentUserId && (
+                  post.user === currentUserId ||
+                  post.user._id === currentUserId ||
+                  post.user.id === currentUserId ||
+                  post.user.userId === currentUserId ||
+                  (typeof post.user.userId === 'object' && post.user.userId?._id === currentUserId)
+                )
+              );
+
+              return (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowOptionsDropdown(prev => !prev)}
+                    className={`p-2 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-full transition-colors`}
+                    aria-expanded={showOptionsDropdown}
+                    aria-label={showOptionsDropdown ? 'Close post options' : 'Open post options'}
+                  >
+                    <MoreHorizontal className={`w-5 h-5 transition-colors duration-200 ${showOptionsDropdown ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
+                  </button>
+
+                  <PostOptionsDropdown
+                    isOpen={showOptionsDropdown}
+                    onClose={() => setShowOptionsDropdown(false)}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onToggleComments={handleToggleComments}
+                    onOpenInNewTab={handleOpenInNewTab}
+                    onPin={handlePin}
+                    onBoost={handleBoost}
+                    commentsEnabled={post.commentsEnabled !== false}
+                    isPinned={post.isPinned}
+                    isBoosted={post.isBoosted}
+                    position="bottom"
+                    isOwnPost={!!isActuallyOwnPost}
+                  />
+                </div>
+              );
+            })()}
           </div>
-
-          {/* Options Dropdown - Show for everyone, but internal options are filtered by owner status */}
-          {(() => {
-            const currentUserId = getCurrentUserId();
-            // Robust check: matches prop isOwnPost OR manually checks user ID
-            const isActuallyOwnPost = isOwnPost || (
-              post.user && currentUserId && (
-                post.user === currentUserId ||
-                post.user._id === currentUserId ||
-                post.user.id === currentUserId ||
-                post.user.userId === currentUserId ||
-                (typeof post.user.userId === 'object' && post.user.userId?._id === currentUserId)
-              )
-            );
-
-            return (
-              <div className="relative">
-                <button
-                  onClick={() => setShowOptionsDropdown(prev => !prev)}
-                  className={`p-2 ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded-full transition-colors`}
-                  aria-expanded={showOptionsDropdown}
-                  aria-label={showOptionsDropdown ? 'Close post options' : 'Open post options'}
-                >
-                  <MoreHorizontal className={`w-5 h-5 transition-colors duration-200 ${showOptionsDropdown ? (isDarkMode ? 'text-blue-400' : 'text-blue-600') : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
-                </button>
-
-                <PostOptionsDropdown
-                  isOpen={showOptionsDropdown}
-                  onClose={() => setShowOptionsDropdown(false)}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onToggleComments={handleToggleComments}
-                  onOpenInNewTab={handleOpenInNewTab}
-                  onPin={handlePin}
-                  onBoost={handleBoost}
-                  commentsEnabled={post.commentsEnabled !== false}
-                  isPinned={post.isPinned}
-                  isBoosted={post.isBoosted}
-                  position="bottom"
-                  isOwnPost={!!isActuallyOwnPost}
-                />
-              </div>
-            );
-          })()}
         </div>
-      </div>
 
-      {/* Post Content */}
-      <div className="p-3 sm:p-4">
-        {/* Title for posts and reels - Display first */}
-        {post.title && (
-          <div className="mb-2 sm:mb-3">
-            <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {post.title}
-            </h3>
-          </div>
-        )}
+        {/* Post Content */}
+        <div className="p-3 sm:p-4">
+          {/* Title for posts and reels - Display first */}
+          {post.title && (
+            <div className="mb-2 sm:mb-3">
+              <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {post.title}
+              </h3>
+            </div>
+          )}
 
-        {/* Fallback title for reels without titles */}
-        {post.type === 'reel' && !post.title && (
-          <div className="mb-2 sm:mb-3">
-            <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-500'}`}>
-              Untitled Reel
-            </h3>
-          </div>
-        )}
-
+          {/* Fallback title for reels without titles */}
+          {post.type === 'reel' && !post.title && (
+            <div className="mb-2 sm:mb-3">
+              <h3 className={`text-base sm:text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-500'}`}>
+                Untitled Reel
+              </h3>
+            </div>
+          )}
 
 
-        {/* Content with word limit and Read More */}
-        <div
-          className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer`}
-          onClick={() => onWatch && onWatch(post)}
-        >
-          {(() => {
-            const content = post.content || '';
-            const preMatchForPreview = content.includes('<pre') ? content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/) : null;
-            const plainTextForPreview = (preMatchForPreview ? preMatchForPreview[1] : content).replace(/<[^>]+>/g, '');
-            const wordCount = plainTextForPreview.split(/\s+/).filter((word: string) => word && word.length > 0).length;
-            const postId = post._id || post.id;
-            const isExpanded = expandedPosts[postId] || false;
+
+          {/* Content with word limit and Read More */}
+          <div
+            className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm sm:text-base leading-relaxed mb-3 sm:mb-4 cursor-pointer`}
+            onClick={() => onWatch && onWatch(post)}
+          >
+            {(() => {
+              const content = post.content || '';
+              const preMatchForPreview = content.includes('<pre') ? content.match(/<pre[^>]*>([\s\S]*?)<\/pre>/) : null;
+              const plainTextForPreview = (preMatchForPreview ? preMatchForPreview[1] : content).replace(/<[^>]+>/g, '');
+              const wordCount = plainTextForPreview.split(/\s+/).filter((word: string) => word && word.length > 0).length;
+              const postId = post._id || post.id;
+              const isExpanded = expandedPosts[postId] || false;
 
 
-            if (wordCount > 50) {
-              // Smart truncation that respects paragraph boundaries
-              const smartTruncate = (text: string, maxWords: number) => {
-                const words = text.split(/\s+/);
-                if (words.length <= maxWords) return text;
+              if (wordCount > 50) {
+                // Smart truncation that respects paragraph boundaries
+                const smartTruncate = (text: string, maxWords: number) => {
+                  const words = text.split(/\s+/);
+                  if (words.length <= maxWords) return text;
 
 
-                let truncatedWords = words.slice(0, maxWords);
+                  let truncatedWords = words.slice(0, maxWords);
 
-                let truncatedText = truncatedWords.join(' ');
-
-
-                const breakPatterns = [
-                  /[.!?]\s*$/,
-                  /\n\n\s*$/,
-                  /[•·▪▫‣⁃]\s*$/,
-                  /\n\s*$/,
-                  /\s*$/,
-                ];
-
-                let foundBreak = false;
-                for (const pattern of breakPatterns) {
-                  if (pattern.test(truncatedText)) {
-                    foundBreak = true;
-                    break;
-                  }
-                }
-
-                // If no natural break found, try to find the last complete sentence
-                if (!foundBreak) {
-                  const lastSentenceMatch = truncatedText.match(/.*[.!?]\s*$/);
-                  if (lastSentenceMatch) {
-                    truncatedText = lastSentenceMatch[0];
-                  }
-                }
-
-                if (truncatedText.length >= text.length * 0.9) {
-                  // Force truncation to be more aggressive
-                  const forceTruncateWords = Math.floor(maxWords * 0.7);
-                  const forcedWords = words.slice(0, forceTruncateWords);
-                  truncatedText = forcedWords.join(' ');
+                  let truncatedText = truncatedWords.join(' ');
 
 
+                  const breakPatterns = [
+                    /[.!?]\s*$/,
+                    /\n\n\s*$/,
+                    /[•·▪▫‣⁃]\s*$/,
+                    /\n\s*$/,
+                    /\s*$/,
+                  ];
+
+                  let foundBreak = false;
                   for (const pattern of breakPatterns) {
-                    const match = truncatedText.match(new RegExp(`.*${pattern.source}`));
-                    if (match) {
-                      truncatedText = match[0];
+                    if (pattern.test(truncatedText)) {
+                      foundBreak = true;
                       break;
                     }
                   }
-                }
+
+                  // If no natural break found, try to find the last complete sentence
+                  if (!foundBreak) {
+                    const lastSentenceMatch = truncatedText.match(/.*[.!?]\s*$/);
+                    if (lastSentenceMatch) {
+                      truncatedText = lastSentenceMatch[0];
+                    }
+                  }
+
+                  if (truncatedText.length >= text.length * 0.9) {
+                    // Force truncation to be more aggressive
+                    const forceTruncateWords = Math.floor(maxWords * 0.7);
+                    const forcedWords = words.slice(0, forceTruncateWords);
+                    truncatedText = forcedWords.join(' ');
 
 
-                return truncatedText;
-              };
+                    for (const pattern of breakPatterns) {
+                      const match = truncatedText.match(new RegExp(`.*${pattern.source}`));
+                      if (match) {
+                        truncatedText = match[0];
+                        break;
+                      }
+                    }
+                  }
 
-              const lines = plainTextForPreview.split('\n');
-              const maxLines = 4;
-              const truncatedContentPlain = lines.slice(0, maxLines).join('\n');
 
-              const previewContent = isExpanded ? content : truncatedContentPlain;
-              return (
-                <div className="relative">
-                  <div className="break-words whitespace-pre-wrap">
-                    {renderContentWithVideos(previewContent)}
-                  </div>
-                  {!isExpanded && (
-                    <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>...</span>
-                  )}
-                  <span
-                    className="text-blue-600 cursor-pointer ml-1 font-medium inline-flex items-center gap-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePostExpansion(postId);
-                    }}
-                    title={isExpanded ? "Show less" : "Read more"}
-                  >
-                    {isExpanded ? (
-                      <>
-                        <span>Show Less</span>
-                        <span className="text-xs">▲</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Read More</span>
-                        <span className="text-xs">▼</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-              );
-            } else {
-              return renderContentWithVideos(content);
-            }
-          })()}
-        </div>
+                  return truncatedText;
+                };
 
-        {/* Location Display - Show only once after content */}
-        {post.location && post.location.name && post.location.address && (
-          <div className="mb-3 sm:mb-4">
-            <LocationDisplay
-              location={{
-                name: post.location.name || 'Unknown Location',
-                address: post.location.address || post.location.formatted_address || 'Location',
-                coordinates: {
-                  latitude: post.location.coordinates?.lat || post.location.coordinates?.latitude || 0,
-                  longitude: post.location.coordinates?.lng || post.location.coordinates?.longitude || 0
-                },
-                country: post.location.country,
-                state: post.location.state,
-                city: post.location.city,
-                postalCode: post.location.postalCode,
-                timezone: post.location.timezone,
-                isp: post.location.isp,
-                ip: post.location.ip,
-                source: post.location.source
-              }}
-              compact={true}
-              showCoordinates={false}
-            />
-          </div>
-        )}
+                const lines = plainTextForPreview.split('\n');
+                const maxLines = 4;
+                const truncatedContentPlain = lines.slice(0, maxLines).join('\n');
 
-        {/* Poll Display - Only show if poll was actually created */}
-        {post.poll && post.poll.question && post.poll.options && post.poll.options.length > 0 && (
-          <div className="mb-3 sm:mb-4">
-            <div className="mb-2">
-              <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-                📊 {post.poll.question}
-              </h4>
-              <div className="space-y-2">
-                {post.poll.options.map((option: any, index: number) => {
-                  const totalVotes = post.poll.totalVotes || 0;
-                  const optionVotes = option.voteCount || 0;
-                  const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
-                  const isVoted = post.poll.userVote && post.poll.userVote.includes(index);
-
-                  return (
-                    <div key={index} className="relative">
-                      <button
-                        onClick={() => handlePollVote(index)}
-                        className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${isVoted
-                          ? 'bg-blue-500 text-white border-blue-500'
-                          : `${isDarkMode ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`
-                          }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">{option.text}</span>
-                          <span className="text-xs">
-                            {optionVotes} votes ({percentage}%)
-                          </span>
-                        </div>
-                        {/* Progress bar */}
-                        <div className={`mt-1 w-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-full h-2`}>
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </button>
+                const previewContent = isExpanded ? content : truncatedContentPlain;
+                return (
+                  <div className="relative">
+                    <div className="break-words whitespace-pre-wrap">
+                      {renderContentWithVideos(previewContent)}
                     </div>
-                  );
-                })}
-              </div>
-              <div className={`mt-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                Total votes: {post.poll.totalVotes || 0}
-                {post.poll.expiresAt && (
-                  <span className="ml-2">
-                    • Expires: {new Date(post.poll.expiresAt).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-            </div>
+                    {!isExpanded && (
+                      <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>...</span>
+                    )}
+                    <span
+                      className="text-blue-600 cursor-pointer ml-1 font-medium inline-flex items-center gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePostExpansion(postId);
+                      }}
+                      title={isExpanded ? "Show less" : "Read more"}
+                    >
+                      {isExpanded ? (
+                        <>
+                          <span>Show Less</span>
+                          <span className="text-xs">▲</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Read More</span>
+                          <span className="text-xs">▼</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              } else {
+                return renderContentWithVideos(content);
+              }
+            })()}
           </div>
-        )}
 
-        {/* Feeling Display - Only show if feeling was actually selected */}
-        {post.feeling && post.feeling.type && post.feeling.emoji && post.feeling.description && (
-          <div className="mb-3 sm:mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{post.feeling.emoji}</span>
-              <div>
-                <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Feeling {post.feeling.description}
+          {/* Location Display - Show only once after content */}
+          {post.location && post.location.name && post.location.address && (
+            <div className="mb-3 sm:mb-4">
+              <LocationDisplay
+                location={{
+                  name: post.location.name || 'Unknown Location',
+                  address: post.location.address || post.location.formatted_address || 'Location',
+                  coordinates: {
+                    latitude: post.location.coordinates?.lat || post.location.coordinates?.latitude || 0,
+                    longitude: post.location.coordinates?.lng || post.location.coordinates?.longitude || 0
+                  },
+                  country: post.location.country,
+                  state: post.location.state,
+                  city: post.location.city,
+                  postalCode: post.location.postalCode,
+                  timezone: post.location.timezone,
+                  isp: post.location.isp,
+                  ip: post.location.ip,
+                  source: post.location.source
+                }}
+                compact={true}
+                showCoordinates={false}
+              />
+            </div>
+          )}
+
+          {/* Poll Display - Only show if poll was actually created */}
+          {post.poll && post.poll.question && post.poll.options && post.poll.options.length > 0 && (
+            <div className="mb-3 sm:mb-4">
+              <div className="mb-2">
+                <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+                  📊 {post.poll.question}
                 </h4>
-                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Intensity: {post.feeling.intensity}/10
-                </p>
+                <div className="space-y-2">
+                  {post.poll.options.map((option: any, index: number) => {
+                    const totalVotes = post.poll.totalVotes || 0;
+                    const optionVotes = option.voteCount || 0;
+                    const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
+                    const isVoted = post.poll.userVote && post.poll.userVote.includes(index);
+
+                    return (
+                      <div key={index} className="relative">
+                        <button
+                          onClick={() => handlePollVote(index)}
+                          className={`w-full text-left p-2 rounded-lg border transition-all duration-200 ${isVoted
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : `${isDarkMode ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-900 border-gray-300 hover:bg-gray-50'}`
+                            }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">{option.text}</span>
+                            <span className="text-xs">
+                              {optionVotes} votes ({percentage}%)
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className={`mt-1 w-full ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'} rounded-full h-2`}>
+                            <div
+                              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={`mt-2 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Total votes: {post.poll.totalVotes || 0}
+                  {post.poll.expiresAt && (
+                    <span className="ml-2">
+                      • Expires: {new Date(post.poll.expiresAt).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-
-
-        {/* Sell Info Display - Only show if sell info was actually added */}
-        {post.sell && post.sell.productName && post.sell.price && (
-          <div className="mb-3 sm:mb-4">
-            <div className="flex items-center justify-between">
+          {/* Feeling Display - Only show if feeling was actually selected */}
+          {post.feeling && post.feeling.type && post.feeling.emoji && post.feeling.description && (
+            <div className="mb-3 sm:mb-4">
               <div className="flex items-center gap-2">
-                <span className="text-2xl">🏪</span>
+                <span className="text-2xl">{post.feeling.emoji}</span>
                 <div>
                   <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {post.sell.productName}
+                    Feeling {post.feeling.description}
                   </h4>
                   <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Condition: {post.sell.condition}
-                    {post.sell.negotiable && <span className="ml-2">• Price negotiable</span>}
+                    Intensity: {post.feeling.intensity}/10
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <div className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  ${post.sell.price}
+            </div>
+          )}
+
+
+
+          {/* Sell Info Display - Only show if sell info was actually added */}
+          {post.sell && post.sell.productName && post.sell.price && (
+            <div className="mb-3 sm:mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🏪</span>
+                  <div>
+                    <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {post.sell.productName}
+                    </h4>
+                    <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Condition: {post.sell.condition}
+                      {post.sell.negotiable && <span className="ml-2">• Price negotiable</span>}
+                    </p>
+                  </div>
                 </div>
-                <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {post.sell.currency || 'USD'}
+                <div className="text-right">
+                  <div className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    ${post.sell.price}
+                  </div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {post.sell.currency || 'USD'}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* GIF Display - Only show if GIF was actually selected */}
-        {post.gif && post.gif.url && post.gif.url !== 'undefined' && (
-          <div className="mb-3 sm:mb-4">
-            <img
-              src={post.gif.url}
-              alt="GIF"
-              className="w-full max-h-96 rounded-lg object-contain cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedImage(post.gif.url);
-              }}
-            />
-          </div>
-        )}
+          {/* GIF Display - Only show if GIF was actually selected */}
+          {post.gif && post.gif.url && post.gif.url !== 'undefined' && (
+            <div className="mb-3 sm:mb-4">
+              <img
+                src={post.gif.url}
+                alt="GIF"
+                className="w-full max-h-96 rounded-lg object-contain cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImage(post.gif.url);
+                }}
+              />
+            </div>
+          )}
 
-        {/* Voice Recording Display - Only show if voice was actually recorded */}
-        {post.voice && post.voice.url && post.voice.duration && (
-          <div className="mb-3 sm:mb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🎤</span>
-              <div className="flex-1">
-                <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-                  Voice Message
-                </h4>
-                <audio controls className="w-full">
-                  <source src={post.voice.url} type="audio/wav" />
-                  Your browser does not support the audio element.
-                </audio>
-                <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-                  Duration: {post.voice.duration}s
-                  {post.voice.transcription && (
-                    <span className="ml-2">• Transcription: {post.voice.transcription}</span>
-                  )}
-                  {post.voice.originalName && (
-                    <span className="ml-2">• File: {post.voice.originalName}</span>
-                  )}
-                </p>
+          {/* Voice Recording Display - Only show if voice was actually recorded */}
+          {post.voice && post.voice.url && post.voice.duration && (
+            <div className="mb-3 sm:mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🎤</span>
+                <div className="flex-1">
+                  <h4 className={`text-sm sm:text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
+                    Voice Message
+                  </h4>
+                  <audio controls className="w-full">
+                    <source src={post.voice.url} type="audio/wav" />
+                    Your browser does not support the audio element.
+                  </audio>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
+                    Duration: {post.voice.duration}s
+                    {post.voice.transcription && (
+                      <span className="ml-2">• Transcription: {post.voice.transcription}</span>
+                    )}
+                    {post.voice.originalName && (
+                      <span className="ml-2">• File: {post.voice.originalName}</span>
+                    )}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Media */}
-        {post.media && post.media.length > 0 && (
-          <div className={`mb-3 sm:mb-4 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-2 sm:p-3 transition-colors duration-200`}>
-            {post.media.map((media: any, index: number) => {
-              const rawUrl = typeof media === 'string'
-                ? media
-                : (media?.secure_url || media?.url || media?.path || '');
-              const resolvedUrl = getMediaUrl(rawUrl);
+          {/* Media */}
+          {post.media && post.media.length > 0 && (
+            <div className={`mb-3 sm:mb-4 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50'} rounded-lg p-2 sm:p-3 transition-colors duration-200`}>
+              {post.media.map((media: any, index: number) => {
+                const rawUrl = typeof media === 'string'
+                  ? media
+                  : (media?.secure_url || media?.url || media?.path || '');
+                const resolvedUrl = getMediaUrl(rawUrl);
 
-              // Debug logging for album posts
-              if (post.originalAlbum || post.sharedFrom?.albumId) {
-                console.log('Album post media:', {
-                  index,
-                  rawUrl,
-                  resolvedUrl,
-                  media,
-                  postId: post._id,
-                  originalAlbum: post.originalAlbum
-                });
-              }
-              return (
-                <div key={index} className={`mb-2 ${index < post.media.length - 1 ? 'mb-3' : ''} cursor-pointer ${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`} onClick={() => onWatch && onWatch(post)}>
-                  {media.type === 'video' ? (
-                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
-                      <video
-                        src={resolvedUrl}
-                        controls
-                        className="w-full rounded-lg object-contain"
-                        style={{ maxHeight: '80vh' }}
-                      />
-                    </div>
-                  ) : media.type === 'audio' ? (
-                    <div className={`mb-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">🎵</span>
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {media.originalName || media.filename || media.name || 'Audio File'}
-                          </p>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
-                          </p>
-                        </div>
-                        <audio
+                // Debug logging for album posts
+                if (post.originalAlbum || post.sharedFrom?.albumId) {
+                  console.log('Album post media:', {
+                    index,
+                    rawUrl,
+                    resolvedUrl,
+                    media,
+                    postId: post._id,
+                    originalAlbum: post.originalAlbum
+                  });
+                }
+                return (
+                  <div key={index} className={`mb-2 ${index < post.media.length - 1 ? 'mb-3' : ''} cursor-pointer ${isDarkMode ? 'bg-gray-700/50' : 'bg-white'} rounded-lg p-2 transition-colors duration-200`} onClick={() => onWatch && onWatch(post)}>
+                    {media.type === 'video' ? (
+                      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                        <video
                           src={resolvedUrl}
                           controls
-                          className="w-full"
+                          className="w-full rounded-lg object-contain"
+                          style={{ maxHeight: '80vh' }}
                         />
                       </div>
-                    </div>
-                  ) : media.type === 'file' || media.type === 'document' ? (
-                    <div
-                      className={`mb-2 cursor-pointer ${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}
-                      onClick={() => {
-                        // For PDFs and other files, open in new tab with absolute URL
-                        if (media.mimetype?.includes('pdf') || media.mimetype?.includes('text') || media.mimetype?.includes('image')) {
-                          let absoluteUrl = getMediaUrl(media.url);
-                          // Fallback: if a PDF was uploaded as image on Cloudinary older posts may be under /image/upload
-                          // Rewrite to /raw/upload to make Cloudinary serve it as a document
-                          if (absoluteUrl.toLowerCase().endsWith('.pdf') && absoluteUrl.includes('/image/upload/')) {
-                            absoluteUrl = absoluteUrl.replace('/image/upload/', '/raw/upload/');
-                          }
-                          try {
-                            window.open(absoluteUrl, '_blank');
-                          } catch (error) {
-                            // Fallback to download
-                            const link = document.createElement('a');
-                            link.href = absoluteUrl;
-                            link.download = media.originalName || media.filename || media.name || 'download';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">
-                          {media.mimetype?.includes('pdf') ? '📕' :
-                            media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' :
-                              media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' :
-                                media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
-                                  media.mimetype?.includes('text') ? '📝' : '📄'}
-                        </span>
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {media.originalName || media.filename || media.name || 'Document'}
-                          </p>
-                          <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
-                            {media.extension && ` • ${media.extension.toUpperCase()}`}
-                            {media.mimetype && ` • ${media.mimetype.split('/')[1]?.toUpperCase()}`}
-                          </p>
+                    ) : media.type === 'audio' ? (
+                      <div className={`mb-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100'} rounded-lg p-3 transition-colors duration-200`}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🎵</span>
+                          <div className="flex-1">
+                            <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {media.originalName || media.filename || media.name || 'Audio File'}
+                            </p>
+                            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                            </p>
+                          </div>
+                          <audio
+                            src={resolvedUrl}
+                            controls
+                            className="w-full"
+                          />
                         </div>
-
                       </div>
-                    </div>
-                  ) : (
-                    <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
-                      <img
-                        src={resolvedUrl}
-                        alt="Post media"
-                        className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity cursor-pointer"
-                        style={{ maxHeight: '80vh' }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedImage(resolvedUrl);
-                        }}
-                        loading="lazy"
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          console.error('Image failed to load:', {
-                            resolvedUrl,
-                            rawUrl,
-                            mediaItem: media,
-                            postId: post._id,
-                            isShared: post.isShared,
-                            originalAlbum: post.originalAlbum
-                          });
-
-                          // Try fallback to rawUrl if different
-                          if (rawUrl && img.src !== rawUrl && rawUrl !== resolvedUrl) {
-                            img.src = rawUrl;
-                            return;
+                    ) : media.type === 'file' || media.type === 'document' ? (
+                      <div
+                        className={`mb-2 cursor-pointer ${isDarkMode ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg p-3 transition-colors duration-200`}
+                        onClick={() => {
+                          // For PDFs and other files, open in new tab with absolute URL
+                          if (media.mimetype?.includes('pdf') || media.mimetype?.includes('text') || media.mimetype?.includes('image')) {
+                            let absoluteUrl = getMediaUrl(media.url);
+                            // Fallback: if a PDF was uploaded as image on Cloudinary older posts may be under /image/upload
+                            // Rewrite to /raw/upload to make Cloudinary serve it as a document
+                            if (absoluteUrl.toLowerCase().endsWith('.pdf') && absoluteUrl.includes('/image/upload/')) {
+                              absoluteUrl = absoluteUrl.replace('/image/upload/', '/raw/upload/');
+                            }
+                            try {
+                              window.open(absoluteUrl, '_blank');
+                            } catch (error) {
+                              // Fallback to download
+                              const link = document.createElement('a');
+                              link.href = absoluteUrl;
+                              link.download = media.originalName || media.filename || media.name || 'download';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }
                           }
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">
+                            {media.mimetype?.includes('pdf') ? '📕' :
+                              media.mimetype?.includes('word') || media.mimetype?.includes('doc') ? '📘' :
+                                media.mimetype?.includes('excel') || media.mimetype?.includes('xls') ? '📗' :
+                                  media.mimetype?.includes('powerpoint') || media.mimetype?.includes('ppt') ? '📙' :
+                                    media.mimetype?.includes('text') ? '📝' : '📄'}
+                          </span>
+                          <div className="flex-1">
+                            <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {media.originalName || media.filename || media.name || 'Document'}
+                            </p>
+                            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {media.size ? `${(media.size / 1024 / 1024).toFixed(1)}MB` : 'Size unknown'}
+                              {media.extension && ` • ${media.extension.toUpperCase()}`}
+                              {media.mimetype && ` • ${media.mimetype.split('/')[1]?.toUpperCase()}`}
+                            </p>
+                          </div>
 
-                          // If still failing, show error placeholder
-                          img.style.display = 'none';
-                          const fallback = document.createElement('div');
-                          fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
-                          fallback.innerHTML = `
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'} rounded-lg p-1 transition-colors duration-200`}>
+                        <img
+                          src={resolvedUrl}
+                          alt="Post media"
+                          className="w-full rounded-lg object-contain hover:opacity-90 transition-opacity cursor-pointer"
+                          style={{ maxHeight: '80vh' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedImage(resolvedUrl);
+                          }}
+                          loading="lazy"
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            console.error('Image failed to load:', {
+                              resolvedUrl,
+                              rawUrl,
+                              mediaItem: media,
+                              postId: post._id,
+                              isShared: post.isShared,
+                              originalAlbum: post.originalAlbum
+                            });
+
+                            // Try fallback to rawUrl if different
+                            if (rawUrl && img.src !== rawUrl && rawUrl !== resolvedUrl) {
+                              img.src = rawUrl;
+                              return;
+                            }
+
+                            // If still failing, show error placeholder
+                            img.style.display = 'none';
+                            const fallback = document.createElement('div');
+                            fallback.className = `w-full h-64 sm:h-96 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'} rounded-lg shadow-lg flex items-center justify-center`;
+                            fallback.innerHTML = `
                           <div class="text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}">
                             <div class="text-4xl mb-2">🖼️</div>
                             <div class="text-sm">Image could not be loaded</div>
                             <div class="text-xs mt-1 opacity-75">Check your connection</div>
                           </div>
                         `;
-                          img.parentNode?.appendChild(fallback);
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                            img.parentNode?.appendChild(fallback);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-      {/* Action Buttons - Matching the image structure */}
-      <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-        {/* Top Section: Engagement Metrics & Reactions */}
-        <div className="flex flex-row items-center justify-between mb-3 sm:mb-4">
-          {/* Left Side: Reactions */}
-          <div className="flex items-center">
-            {(post.reactions?.length > 0 || post.likes?.length > 0) && (
-              <ReactionAvatarDisplay
-                likes={post.likes}
-                reactions={post.reactions}
-                currentUserLike={isLiked}
-              />
-            )}
-          </div>
-
-          {/* Right Side: Engagement Metrics */}
-          <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
-              </svg> */}
-              <span className="text-xs sm:text-sm">{post.comments?.length || 0} Comments</span>
+        {/* Action Buttons - Matching the image structure */}
+        <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+          {/* Top Section: Engagement Metrics & Reactions */}
+          <div className="flex flex-row items-center justify-between mb-3 sm:mb-4">
+            {/* Left Side: Reactions */}
+            <div className="flex items-center">
+              {(post.reactions?.length > 0 || post.likes?.length > 0) && (
+                <ReactionAvatarDisplay
+                  likes={post.likes}
+                  reactions={post.reactions}
+                  currentUserLike={isLiked}
+                />
+              )}
             </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-              </svg> */}
-              <span className="text-xs sm:text-sm">{post.views?.length || 0} Views</span>
-            </div>
+            {/* Right Side: Engagement Metrics */}
+            <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
 
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              {/* <svg className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-              </svg> */}
-              <span className="text-xs sm:text-sm">{post.reviews?.length || 0} Reviews</span>
+
+              <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-blue-500 cursor-pointer transition-colors">
+                <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm">{post.comments?.length || 0} </span>
+              </div>
+
+              <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-green-500 cursor-pointer transition-colors">
+                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm">{post.views?.length || 0} </span>
+              </div>
+
+              <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-yellow-500 cursor-pointer transition-colors">
+                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
+                <span className="text-xs sm:text-sm">{post.reviews?.length || 0} </span>
+              </div>
             </div>
           </div>
         </div>
@@ -1699,6 +1702,10 @@ const FeedPost: React.FC<FeedPostProps> = ({
             >
               <button
                 disabled={isReacting}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReaction(getCurrentReaction() || 'like');
+                }}
                 className="flex flex-col items-center space-y-1 sm:space-y-2 md:space-y-3 transition-colors touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 style={{ touchAction: 'manipulation' }}
                 ref={reactionButtonRef}
@@ -2094,42 +2101,46 @@ const FeedPost: React.FC<FeedPostProps> = ({
       </div>
 
       {/* Share Popup */}
-      {showSharePopup && (
-        <SharePopup
-          isOpen={showSharePopup}
-          onClose={() => setShowSharePopup(false)}
-          onShare={handleShareConfirm}
-          postContent={post.content}
-          postMedia={post.media}
-        />
-      )}
+      {
+        showSharePopup && (
+          <SharePopup
+            isOpen={showSharePopup}
+            onClose={() => setShowSharePopup(false)}
+            onShare={handleShareConfirm}
+            postContent={post.content}
+            postMedia={post.media}
+          />
+        )
+      }
       {/* Image Popup */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-90 p-4 transition-opacity duration-300 animate-in fade-in"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button
-            className="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 transition-all z-[101]"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedImage(null);
-            }}
+      {
+        selectedImage && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-90 p-4 transition-opacity duration-300 animate-in fade-in"
+            onClick={() => setSelectedImage(null)}
           >
-            <X size={24} />
-          </button>
-          <div className="relative max-w-full max-h-full flex items-center justify-center">
-            <img
-              src={selectedImage}
-              alt="Full screen"
-              className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+            <button
+              className="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 transition-all z-[101]"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(null);
+              }}
+            >
+              <X size={24} />
+            </button>
+            <div className="relative max-w-full max-h-full flex items-center justify-center">
+              <img
+                src={selectedImage}
+                alt="Full screen"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </>
   );
 };
 
-export default FeedPost; 
+export default FeedPost;
