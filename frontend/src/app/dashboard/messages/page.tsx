@@ -185,6 +185,7 @@ export default function MessagesPage() {
   const localStream = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const iceCandidatesBuffer = useRef<RTCIceCandidateInit[]>([]);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const messages = selectedConversation ? (allMessages[selectedConversation._id] || []) : [];
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -1752,6 +1753,32 @@ export default function MessagesPage() {
     }
   }, [currentCall, callType]);
 
+  // Handle ringtone for audio calls (outgoing/incoming)
+  useEffect(() => {
+    if (showCallInterface && (callType === 'outgoing' || callType === 'incoming')) {
+      // Play ringtone using the ref to the DOM element
+      if (ringtoneRef.current) {
+        console.log('🔊 Starting ringtone playback (local)...');
+        ringtoneRef.current.play().catch(err => {
+          console.warn('🔊 Local ringtone playback failed:', err);
+        });
+      }
+    } else {
+      // Stop ringtone
+      if (ringtoneRef.current) {
+        console.log('🔊 Stopping ringtone playback (local).');
+        ringtoneRef.current.pause();
+        ringtoneRef.current.currentTime = 0;
+      }
+    }
+
+    return () => {
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+      }
+    };
+  }, [showCallInterface, callType]);
+
   // WebRTC Connection Orchestrator
   useEffect(() => {
     if (callType === 'active' && currentCall) {
@@ -2575,6 +2602,9 @@ export default function MessagesPage() {
         isVisible={showCallHistory}
         onClose={() => setShowCallHistory(false)}
       />
+
+      {/* Hidden audio element for ringtone */}
+      <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
 
       {/* Floating New Message Button */}
       <button

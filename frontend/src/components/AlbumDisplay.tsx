@@ -745,24 +745,21 @@ export default function AlbumDisplay({
 
           {/* Right Side: Engagement Metrics */}
           <div className={`flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-blue-500 cursor-pointer transition-colors">
-              <ThumbsUp className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="text-xs sm:text-sm">{getReactionCount()} Likes</span>
-            </div>
+
 
             <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-blue-500 cursor-pointer transition-colors">
               <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="text-xs sm:text-sm">{album.comments?.length || 0} Comments</span>
+              <span className="text-xs sm:text-sm">{album.comments?.length || 0} </span>
             </div>
 
             <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-green-500 cursor-pointer transition-colors">
               <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="text-xs sm:text-sm">{album.views?.length || 0} Views</span>
+              <span className="text-xs sm:text-sm">{album.views?.length || 0} </span>
             </div>
 
             <div className="flex items-center space-x-1 sm:space-x-1.5 hover:text-yellow-500 cursor-pointer transition-colors">
               <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
-              <span className="text-xs sm:text-sm">{album.reviews?.length || 0} Reviews</span>
+              <span className="text-xs sm:text-sm">{album.reviews?.length || 0} </span>
             </div>
           </div>
         </div>

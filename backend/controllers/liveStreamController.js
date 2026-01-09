@@ -124,9 +124,28 @@ const getStreamDetails = async (req, res) => {
     }
 };
 
+// Check if a specific user is live
+const checkUserLiveStatus = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const liveStream = await LiveStream.findOne({ hostId: userId, status: 'live' })
+            .populate('hostId', 'name username avatar');
+
+        res.status(200).json({
+            success: true,
+            isLive: !!liveStream,
+            data: liveStream
+        });
+    } catch (error) {
+        console.error('Error checking user live status:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+};
+
 module.exports = {
     startStream,
     endStream,
     getActiveStreams,
-    getStreamDetails
+    getStreamDetails,
+    checkUserLiveStatus
 };

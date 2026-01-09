@@ -5,10 +5,12 @@ const {
     startStream,
     endStream,
     getActiveStreams,
-    getStreamDetails
+    getStreamDetails,
+    checkUserLiveStatus
 } = require('../controllers/liveStreamController');
 
 router.get('/active', getActiveStreams);
+router.get('/user/:userId/status', checkUserLiveStatus);
 router.get('/:streamId', getStreamDetails);
 
 router.use(authMiddleware); // Protective middleware for following routes

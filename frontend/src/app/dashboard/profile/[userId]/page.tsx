@@ -8,6 +8,7 @@ import Popup, { PopupState } from '@/components/Popup';
 import FeedPost from '@/components/FeedPost';
 import AlbumDisplay from '@/components/AlbumDisplay';
 import AICreditConfirmation from '@/components/AICreditConfirmation';
+import LiveStreamModal from '@/components/LiveStreamModal';
 import { useDarkMode } from '@/contexts/DarkModeContext';
 
 interface Post {
@@ -242,6 +243,12 @@ const UserProfile: React.FC = () => {
   // Website settings state
   const [websiteSettings, setWebsiteSettings] = useState<any>(null);
 
+  // Live Stream State
+  const [isUserLive, setIsUserLive] = useState(false);
+  const [activeStreamData, setActiveStreamData] = useState<any>(null);
+  const [showLiveModal, setShowLiveModal] = useState(false);
+  const [isHost, setIsHost] = useState(false);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -419,8 +426,23 @@ const UserProfile: React.FC = () => {
       fetchUserProducts();
       fetchUserJobs();
       fetchUserActivities();
+      fetchUserLiveStatus();
     }
   }, [actualUserId]);
+
+  const fetchUserLiveStatus = async () => {
+    try {
+      if (!actualUserId) return;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/live-streams/user/${actualUserId}/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsUserLive(data.isLive);
+        setActiveStreamData(data.data);
+      }
+    } catch (e) {
+      console.error('Error fetching user live status:', e);
+    }
+  };
 
   // Event listeners for updates
   useEffect(() => {
@@ -608,6 +630,11 @@ const UserProfile: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const closeLiveModal = () => {
+    setShowLiveModal(false);
+    fetchUserLiveStatus(); // Refresh status when modal closes
   };
 
   const fetchUserImages = async () => {
@@ -2119,16 +2146,21 @@ const UserProfile: React.FC = () => {
           {/* Profile Picture and Actions */}
           <div className="flex flex-col items-center gap-3 mb-4">
             {/* Profile Picture */}
-            <div className="relative">
+            <div className="relative group">
               <img
                 src={avatarPreview || (userImages.avatar ? getMediaUrl(userImages.avatar) : (user.avatar && user.avatar !== '/avatars/1.png.png' ? getMediaUrl(user.avatar) : '/default-avatar.svg'))}
                 alt={user.name}
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-xl object-cover bg-gray-200"
+                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white shadow-xl object-cover bg-gray-200 ${isUserLive ? 'ring-4 ring-pink-500 ring-offset-4 animate-pulse' : ''}`}
                 onError={(e) => {
                   console.log('❌ Avatar load failed for user:', user.name, 'URL:', user.avatar);
                   e.currentTarget.src = '/default-avatar.svg';
                 }}
               />
+              {isUserLive && (
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-pink-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg">
+                  Live
+                </div>
+              )}
               {isCurrentUser && (
                 <>
                   <label className="absolute bottom-1 right-1 w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-colors shadow-lg z-10">
@@ -2244,6 +2276,19 @@ const UserProfile: React.FC = () => {
                     <Edit className="w-4 h-4" />
                     <span>Edit</span>
                   </button>
+
+                  {isUserLive && (
+                    <button
+                      onClick={() => {
+                        setIsHost(isCurrentUser);
+                        setShowLiveModal(true);
+                      }}
+                      className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2 animate-bounce"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span className="text-sm font-medium">Watch Live</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => setActiveTab('activities')}
                     className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm ${isDarkMode
@@ -3226,7 +3271,7 @@ const UserProfile: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-200 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
                       }`}>
                       <Camera className="w-8 h-8 text-gray-400" />
                     </div>
@@ -4556,6 +4601,13 @@ const UserProfile: React.FC = () => {
         creditPrice={websiteSettings?.ai?.creditSystem?.creditPrice || 100}
         userBalance={user?.balanceValue || 0}
         isGenerating={generatingImage}
+      />
+      <LiveStreamModal
+        isOpen={showLiveModal}
+        onClose={closeLiveModal}
+        streamId={activeStreamData?._id}
+        isHost={isHost}
+        initialData={activeStreamData}
       />
     </div>
   );

@@ -72,6 +72,11 @@ const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ isOpen, onClose, stre
             setReactions([]);
             setViewerCount(0);
 
+            if (propsIsHost) {
+                setInputTitle('');
+                setInputDescription('');
+            }
+
             // If opening as host, ensure we reset streams so preview can start
             if (propsIsHost) {
                 // We don't nullify localStream here to avoid flicker if it persists, 
@@ -238,8 +243,16 @@ const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ isOpen, onClose, stre
         }
     }, [localStream, remoteStream, isHost, isOpen]);
 
+    const [inputTitle, setInputTitle] = useState('');
+    const [inputDescription, setInputDescription] = useState('');
+
     const startBroadcast = async () => {
         try {
+            if (!inputTitle.trim()) {
+                showPopup('error', 'Title Required', 'Please enter a title for your live stream.');
+                return;
+            }
+
             setIsStarting(true);
 
             let currentStream = localStream;
@@ -274,8 +287,8 @@ const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ isOpen, onClose, stre
                     'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    title: 'Live Stream',
-                    description: 'Broadcasting live!'
+                    title: inputTitle,
+                    description: inputDescription
                 })
             });
 
@@ -501,21 +514,47 @@ const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ isOpen, onClose, stre
                         {/* Start Broadcast Overlay */}
                         {isHost && !streamId && (
                             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
-                                <div className="flex flex-col items-center gap-6 p-8 text-center animate-fade-in">
-                                    <div className="w-24 h-24 rounded-full bg-pink-500/20 flex items-center justify-center animate-pulse">
-                                        <Video className="w-12 h-12 text-pink-500" />
+                                <div className="flex flex-col items-center gap-4 p-8 text-center animate-fade-in w-full max-w-md">
+                                    <div className="w-20 h-20 rounded-full bg-pink-500/20 flex items-center justify-center animate-pulse mb-2">
+                                        <Video className="w-10 h-10 text-pink-500" />
                                     </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold text-white mb-2">Ready to go Live?</h2>
-                                        <p className="text-gray-400 max-w-xs">Share your moments with your followers in real-time.</p>
+                                    <div className="w-full space-y-4">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-white mb-1">Ready to go Live?</h2>
+                                            <p className="text-gray-400 text-sm">Fill in the details below to start your broadcast.</p>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <div className="text-left">
+                                                <label className="text-xs font-bold text-gray-400 uppercase ml-1">Stream Title</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter stream title..."
+                                                    value={inputTitle}
+                                                    onChange={(e) => setInputTitle(e.target.value)}
+                                                    className={`w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-all`}
+                                                />
+                                            </div>
+                                            <div className="text-left">
+                                                <label className="text-xs font-bold text-gray-400 uppercase ml-1">Brief Description (Optional)</label>
+                                                <textarea
+                                                    placeholder="What's this stream about?"
+                                                    value={inputDescription}
+                                                    onChange={(e) => setInputDescription(e.target.value)}
+                                                    rows={2}
+                                                    className={`w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:border-pink-500 transition-all resize-none`}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={startBroadcast}
+                                            disabled={isStarting}
+                                            className="w-full py-4 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-bold transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 shadow-lg shadow-pink-500/20 mt-4"
+                                        >
+                                            {isStarting ? 'Preparing...' : 'Start Broadcast'}
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={startBroadcast}
-                                        disabled={isStarting}
-                                        className="px-8 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-full font-bold transition-all transform hover:scale-105 active:scale-95 disabled:opacity-50 shadow-lg shadow-pink-500/20"
-                                    >
-                                        {isStarting ? 'Preparing...' : 'Start Broadcast'}
-                                    </button>
                                 </div>
                             </div>
                         )}
@@ -626,11 +665,24 @@ const LiveStreamModal: React.FC<LiveStreamModalProps> = ({ isOpen, onClose, stre
                             <button onClick={() => setShowChat(false)} className="md:hidden text-gray-500 hover:bg-gray-100 p-2 rounded-full transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
-                            <button className="text-pink-500 hover:bg-pink-500/10 p-2 rounded-full transition-colors hidden md:block">
-                                <Star className="w-5 h-5" />
-                            </button>
                         </div>
                     </div>
+
+                    {/* Stream Info Area */}
+                    {(streamData?.title || streamData?.description) && (
+                        <div className={`p-4 border-b ${isDarkMode ? 'bg-gray-800/50' : 'bg-pink-50/30'}`}>
+                            {streamData?.title && (
+                                <h4 className={`font-bold text-sm mb-1 ${isDarkMode ? 'text-pink-400' : 'text-pink-600'}`}>
+                                    {streamData.title}
+                                </h4>
+                            )}
+                            {streamData?.description && (
+                                <p className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} line-clamp-2`}>
+                                    {streamData.description}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Chat Area */}
                     <div className="flex-1 p-4 overflow-y-auto custom-scrollbar flex flex-col gap-4">

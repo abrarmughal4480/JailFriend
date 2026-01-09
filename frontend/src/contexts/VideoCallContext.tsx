@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import VideoCallService from '@/services/videoCallService';
 import { getToken, getCurrentUserId, getCurrentUser } from '@/utils/auth';
 import socketService from '@/services/socketService';
@@ -41,6 +41,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
   const [showAudioCallNotification, setShowAudioCallNotification] = useState(false);
   const [callTimer, setCallTimer] = useState(30);
   const [audioCallTimer, setAudioCallTimer] = useState(30);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Request notification permission on app load
@@ -189,25 +190,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
       setIncomingAudioCall(callData);
       setShowAudioCallNotification(true);
       setAudioCallTimer(30);
-
-      // Play ringtone for audio call
-      try {
-        const audio = new Audio('/ringtone.mp3');
-        audio.play().catch(() => {
-          // Fallback ringtone if file not found
-          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.type = 'sine';
-          oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
-          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-          gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.1);
-          oscillator.start();
-          setTimeout(() => oscillator.stop(), 2000);
-        });
-      } catch (e) { }
+      // Audio playback is now handled by useEffect based on showAudioCallNotification
     };
 
     window.addEventListener('socket_incoming_call', handleIncomingAudioCall);
@@ -215,6 +198,10 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
     return () => {
       if (videoCallService) {
         videoCallService.disconnect();
+      }
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+        ringtoneRef.current = null;
       }
       window.removeEventListener('socket_incoming_call', handleIncomingAudioCall);
     };
@@ -260,6 +247,19 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
       return () => clearTimeout(timer);
     }
   }, [showAudioCallNotification, audioCallTimer, incomingAudioCall]);
+
+  useEffect(() => {
+    if (showAudioCallNotification && ringtoneRef.current) {
+      console.log('🔊 Starting ringtone playback...');
+      ringtoneRef.current.play().catch(err => {
+        console.warn('🔊 Autoplay blocked or failed:', err);
+      });
+    } else if (!showAudioCallNotification && ringtoneRef.current) {
+      console.log('🔊 Stopping ringtone playback.');
+      ringtoneRef.current.pause();
+      ringtoneRef.current.currentTime = 0;
+    }
+  }, [showAudioCallNotification]);
 
   const acceptVideoCall = (callId: string) => {
     if (videoCallService && incomingVideoCall) {
@@ -325,6 +325,9 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
   return (
     <VideoCallContext.Provider value={value}>
       {children}
+
+      {/* Hidden audio element for ringtone */}
+      <audio ref={ringtoneRef} src="/ringtone.mp3" loop hidden />
 
       {/* Global Video Call Notification */}
       {showVideoCallNotification && incomingVideoCall && (
@@ -464,7 +467,7 @@ export const VideoCallProvider: React.FC<VideoCallProviderProps> = ({ children }
                   className="flex-1 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white rounded-2xl h-14 flex items-center justify-center space-x-2 font-medium transition-all duration-200 transform hover:scale-105 active:scale-95 shadow-lg video-call-button"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
                   <span>Accept</span>
                 </button>
